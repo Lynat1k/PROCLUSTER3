@@ -225,8 +225,9 @@ export default function ClusterChart({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    if (y >= margin.top && y <= margin.top + chartHeight && x >= margin.left && x <= scrollWidth) {
-      const price = yToPrice(y);
+    if (y >= margin.top && y <= totalSvgHeight - margin.bottom && x >= margin.left && x <= scrollWidth) {
+      const clampedYForPrice = Math.min(margin.top + chartHeight, Math.max(margin.top, y));
+      const price = yToPrice(clampedYForPrice);
       setCrosshair({ x, y, price });
 
       // Identify hovered cell mathematically
@@ -374,12 +375,29 @@ export default function ClusterChart({
       });
     }
 
+    // 3.8 Draw solid footer strip for secondary timeline panel decoration
+    ctx.save();
+    ctx.fillStyle = isLight ? "#f1f5f9" : "#090b12";
+    ctx.fillRect(0, totalSvgHeight - margin.bottom, scrollWidth, margin.bottom);
+    ctx.beginPath();
+    ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.1)" : "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, totalSvgHeight - margin.bottom);
+    ctx.lineTo(scrollWidth, totalSvgHeight - margin.bottom);
+    ctx.stroke();
+    ctx.restore();
+
     // 4. Draw each candlestick
     candles.forEach((candle, cIdx) => {
       const x = margin.left + cIdx * (candleWidth + candleSpacing);
       const bodyY1 = priceToY(Math.max(candle.open, candle.close));
       const bodyY2 = priceToY(Math.min(candle.open, candle.close));
       const isGreen = candle.close >= candle.open;
+
+      const hoveredCandleIdx = crosshair
+        ? Math.floor((crosshair.x - margin.left) / (candleWidth + candleSpacing))
+        : -1;
+      const isHoveredCol = crosshair && cIdx === hoveredCandleIdx;
 
       // Draw vertical alignment gridline behind column
       ctx.beginPath();
@@ -697,14 +715,44 @@ export default function ClusterChart({
 
       // D. Time Axis Label
       ctx.save();
-      ctx.font = "bold 9px Fira Code, monospace";
-      ctx.fillStyle = "#475569";
-      ctx.textAlign = "center";
+      const isHovered = isHoveredCol;
       const timeStr = new Date(candle.timestamp).toLocaleTimeString(undefined, {
         hour: "2-digit",
         minute: "2-digit",
       });
-      ctx.fillText(timeStr, x + candleWidth / 2, totalSvgHeight - margin.bottom + 16);
+
+      if (isHovered) {
+        ctx.font = "bold 9px Fira Code, monospace";
+        const textWidth = ctx.measureText(timeStr).width;
+        const padX = 6;
+        const padY = 3;
+        const rectW = textWidth + padX * 2;
+        const rectH = 15;
+        const rectX = x + candleWidth / 2 - rectW / 2;
+        const rectY = totalSvgHeight - margin.bottom + 16 - rectH / 2;
+
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(rectX, rectY, rectW, rectH, 3);
+        } else {
+          ctx.rect(rectX, rectY, rectW, rectH);
+        }
+        ctx.fillStyle = isLight ? "rgba(15, 23, 42, 0.08)" : "rgba(245, 158, 11, 0.15)";
+        ctx.fill();
+
+        ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.18)" : "rgba(245, 158, 11, 0.35)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = isLight ? "#0f172a" : "#f59e0b";
+        ctx.textAlign = "center";
+        ctx.fillText(timeStr, x + candleWidth / 2, totalSvgHeight - margin.bottom + 16);
+      } else {
+        ctx.font = "bold 9px Fira Code, monospace";
+        ctx.fillStyle = "#475569";
+        ctx.textAlign = "center";
+        ctx.fillText(timeStr, x + candleWidth / 2, totalSvgHeight - margin.bottom + 16);
+      }
       ctx.restore();
     });
 
@@ -748,7 +796,7 @@ export default function ClusterChart({
 
       // Vertical crosshair inside Price chart panel
       ctx.moveTo(crosshair.x, margin.top);
-      ctx.lineTo(crosshair.x, margin.top + chartHeight);
+      ctx.lineTo(crosshair.x, totalSvgHeight - margin.bottom);
       
       ctx.stroke();
       ctx.restore();
@@ -891,17 +939,23 @@ export default function ClusterChart({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUpOrLeave}
           onMouseLeave={handleMouseUpOrLeave}
-          className={`flex-1 overflow-x-auto overflow-y-hidden select-none terminal-grid transition-all duration-300 ${
+          className={`flex-1 overflow-x-auto overflow-y-hidden select-none terminal-grid relative transition-all duration-300 ${
             isLight ? "bg-[#f8fafc]" : "bg-[#06080f]"
           } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
           style={{ scrollBehavior: "auto" }}
         >
-          <canvas
-            ref={canvasRef}
-            onMouseMove={handleSvgMouseMove}
-            onMouseLeave={handleSvgMouseLeave}
-            className="relative block"
-          />
+          {candles.length === 0 ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-[#06080f]/80 z-25">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
+            </div>
+          ) : (
+            <canvas
+              ref={canvasRef}
+              onMouseMove={handleSvgMouseMove}
+              onMouseLeave={handleSvgMouseLeave}
+              className="relative block"
+            />
+          )}
         </div>
 
       {/* Fixed Price Scale Panel on the Right */}

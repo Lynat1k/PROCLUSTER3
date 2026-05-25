@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Indicator, IndicatorSettings } from "../types";
 import { X, Search, Star, Trash2, Eye, EyeOff, Layers, Settings, Activity } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -28,12 +28,53 @@ export default function IndicatorsModal({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string>("clusterSearch");
 
+  // Draggable window positioning state
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const modalOffset = useRef({ x: 0, y: 0 });
+
   useEffect(() => {
     if (isOpen) {
       // Deep copy to ensure safety of draft manipulation
       setDraft(JSON.parse(JSON.stringify(indicators)));
+      setOffset({ x: 0, y: 0 }); // Reset window offset on open
     }
   }, [isOpen, indicators]);
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      setOffset({
+        x: modalOffset.current.x + dx,
+        y: modalOffset.current.y + dy
+      });
+    };
+
+    const handleMouseUp = () => {
+      setDragging(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragging]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.target instanceof HTMLElement && e.target.closest(".no-drag")) {
+      return; // Do not drag when clicking on button or controls
+    }
+    if (e.button !== 0) return;
+    setDragging(true);
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    modalOffset.current = { ...offset };
+  };
 
   if (!isOpen) return null;
 
@@ -110,37 +151,44 @@ export default function IndicatorsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none bg-transparent">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.94, y: 15 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.94, y: 15 }}
-        className={`pointer-events-auto w-full max-w-4xl h-[580px] rounded-3xl flex flex-col overflow-hidden font-sans transition-all duration-300 border shadow-2xl ${
-          isLight
-            ? "bg-white border-slate-200 text-slate-800"
-            : "bg-[#0F1420]/98 border border-white/10 text-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.85)]"
-        }`}
+      <div 
+        className="pointer-events-auto relative"
+        style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
       >
-        {/* HEADER */}
-        <div className={`flex items-center justify-between px-6 py-4.5 border-b transition-all duration-300 ${
-          isLight ? "bg-slate-50 border-slate-200/80 text-slate-800" : "border-white/5 bg-slate-950/20"
-        }`}>
-          <div className="flex items-center gap-2.5">
-            <Layers className="w-5 h-5 text-blue-500" />
-            <span className="text-base font-bold tracking-wide">
-              Индикаторы <span className={`${isLight ? "text-slate-500" : "text-slate-450"} font-medium font-mono`}>→ {symbol}</span>
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            className={`p-1 rounded-full transition-colors cursor-pointer ${
-              isLight
-                ? "hover:bg-slate-200/55 text-slate-550 hover:text-slate-800"
-                : "hover:bg-white/5 text-slate-400 hover:text-slate-100"
+        <motion.div
+          initial={{ opacity: 0, scale: 0.94, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.94, y: 15 }}
+          className={`w-full max-w-4xl h-[580px] rounded-3xl flex flex-col overflow-hidden font-sans transition-all duration-300 border shadow-2xl ${
+            isLight
+              ? "bg-white border-slate-200 text-slate-850"
+              : "bg-[#0F1420]/98 border border-white/10 text-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.85)]"
+          }`}
+        >
+          {/* HEADER (Draggable panel header) */}
+          <div 
+            onMouseDown={handleMouseDown}
+            className={`flex items-center justify-between px-6 py-4.5 border-b transition-all duration-300 cursor-grab active:cursor-grabbing select-none ${
+              isLight ? "bg-slate-50 border-slate-200/80 text-slate-800" : "border-white/5 bg-slate-950/20"
             }`}
           >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+            <div className="flex items-center gap-2.5 pointer-events-none">
+              <Layers className="w-5 h-5 text-blue-500" />
+              <span className="text-base font-bold tracking-wide">
+                Индикаторы <span className={`${isLight ? "text-slate-500" : "text-slate-450"} font-medium font-mono`}>→ {symbol}</span>
+              </span>
+            </div>
+            <button
+              onClick={onClose}
+              className={`p-1 rounded-full transition-colors cursor-pointer no-drag ${
+                isLight
+                  ? "hover:bg-slate-200/55 text-slate-550 hover:text-slate-800"
+                  : "hover:bg-white/5 text-slate-400 hover:text-slate-100"
+              }`}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
         {/* WORKSPACE AREA */}
         <div className="flex-1 flex min-h-0 overflow-hidden">
@@ -647,6 +695,7 @@ export default function IndicatorsModal({
           </div>
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }

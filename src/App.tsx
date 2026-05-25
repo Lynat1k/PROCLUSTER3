@@ -15,7 +15,8 @@ import Header from "./components/Header";
 import ClusterChart from "./components/ClusterChart";
 import DOMSidebar from "./components/DOMSidebar";
 import IndicatorsModal from "./components/IndicatorsModal";
-import { TrendingUp, TrendingDown, Layers, Activity, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid } from "lucide-react";
+import AdminPanel from "./components/AdminPanel";
+import { TrendingUp, TrendingDown, Layers, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
@@ -154,6 +155,7 @@ export default function App() {
   ]);
 
   const [isIndicatorsModalOpen, setIsIndicatorsModalOpen] = useState<boolean>(false);
+  const [currentView, setCurrentView] = useState<"terminal" | "admin">("terminal");
   const [showTickerMenu, setShowTickerMenu] = useState<boolean>(false);
   const tickerMenuRef = useRef<HTMLDivElement>(null);
 
@@ -516,8 +518,107 @@ export default function App() {
     setAiTargets({ support: sup, resistance: res });
   };
 
+  // --- Admin Panel API Callbacks ---
+  const handleUpdatePairPrice = (symbol: string, newPrice: number) => {
+    setPairs((prev) =>
+      prev.map((p) => {
+        if (p.symbol === symbol) {
+          const updated = { ...p, price: newPrice };
+          if (activePairRef.current.symbol === symbol) {
+            setActivePair(updated);
+          }
+          return updated;
+        }
+        return p;
+      })
+    );
+    // Inject custom tick immediately to realign the Footprint engine scale
+    const tick = {
+      id: "admin-force-price-" + Math.random().toString(36).substring(2, 9),
+      timestamp: Date.now(),
+      price: newPrice,
+      amount: activePairRef.current.priceStep * (20 + Math.random() * 30),
+      side: "buy" as const
+    };
+    incomingTradesBufferRef.current.push(tick);
+  };
+
+  const handleInjectWhaleTrade = (side: "buy" | "sell", amount: number) => {
+    const tick = {
+      id: "admin-whale-block-" + Math.random().toString(36).substring(2, 9),
+      timestamp: Date.now(),
+      price: activePair.price,
+      amount: amount,
+      side: side
+    };
+    incomingTradesBufferRef.current.push(tick);
+  };
+
+  const handleClearHistory = () => {
+    setCandles([]);
+    setTrades([]);
+  };
+
+  const handleAddPair = (newPair: CryptoPair) => {
+    setPairs(prev => [...prev, newPair]);
+  };
+
+  const handleApplyAnomaly = (type: "pump" | "dump" | "spike" | "whale-wall") => {
+    if (type === "pump") {
+      const current = activePair.price;
+      const ticks = [];
+      for (let i = 1; i <= 20; i++) {
+        ticks.push({
+          id: `pump-tick-${i}-${Math.random()}`,
+          timestamp: Date.now() + i * 25,
+          price: current * (1 + (i * 0.003)),
+          amount: activePair.priceStep * (15 + Math.random() * 45),
+          side: "buy" as const
+        });
+      }
+      incomingTradesBufferRef.current.push(...ticks);
+    } else if (type === "dump") {
+      const current = activePair.price;
+      const ticks = [];
+      for (let i = 1; i <= 20; i++) {
+        ticks.push({
+          id: `dump-tick-${i}-${Math.random()}`,
+          timestamp: Date.now() + i * 25,
+          price: current * (1 - (i * 0.003)),
+          amount: activePair.priceStep * (15 + Math.random() * 45),
+          side: "sell" as const
+        });
+      }
+      incomingTradesBufferRef.current.push(...ticks);
+    } else if (type === "spike") {
+      const current = activePair.price;
+      const ticks = [
+        {
+          id: `spike-high-${Math.random()}`,
+          timestamp: Date.now(),
+          price: current * 1.045,
+          amount: activePair.priceStep * 250,
+          side: "sell" as const
+        },
+        {
+          id: `spike-low-${Math.random()}`,
+          timestamp: Date.now() + 40,
+          price: current * 0.955,
+          amount: activePair.priceStep * 280,
+          side: "buy" as const
+        }
+      ];
+      incomingTradesBufferRef.current.push(...ticks);
+    } else if (type === "whale-wall") {
+      setOrderBook(prev => ({
+        bids: prev.bids.map((r, i) => i === 1 ? { ...r, amount: r.amount * 12, total: r.total * 12 } : r),
+        asks: prev.asks.map((r, i) => i === 1 ? { ...r, amount: r.amount * 12, total: r.total * 12 } : r)
+      }));
+    }
+  };
+
   return (
-    <div className={`min-h-screen flex flex-col font-sans select-none antialiased relative overflow-hidden transition-all duration-300 ${
+    <div className={`h-screen max-h-screen flex flex-col font-sans select-none antialiased relative overflow-hidden transition-all duration-300 ${
       theme === "light" ? "bg-[#f1f5f9] text-slate-900" : "bg-[#030712]/92 text-slate-100"
     }`}>
       {/* Dynamic Drifting Liquid Background Blobs (Lava-lamp style glass ambient glow) */}
@@ -535,9 +636,31 @@ export default function App() {
         connectionStatus={connectionStatus}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onOpenAdmin={() => setCurrentView(prev => prev === "admin" ? "terminal" : "admin")}
       />
 
-      {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
+      {currentView === "admin" ? (
+        <AdminPanel
+          isOpen={true}
+          onClose={() => setCurrentView("terminal")}
+          theme={theme}
+          activePair={activePair}
+          pairs={pairs}
+          connectionStatus={connectionStatus}
+          isTickingAll={isTickingAll}
+          onToggleTicking={() => setIsTickingAll(!isTickingAll)}
+          onSetConnectionStatus={setConnectionStatus}
+          onUpdatePairPrice={handleUpdatePairPrice}
+          onInjectWhaleTrade={handleInjectWhaleTrade}
+          onClearHistory={handleClearHistory}
+          onApplyAnomaly={handleApplyAnomaly}
+          marketType={marketType}
+          onSetMarketType={setMarketType}
+          onAddPair={handleAddPair}
+        />
+      ) : (
+        <>
+          {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
       <section className={`backdrop-blur-md border-b px-6 py-4 flex flex-wrap items-center justify-between gap-6 relative z-30 transition-shadow duration-300 ${
         theme === "light"
           ? "bg-white/80 border-slate-200/80 shadow-sm"
@@ -769,22 +892,7 @@ export default function App() {
             </button>
           </div>
 
-          {/* 4. Net Change Info */}
-          <div>
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-1 ${
-              theme === "light" ? "text-slate-500" : "text-slate-400/80"
-            }`}>
-              Net Change Percent (24h)
-            </span>
-            <span
-              className={`text-sm font-black font-mono flex items-center gap-1 leading-none py-1.5 block ${
-                activePair.change24h >= 0 ? "text-emerald-550" : "text-rose-550"
-              }`}
-            >
-              {activePair.change24h >= 0 ? "+" : ""}
-              {activePair.change24h}%
-            </span>
-          </div>
+
 
           {/* AI derive targets banner overlays */}
           {aiTargets.support && aiTargets.resistance && (
@@ -814,19 +922,7 @@ export default function App() {
           )}
         </div>
 
-        {/* Global Delta Ticker info bar */}
-        <div className={`backdrop-blur-md border rounded px-3 py-1 flex items-center gap-2.5 font-mono text-xs transition-all duration-300 ${
-          theme === "light"
-            ? "bg-slate-100 border-slate-250/70 text-slate-700"
-            : "bg-slate-900/40 border-slate-800/80 text-slate-300"
-        }`}>
-          <Activity className="w-3.5 h-3.5 text-slate-400" />
-          <span>Cumulative Delta:</span>
-          <span className={`font-black ${activePair.delta24h >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-            {activePair.delta24h >= 0 ? "+" : ""}
-            {(activePair.delta24h).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </span>
-        </div>
+
       </section>
 
       {/* MAIN WORKSTATION PANEL: CONTENT VIEWS */}
@@ -851,7 +947,7 @@ export default function App() {
           <main className="flex-1 flex flex-col min-h-0 bg-transparent select-none relative z-10 p-5 gap-5">
             <div className="flex-1 flex flex-col lg:flex-row gap-5 min-h-0 min-w-0 items-stretch font-sans">
               {/* Left/Middle Column: Footprint Chart Section */}
-              <div className="flex-1 flex flex-col min-h-0 min-w-0 justify-stretch min-h-[500px]">
+              <div className="flex-1 flex flex-col min-h-0 min-w-0 justify-stretch">
                 <ClusterChart
                   candles={candles}
                   activePair={activePair}
@@ -866,7 +962,7 @@ export default function App() {
               </div>
 
               {/* Right Sidebar Column: DOM Sidebar with Interactive Trading */}
-              <aside className="w-full lg:w-[380px] flex flex-col shrink-0 min-h-[500px] lg:min-h-0">
+              <aside className="w-full lg:w-[380px] flex flex-col shrink-0 min-h-0">
                 <DOMSidebar orderBook={orderBook} activePair={activePair} theme={theme} />
               </aside>
             </div>
@@ -885,6 +981,8 @@ export default function App() {
           </main>
         );
       })()}
+        </>
+      )}
 
       {/* Dynamic Indicators Customizer Modal */}
       <IndicatorsModal

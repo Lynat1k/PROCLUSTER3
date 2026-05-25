@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { CryptoPair } from "../types";
-import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon } from "lucide-react";
+import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface HeaderProps {
@@ -14,6 +14,7 @@ interface HeaderProps {
   connectionStatus: "connected" | "syncing" | "stale";
   theme?: "dark" | "light";
   onToggleTheme?: () => void;
+  onOpenAdmin?: () => void;
 }
 
 export default function Header({
@@ -21,7 +22,8 @@ export default function Header({
   onToggleTicking,
   connectionStatus,
   theme = "dark",
-  onToggleTheme
+  onToggleTheme,
+  onOpenAdmin
 }: HeaderProps) {
   
   const isLight = theme === "light";
@@ -169,6 +171,20 @@ export default function Header({
 
       {/* Right Controls: Simple & Clean Authorized Profile / Login Section */}
       <div className="flex items-center gap-3 relative z-10" ref={dropdownRef}>
+        {/* ADMIN MODAL TRIGGER */}
+        <button
+          onClick={onOpenAdmin}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border cursor-pointer hover:scale-105 active:scale-95 transition-all text-xs font-bold leading-none select-none ${
+            isLight
+              ? "bg-red-50 hover:bg-red-100 border-red-150 text-red-700 shadow-sm"
+              : "bg-red-950/20 hover:bg-red-900/40 border-red-900/30 text-red-400 shadow-inner hover:text-red-300"
+          }`}
+          title="Панель администратора"
+        >
+          <Sliders className="w-3.5 h-3.5 animate-pulse" />
+          <span className="hidden sm:inline">Админка</span>
+        </button>
+
         {/* LIGHT/DARK THEME TOGGLE BUTTON right next to the profile chip */}
         <button
           onClick={onToggleTheme}

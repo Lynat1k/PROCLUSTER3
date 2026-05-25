@@ -453,7 +453,16 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
   };
 
   // Reverse asks so the highest price is at the top of the vertical ladder!
-  const reversedAsks = [...orderBook.asks].reverse();
+  // Show 7 nearest levels for extreme vertical compactness
+  const reversedAsks = [...orderBook.asks].slice(0, 7).reverse();
+  const slicedBids = [...orderBook.bids].slice(0, 7);
+
+  // Find overall maximum size in the book to properly scale horizontal depth bars
+  const maxAmountInBook = Math.max(
+    ...orderBook.bids.map(b => b.amount),
+    ...orderBook.asks.map(a => a.amount),
+    1
+  );
 
   return (
     <div className={`rounded-2xl p-4 flex flex-col h-full shadow-2xl relative backdrop-blur-md overflow-hidden text-xs transition-all duration-300 border ${
@@ -574,15 +583,14 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
 
       {/* 3. DEPTH OF MARKET (DOM) VERTICAL PRICE LADDER */}
       <div className={`flex-1 overflow-hidden flex flex-col rounded-xl border min-h-[140px] transition-all duration-300 ${
-        isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/50 border-white/5"
+        isLight ? "bg-slate-50 border-slate-200" : "bg-[#06080e]/90 border-white/5"
       }`}>
         {/* DOM Table Legend Header */}
-        <div className={`grid grid-cols-3 border-b py-1 text-[8.5px] font-mono font-black uppercase text-center tracking-widest shrink-0 transition-all duration-300 ${
+        <div className={`grid grid-cols-[1fr_1.2fr] gap-3 border-b py-1.5 text-[8.5px] font-mono font-black uppercase tracking-widest shrink-0 transition-all duration-300 ${
           isLight ? "bg-slate-100 border-slate-200 text-slate-600" : "bg-slate-950 border-white/5 text-slate-500"
         }`}>
-          <div>Bid Vol (Buy)</div>
-          <div>Price (USDT)</div>
-          <div>Ask Vol (Sell)</div>
+          <div className="text-right pr-4">Size</div>
+          <div className="text-left pl-3">Price ({activePair.symbol.split("/")[1] || "USDT"})</div>
         </div>
 
         <div className="flex-1 overflow-y-auto pr-1">
@@ -590,116 +598,115 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
           {reversedAsks.map((ask) => {
             const hasPendingLimit = limitOrders.filter(o => o.side === "sell" && Math.abs(o.price - ask.price) < 0.001);
             const totalLimitSize = hasPendingLimit.reduce((s, o) => s + o.size, 0);
+            const depthPercentage = (ask.amount / maxAmountInBook) * 100;
 
             return (
               <div 
                 key={`dom-ask-${ask.price}`} 
                 onClick={() => handleRowPriceClick(ask.price)}
-                className={`grid grid-cols-3 text-center py-[2.5px] font-mono font-bold group cursor-pointer border-y border-transparent transition-colors text-[10.5px] relative h-6 items-center ${
+                className={`grid grid-cols-[1fr_1.2fr] gap-3 font-mono font-bold group cursor-pointer border-y border-transparent transition-colors text-[10px] relative h-[18px] items-center ${
                   Math.abs(limitPrice - ask.price) < 0.01 
                     ? (isLight ? "bg-slate-300/40" : "bg-white/[0.04]") 
-                    : (isLight ? "hover:bg-rose-100/30" : "hover:bg-rose-900/10")
+                    : (isLight ? "hover:bg-slate-200/50" : "hover:bg-white/[0.02]")
                 }`}
               >
-                {/* Horizontal Depth Volume bar */}
+                {/* Horizontal Depth Volume bar starting from left edge */}
                 <div 
-                  className="absolute right-0 top-0 bottom-0 bg-rose-500/[0.06] transition-all"
-                  style={{ width: `${ask.percentage}%`, left: "66%" }}
+                  className="absolute left-0 top-0 bottom-0 bg-rose-500/[0.12] transition-all duration-300 pointer-events-none"
+                  style={{ width: `${Math.min(100, depthPercentage)}%` }}
                 />
 
-                {/* Sell order volume side */}
-                <div className="text-left pl-2 z-10 text-[9.5px]">
-                  {totalLimitSize > 0 && (
+                {/* Floating pending limit indicators */}
+                {totalLimitSize > 0 && (
+                  <div className="absolute left-1 z-20 flex items-center">
                     <span 
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Cancel pending
                         hasPendingLimit.forEach(o => cancelLimitOrder(o.id));
                       }}
-                      className="bg-rose-500 text-slate-950 font-black text-[8px] px-1 py-0.2 rounded-md tracking-tighter"
+                      className="bg-rose-500 text-slate-950 font-black text-[7.5px] px-1 py-0.2 rounded tracking-tighter cursor-pointer"
                       title="Click to cancel working orders"
                     >
                       LMT {totalLimitSize.toFixed(1)}
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                {/* Price (Ask) red */}
-                <div className="text-rose-600 font-semibold group-hover:text-rose-500 transition-colors z-10">
-                  ${ask.price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
-                </div>
-
-                {/* Ask Book size */}
-                <div className={`text-right pr-2 z-10 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                {/* Size (Ask) Red */}
+                <div className="text-right pr-4 z-10 text-rose-500 font-bold tracking-tight">
                   {ask.amount.toFixed(2)}
+                </div>
+
+                {/* Price (Ask) standard Gray/White */}
+                <div className={`text-left pl-3 z-10 font-bold transition-colors ${
+                  isLight ? "text-slate-600 group-hover:text-slate-900" : "text-slate-400 group-hover:text-slate-100"
+                }`}>
+                  {ask.price.toLocaleString(undefined, { minimumFractionDigits: ask.price < 50 ? 2 : 1 })}
                 </div>
               </div>
             );
           })}
 
-          {/* ----- MID TICK / SPREAD ROW ----- */}
-          <div className={`py-1.5 border-y text-center font-mono relative z-20 flex justify-between px-3 items-center shrink-0 shadow-lg transition-all duration-300 ${
-            isLight ? "bg-slate-100/90 border-slate-200" : "bg-slate-900/90 border-white/5"
+          {/* ----- MID TICK / LAST PRICE ROW ----- */}
+          <div className={`grid grid-cols-[1fr_1.2fr] gap-3 border-y relative z-20 shrink-0 transition-all duration-300 h-6 items-center ${
+            isLight ? "bg-slate-200 border-slate-305" : "bg-[#11141e] border-white/5"
           }`}>
-            <span className="text-[8px] font-bold text-slate-550 uppercase tracking-widest animate-pulse flex items-center gap-1 select-none">
-              <Zap className="w-2.5 h-2.5 text-yellow-500 fill-yellow-500/30" /> LAST TRADE
-            </span>
-            <span className={`text-xs font-black px-1 py-0.5 rounded leading-none ${
-              isLight ? "text-slate-900 bg-white shadow-sm border border-slate-200/50" : "text-white glow-yellow"
+            <div />
+            <div className={`text-left pl-3 font-sans font-extrabold text-[12.5px] tracking-wide leading-none ${
+              isLight ? "text-slate-900" : "text-white"
             }`}>
-              ${activePair.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-            <span className={`text-[9px] font-black leading-none ${activePair.change24h >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-              {activePair.change24h >= 0 ? "▲" : "▼"} {Math.abs(activePair.change24h)}%
-            </span>
+              {activePair.price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
+            </div>
           </div>
 
           {/* ----- BIDS SIDE (HIGH TO LOW) ----- */}
-          {orderBook.bids.map((bid) => {
+          {slicedBids.map((bid) => {
             const hasPendingLimit = limitOrders.filter(o => o.side === "buy" && Math.abs(o.price - bid.price) < 0.001);
             const totalLimitSize = hasPendingLimit.reduce((s, o) => s + o.size, 0);
+            const depthPercentage = (bid.amount / maxAmountInBook) * 100;
 
             return (
               <div 
                 key={`dom-bid-${bid.price}`} 
                 onClick={() => handleRowPriceClick(bid.price)}
-                className={`grid grid-cols-3 text-center py-[2.5px] font-mono font-bold group cursor-pointer border-y border-transparent transition-colors text-[10.5px] relative h-6 items-center ${
+                className={`grid grid-cols-[1fr_1.2fr] gap-3 font-mono font-bold group cursor-pointer border-y border-transparent transition-colors text-[10px] relative h-[18px] items-center ${
                   Math.abs(limitPrice - bid.price) < 0.01 
                     ? (isLight ? "bg-slate-300/40" : "bg-white/[0.04]") 
-                    : (isLight ? "hover:bg-emerald-100/30" : "hover:bg-emerald-900/10")
+                    : (isLight ? "hover:bg-slate-200/50" : "hover:bg-white/[0.02]")
                 }`}
               >
-                {/* Horizontal Depth Volume bar */}
+                {/* Horizontal Depth Volume bar starting from left edge */}
                 <div 
-                  className="absolute left-0 top-0 bottom-0 bg-emerald-500/[0.06] transition-all"
-                  style={{ width: `${bid.percentage}%`, right: "66%" }}
+                  className="absolute left-0 top-0 bottom-0 bg-emerald-500/[0.12] transition-all duration-300 pointer-events-none"
+                  style={{ width: `${Math.min(100, depthPercentage)}%` }}
                 />
 
-                {/* Bid Book size */}
-                <div className={`text-left pl-2 z-10 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
-                  {bid.amount.toFixed(2)}
-                </div>
-
-                {/* Price (Bid) green */}
-                <div className="text-emerald-600 font-semibold group-hover:text-emerald-500 transition-colors z-10">
-                  ${bid.price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
-                </div>
-
-                {/* Buy order volume side */}
-                <div className="text-right pr-2 z-10 text-[9.5px]">
-                  {totalLimitSize > 0 && (
+                {/* Floating pending limit indicators */}
+                {totalLimitSize > 0 && (
+                  <div className="absolute left-1 z-20 flex items-center">
                     <span 
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Cancel pending
                         hasPendingLimit.forEach(o => cancelLimitOrder(o.id));
                       }}
-                      className="bg-emerald-500 text-slate-950 font-black text-[8px] px-1.5 py-0.5 rounded-md tracking-tighter"
+                      className="bg-emerald-500 text-slate-950 font-black text-[7.5px] px-1 py-0.2 rounded tracking-tighter cursor-pointer"
                       title="Click to cancel working orders"
                     >
                       LMT {totalLimitSize.toFixed(1)}
                     </span>
-                  )}
+                  </div>
+                )}
+
+                {/* Size (Bid) Green */}
+                <div className="text-right pr-4 z-10 text-emerald-500 font-bold tracking-tight">
+                  {bid.amount.toFixed(2)}
+                </div>
+
+                {/* Price (Bid) standard Gray/White */}
+                <div className={`text-left pl-3 z-10 font-bold transition-colors ${
+                  isLight ? "text-slate-600 group-hover:text-slate-900" : "text-slate-400 group-hover:text-slate-100"
+                }`}>
+                  {bid.price.toLocaleString(undefined, { minimumFractionDigits: bid.price < 50 ? 2 : 1 })}
                 </div>
               </div>
             );
@@ -707,68 +714,10 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
         </div>
       </div>
 
-      {/* 4. ACTIVE WORKING ORDERS AND TRANSACTION LOGGER */}
-      <div className={`mt-3.5 pt-3 border-t shrink-0 ${isLight ? "border-slate-200" : "border-white/5"}`}>
-        <div className="flex justify-between items-center mb-1.5 font-mono">
-          <span className={`text-[9.5px] font-black uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-400"}`}>
-            WORKING ORDERS ({limitOrders.length})
-          </span>
-          {limitOrders.length > 0 && (
-            <button 
-              onClick={handleCancelAll}
-              className="text-[8.5px] text-rose-600 hover:text-rose-500 flex items-center gap-0.5 font-black uppercase cursor-pointer"
-            >
-              <Trash2 className="w-2.5 h-2.5" /> Cancel All
-            </button>
-          )}
-        </div>
-
-        {limitOrders.length === 0 ? (
-          <div className={`text-[9px] italic uppercase tracking-wider text-center py-2 rounded-lg font-mono border ${
-            isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-slate-950/20 border-white/5 text-slate-500"
-          }`}>
-            no active pending limit order contracts
-          </div>
-        ) : (
-          <div className="max-h-24 overflow-y-auto flex flex-col gap-1 pr-1">
-            {limitOrders.map(order => (
-              <div 
-                key={order.id}
-                className={`border rounded p-1.5 flex justify-between items-center font-mono text-[9.5px] scale-98 transition-all ${
-                  isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-white/5"
-                }`}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    order.side === "buy" ? "bg-emerald-500 animate-pulse" : "bg-rose-500 animate-pulse"
-                  }`} />
-                  <span className={`font-black uppercase tracking-wider ${
-                    order.side === "buy" ? "text-emerald-600" : "text-rose-600"
-                  }`}>
-                    {order.side.toUpperCase()}
-                  </span>
-                  <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                    {order.size} {order.symbol.split("/")[0]}
-                  </span>
-                  <span className="text-slate-500 font-medium">@</span>
-                  <span className="text-yellow-600 dark:text-yellow-500 font-black">
-                    ${order.price.toLocaleString()}
-                  </span>
-                </div>
-                <button 
-                  onClick={() => cancelLimitOrder(order.id)}
-                  className="text-slate-400 hover:text-rose-605 p-0.5 rounded transition cursor-pointer"
-                  title="Cancel order contract"
-                >
-                  <Trash2 className="w-2.5 h-2.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
+      {/* 4. TRANSACTION LOGGER */}
+      <div className={`mt-3 pt-3 border-t shrink-0 ${isLight ? "border-slate-200" : "border-white/5"}`}>
         {/* Real-time Order Actions Tape feed log */}
-        <div className={`mt-3 rounded-xl p-2 border shadow-inner transition-all duration-300 ${
+        <div className={`rounded-xl p-2 border shadow-inner transition-all duration-300 ${
           isLight ? "bg-slate-50 border-slate-200" : "bg-slate-955/40 border-white/5"
         }`}>
           <div className={`text-[8px] font-black uppercase tracking-widest mb-1.5 border-b pb-1 font-mono ${

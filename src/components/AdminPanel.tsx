@@ -1,0 +1,979 @@
+import React, { useState, useEffect, useRef } from "react";
+import { CryptoPair } from "../types";
+import { 
+  X, 
+  Play, 
+  Pause, 
+  AlertTriangle, 
+  ArrowUp, 
+  ArrowDown, 
+  Activity, 
+  Trash2, 
+  ShieldAlert, 
+  Cpu, 
+  Check, 
+  Zap, 
+  DollarSign, 
+  RefreshCw, 
+  BarChart2, 
+  ArrowLeft, 
+  Server, 
+  HardDrive, 
+  Users, 
+  Globe, 
+  Download, 
+  Plus, 
+  Calendar, 
+  Terminal,
+  Settings,
+  Database,
+  TrendingUp,
+  Radio,
+  Wifi
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+
+interface AdminPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+  theme: "dark" | "light";
+  activePair: CryptoPair;
+  pairs: CryptoPair[];
+  connectionStatus: "connected" | "syncing" | "stale";
+  isTickingAll: boolean;
+  onToggleTicking: () => void;
+  onSetConnectionStatus: (status: "connected" | "syncing" | "stale") => void;
+  onUpdatePairPrice: (symbol: string, newPrice: number) => void;
+  onInjectWhaleTrade: (side: "buy" | "sell", amount: number) => void;
+  onClearHistory: () => void;
+  onApplyAnomaly: (type: "pump" | "dump" | "spike" | "whale-wall") => void;
+  marketType: "SPOT" | "FUTURES";
+  onSetMarketType: (type: "SPOT" | "FUTURES") => void;
+  onAddPair?: (newPair: CryptoPair) => void;
+}
+
+interface ClientConnection {
+  id: string;
+  ip: string;
+  geo: string;
+  origin: string;
+  sub: string;
+  status: string;
+  ping: number;
+}
+
+export default function AdminPanel({
+  isOpen,
+  onClose,
+  theme,
+  activePair,
+  pairs,
+  connectionStatus,
+  isTickingAll,
+  onToggleTicking,
+  onSetConnectionStatus,
+  onUpdatePairPrice,
+  onInjectWhaleTrade,
+  onClearHistory,
+  onApplyAnomaly,
+  marketType,
+  onSetMarketType,
+  onAddPair
+}: AdminPanelProps) {
+  const isLight = theme === "light";
+
+  // Active view tabs
+  const [activeTab, setActiveTab] = useState<"server" | "database" | "users">("server");
+
+  // State sections
+  const [activeTokenParam, setActiveTokenParam] = useState<string>(activePair.symbol);
+  const [customPriceInput, setCustomPriceInput] = useState<string>("");
+  const [whaleAmountInput, setWhaleAmountInput] = useState<string>("500");
+  const [customTickerLogs, setCustomTickerLogs] = useState<string[]>([]);
+  
+  // Real-time server resource simulator values
+  const [cpuUsage, setCpuUsage] = useState<number>(31.4);
+  const [ramUsageGB, setRamUsageGB] = useState<number>(6.42);
+  const [diskUsageGB, setDiskUsageGB] = useState<number>(184.2);
+  const [hostsCount, setHostsCount] = useState<number>(1482);
+  const [onlineCount, setOnlineCount] = useState<number>(342);
+  const [registeredUsersCount] = useState<number>(12985);
+
+  // Live connections simulation
+  const [clients, setClients] = useState<ClientConnection[]>([
+    { id: "usr_208", ip: "185.220.101.5", geo: "Frankfurt, DE", origin: "Web client", sub: "SOL/USDT, BTC/USDT", status: "online", ping: 24 },
+    { id: "usr_532", ip: "91.198.174.19", geo: "Tokyo, JP", origin: "Desktop App", sub: "BTC/USDT", status: "online", ping: 112 },
+    { id: "usr_401", ip: "104.244.42.1", geo: "New York, USA", origin: "iOS Platform", sub: "ETH/USDT, SOL/USDT", status: "online", ping: 45 },
+    { id: "usr_014", ip: "8.8.8.8", geo: "London, UK", origin: "Web client", sub: "ALL_ACTIVE", status: "online", ping: 18 },
+    { id: "usr_995", ip: "194.154.20.4", geo: "Lagos, NG", origin: "Android Dev", sub: "SOL/USDT", status: "online", ping: 178 }
+  ]);
+
+  // New Ticker Form state
+  const [newSymbol, setNewSymbol] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newPrice, setNewPrice] = useState("");
+  const [newPriceStep, setNewPriceStep] = useState("1");
+  const [compressionSpotVal, setCompressionSpotVal] = useState("2");
+  const [compressionFuturesVal, setCompressionFuturesVal] = useState("5");
+  const [tickerSuccessMsg, setTickerSuccessMsg] = useState("");
+
+  // Historical download state
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [downloadStep, setDownloadStep] = useState<string>("");
+  const [histTicker, setHistTicker] = useState<string>(activePair.symbol);
+  const [histType, setHistType] = useState<"SPOT" | "FUTURES">("SPOT");
+  const [histStartDate, setHistStartDate] = useState<string>("2026-05-01");
+  const [histEndDate, setHistEndDate] = useState<string>("2026-05-25");
+
+  // Load default price value
+  useEffect(() => {
+    setCustomPriceInput(activePair.price.toString());
+  }, [activePair.symbol]);
+
+  // Telemetry logs simulation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Seed logs
+    setCustomTickerLogs([
+      `[System] Панель администратора запущена в режиме full-page`,
+      `[Engine] Симулятор запущен: ${activePair.symbol} | Шаг шкалы: ${activePair.priceStep}`,
+      `[Telemetry] База данных In-Memory активна. Буфер кадров пуст.`,
+      `[Environment] Node.JS v21.4.0 Container Core | Port: 3000 Ingress`,
+      `[Database] Запуск проверки консистентности кластеров... OK`
+    ]);
+
+    const logUpdateInterval = setInterval(() => {
+      const messages = [
+        `[Heartbeat] Опрос сетевых хостов. Задержка ПДД: ${Math.floor(22 + Math.random() * 20)}мс`,
+        `[Ingress] Получен пакет Binance AggrTrade: ${activePair.symbol} @ $${activePair.price.toLocaleString()}`,
+        `[Memory] Сжатие данных свечей завершено. Освобождено ${(1.2 + Math.random() * 0.5).toFixed(2)}Кб`,
+        `[GC] Сборщик мусора освободил неиспользуемые ячейки стакана.`,
+        `[Client Socket] Синхронизация трансляции глубины стакана для ${onlineCount + Math.floor(Math.random() * 5 - 2)} трейдеров`
+      ];
+      setCustomTickerLogs(prev => {
+        const next = [...prev, messages[Math.floor(Math.random() * messages.length)]];
+        return next.slice(-45);
+      });
+    }, 4500);
+
+    // Smooth resource fluctuate simulator & clients ping changes
+    const resourceInterval = setInterval(() => {
+      setCpuUsage(prev => {
+        const delta = (Math.random() - 0.5) * 5;
+        return Math.min(85, Math.max(8, parseFloat((prev + delta).toFixed(1))));
+      });
+      setRamUsageGB(prev => {
+        const delta = (Math.random() - 0.5) * 0.08;
+        return Math.min(12, Math.max(4.5, parseFloat((prev + delta).toFixed(2))));
+      });
+      setHostsCount(prev => prev + (Math.random() > 0.55 ? 1 : Math.random() < 0.45 ? -1 : 0));
+      setOnlineCount(prev => {
+        const ch = Math.floor((Math.random() - 0.5) * 4);
+        return Math.min(500, Math.max(120, prev + ch));
+      });
+
+      // Fluctuate pings
+      setClients(current => 
+        current.map(c => ({
+          ...c,
+          ping: Math.max(5, Math.min(300, c.ping + Math.floor((Math.random() - 0.5) * 12)))
+        }))
+      );
+    }, 2500);
+
+    return () => {
+      clearInterval(logUpdateInterval);
+      clearInterval(resourceInterval);
+    };
+  }, [isOpen, activePair.symbol, onlineCount]);
+
+  // scroll logs to end
+  const logsEndRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (logsEndRef.current && activeTab === "server") {
+      logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [customTickerLogs, activeTab]);
+
+  if (!isOpen) return null;
+
+  // Actions
+  const handleApplyPriceChange = () => {
+    const nextVal = parseFloat(customPriceInput);
+    if (!isNaN(nextVal) && nextVal > 0) {
+      onUpdatePairPrice(activeTokenParam, nextVal);
+      setCustomTickerLogs(prev => [
+        ...prev, 
+        `[Core Override] Администратор принудительно установил курс для ${activeTokenParam}: $${nextVal.toLocaleString()}`
+      ]);
+    }
+  };
+
+  const handleClear = () => {
+    onClearHistory();
+    setCustomTickerLogs(prev => [
+      ...prev,
+      `[Engine Flash] Историческая память котировок и графиков полностью стерта.`
+    ]);
+  };
+
+  // Binance vision downloader simulator
+  const handleDownloadBinanceVision = () => {
+    if (downloadProgress !== null) return;
+    setDownloadProgress(0);
+    setDownloadStep("1/5 Подключение к Binance Vision CDN (data.binance.vision)...");
+    
+    const messages = [
+      { progress: 15, text: "2/5 Получение метаданных агрегированных сделок Spot/Futures..." },
+      { progress: 42, text: `3/5 Загрузка архива ${histTicker.replace("/", "")}-aggTrades-${histStartDate}-to-${histEndDate}.zip...` },
+      { progress: 78, text: "4/5 Распаковка CSV и парсинг потока миллисекундных сделок Binance..." },
+      { progress: 95, text: "5/5 Слияние агрегатов во внутреннюю структуру ячеек footprint..." },
+      { progress: 100, text: `Успешно импортировано за секунды! Загружено исторических тиков.` }
+    ];
+
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < messages.length) {
+        const currentMsg = messages[i];
+        setDownloadProgress(currentMsg.progress);
+        setDownloadStep(currentMsg.text);
+        
+        setCustomTickerLogs(prev => [
+          ...prev,
+          `[Binance Vision] ${currentMsg.text} (${currentMsg.progress}%)`
+        ]);
+        i++;
+      } else {
+        clearInterval(interval);
+        setTimeout(() => {
+          setDownloadProgress(null);
+          setDownloadStep("");
+        }, 3000);
+      }
+    }, 1200);
+  };
+
+  // Add Dynamic Ticker Form
+  const handleAddNewTicker = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSymbol || !newName || !newPrice) {
+      alert("Заполните базовые поля!");
+      return;
+    }
+
+    const priceNum = parseFloat(newPrice);
+    const stepNum = parseFloat(newPriceStep);
+    const compSpot = parseInt(compressionSpotVal) || 2;
+    const compFut = parseInt(compressionFuturesVal) || 5;
+
+    if (isNaN(priceNum) || priceNum <= 0) {
+      alert("Некорректная цена!");
+      return;
+    }
+
+    const addedPair: CryptoPair = {
+      symbol: newSymbol.toUpperCase().trim(),
+      name: newName.trim(),
+      price: priceNum,
+      change24h: 0.0,
+      volume24h: 0,
+      delta24h: 0.0,
+      priceStep: isNaN(stepNum) || stepNum <= 0 ? 1 : stepNum,
+      compressionSpot: compSpot,
+      compressionFutures: compFut
+    };
+
+    if (onAddPair) {
+      onAddPair(addedPair);
+      setTickerSuccessMsg(`Тикер ${addedPair.symbol} успешно зарегистрирован! Сжатие Spot: ${compSpot}x, Futures: ${compFut}x`);
+      setCustomTickerLogs(prev => [
+        ...prev,
+        `[Admin] Добавлен новый торговый инструмент: ${addedPair.symbol} | Сжатие Spot: ${compSpot}x, Futures: ${compFut}x`
+      ]);
+      
+      // Reset form
+      setNewSymbol("");
+      setNewName("");
+      setNewPrice("");
+      setTimeout(() => setTickerSuccessMsg(""), 5000);
+    } else {
+      alert("Система динамических тикеров не подключена!");
+    }
+  };
+
+  return (
+    <div className={`flex-1 flex flex-col min-h-0 relative z-40 overflow-y-auto ${
+      isLight ? "bg-slate-50 text-slate-900" : "bg-[#060813] text-slate-100"
+    } p-6 gap-6 font-sans select-none`}>
+      
+      {/* HEADER SECTION TOOLBAR */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-500/10 shrink-0">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onClose}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border cursor-pointer hover:scale-102 active:scale-98 transition ${
+              isLight 
+                ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm" 
+                : "bg-slate-900 border-white/5 text-slate-300 hover:text-white hover:bg-slate-800"
+            }`}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Вернуться на Терминал</span>
+          </button>
+          
+          <div className="h-5 w-px bg-slate-500/20 hidden sm:block" />
+          
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-black uppercase tracking-wider flex items-center gap-2">
+              <Settings className="w-5 h-5 text-red-500 animate-spin-slow animate-spin" />
+              Панель Администратора
+            </h1>
+            <span className={`text-[9px] px-2 py-0.5 rounded-md font-mono font-black ${
+              isLight ? "bg-red-50 text-red-700 border border-red-200" : "bg-red-500/10 text-red-400 border border-red-500/15"
+            }`}>
+              CORE MODE
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-mono text-slate-400">Состояние Симулятора:</span>
+          <div className="flex gap-1.5 p-0.5 rounded-lg border bg-slate-950/20 border-white/5">
+            <button
+              onClick={onToggleTicking}
+              className={`px-3 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                isTickingAll
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20"
+                  : "bg-rose-500/20 text-rose-400 border border-rose-500/20"
+              }`}
+            >
+              <Zap className={`w-3 h-3 ${isTickingAll ? "animate-bounce" : ""}`} />
+              {isTickingAll ? "Тики Идут" : "Генерация Пауза"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* DYNAMIC TAB CONTROLS */}
+      <div className="flex border-b border-slate-500/15 gap-2 pb-px shrink-0">
+        <button
+          onClick={() => setActiveTab("server")}
+          className={`px-5 py-2.5 rounded-t-xl text-xs font-bold tracking-wider uppercase flex items-center gap-2 border-t-2 border-x transition-all duration-150 cursor-pointer ${
+            activeTab === "server"
+              ? isLight
+                ? "bg-white border-t-blue-500 border-x-slate-200 text-slate-850 shadow-sm" 
+                : "bg-slate-900 border-t-blue-500 border-x-white/5 text-white"
+              : isLight
+                ? "bg-transparent border-t-transparent border-x-transparent text-slate-500 hover:bg-slate-200/40 hover:text-slate-700"
+                : "bg-transparent border-t-transparent border-x-transparent text-slate-400 hover:bg-white/[0.02] hover:text-white"
+          }`}
+        >
+          <Cpu className="w-4 h-4 text-blue-500" />
+          <span>Сервер</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("database")}
+          className={`px-5 py-2.5 rounded-t-xl text-xs font-bold tracking-wider uppercase flex items-center gap-2 border-t-2 border-x transition-all duration-150 cursor-pointer ${
+            activeTab === "database"
+              ? isLight
+                ? "bg-white border-t-emerald-500 border-x-slate-200 text-slate-850 shadow-sm" 
+                : "bg-slate-900 border-t-emerald-500 border-x-white/5 text-white"
+              : isLight
+                ? "bg-transparent border-t-transparent border-x-transparent text-slate-500 hover:bg-slate-200/40 hover:text-slate-700"
+                : "bg-transparent border-t-transparent border-x-transparent text-slate-400 hover:bg-white/[0.02] hover:text-white"
+          }`}
+        >
+          <Database className="w-4 h-4 text-emerald-500" />
+          <span>База Данных</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("users")}
+          className={`px-5 py-2.5 rounded-t-xl text-xs font-bold tracking-wider uppercase flex items-center gap-2 border-t-2 border-x transition-all duration-150 cursor-pointer ${
+            activeTab === "users"
+              ? isLight
+                ? "bg-white border-t-amber-500 border-x-slate-200 text-slate-850 shadow-sm" 
+                : "bg-slate-900 border-t-amber-500 border-x-white/5 text-white"
+              : isLight
+                ? "bg-transparent border-t-transparent border-x-transparent text-slate-500 hover:bg-slate-200/40 hover:text-slate-700"
+                : "bg-transparent border-t-transparent border-x-transparent text-slate-400 hover:bg-white/[0.02] hover:text-white"
+          }`}
+        >
+          <Users className="w-4 h-4 text-amber-500" />
+          <span>Пользователи</span>
+        </button>
+      </div>
+
+      {/* RENDER ACTIVE TAB */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -5 }}
+          transition={{ duration: 0.15 }}
+          className="flex-1 flex flex-col gap-6 min-h-0"
+        >
+          
+          {/* TAB 1: SERVER CONTROLS & MONITORING */}
+          {activeTab === "server" && (
+            <div className="flex-1 flex flex-col gap-6 min-h-0">
+              
+              {/* SERVER METRICS ROW */}
+              <div className={`p-5 rounded-2xl border ${
+                isLight ? "bg-white border-slate-200" : "bg-slate-950/40 border-white/5"
+              }`}>
+                <h3 className="text-xs font-bold font-mono text-slate-400 mb-4 flex items-center gap-2 justify-start uppercase">
+                  <Cpu className="w-4 h-4 text-slate-400 animate-pulse" /> Спецификация & нагрузка на веб-сервер
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* CPU LOAD BAR */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500" /> Нагрузка Процессора (CPU)
+                      </span>
+                      <span className="font-mono font-bold text-orange-400">{cpuUsage}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-blue-500 to-orange-500 transition-all duration-350"
+                        style={{ width: `${cpuUsage}%` }}
+                      />
+                    </div>
+                    <span className="text-[9.5px] text-slate-400 font-mono">Simulated VM Load Core | Multi-Thread</span>
+                  </div>
+
+                  {/* RAM USE */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Занятая ОЗУ (RAM)
+                      </span>
+                      <span className="font-mono font-bold text-emerald-400">{ramUsageGB} GB / 16.0 GB</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-350"
+                        style={{ width: `${(ramUsageGB / 16) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[9.5px] text-slate-400 font-mono">Ingress Buffer & Candlestick matrix size</span>
+                  </div>
+
+                  {/* DISK SPACE */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Память Диска (SSD Capacity)
+                      </span>
+                      <span className="font-mono font-bold text-purple-400">{diskUsageGB} GB / 512.0 GB</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
+                        style={{ width: `${(diskUsageGB / 512) * 105}%` }}
+                      />
+                    </div>
+                    <span className="text-[9.5px] text-slate-400 font-mono">Footprint cells compressed storage database</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* SERVER TERMINAL DIAGNOSTICS LOGS CONSOLE */}
+              <div className={`flex-1 flex flex-col min-h-[300px] rounded-2xl p-5 border gap-3 ${
+                isLight ? "bg-white border-slate-200" : "bg-slate-950/40 border-white/5"
+              }`}>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-extrabold tracking-wider font-mono text-slate-500 flex items-center gap-2 uppercase">
+                    <Terminal className="w-4 h-4 text-slate-400" />
+                    Логи Диагностики & Симуляции Терминала
+                  </span>
+                  <span className="font-mono text-[10px] bg-red-500/15 border border-red-500/15 text-red-400 px-2.5 py-0.5 rounded-full animate-pulse">
+                    LIVE TELEMETRY
+                  </span>
+                </div>
+
+                <div className={`flex-1 min-h-[220px] rounded-xl p-4 font-mono text-[10.5px] overflow-y-auto leading-relaxed border select-text shadow-inner ${
+                  isLight 
+                    ? "bg-slate-900 text-slate-200 border-slate-300" 
+                    : "bg-[#02050e] text-[#00ff66] border-white/5"
+                }`}>
+                  <div className="flex flex-col gap-1.5">
+                    {customTickerLogs.map((log, index) => (
+                      <div key={index} className="flex gap-2.5 hover:bg-white/5 py-0.5 px-1.5 rounded transition-colors duration-100">
+                        <span className="text-slate-500 shrink-0 select-none">[{index + 1}]</span>
+                        <span className="whitespace-pre-wrap">{log}</span>
+                      </div>
+                    ))}
+                    <div ref={logsEndRef} />
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] text-slate-500 font-mono">
+                  <span>ОБРАБОТКА ПОТОКА: 125,482 TICKS/SEC</span>
+                  <span>ОЗУ БУФЕРА: INGRESS COMPACT</span>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 2: DATABASE COINS, PRICE SETTING, SCRAPING HISTORICAL DATA */}
+          {activeTab === "database" && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+              
+              {/* LEFT COLUMN: REGISTRY (span 7) */}
+              <div className="lg:col-span-7 flex flex-col gap-6">
+                
+                {/* BOX 1: ADD COIN & SET GRIDS */}
+                <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
+                  isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+                }`}>
+                  <h3 className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-emerald-500">
+                    <Plus className="w-4 h-4" />
+                    Добавление и Сжатие Новых Монет
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Внесите в систему новые рыночные активы. Также укажите степень сжатия цен стакана для Spot (в базовых пунктах) и Futures (в усредненных интервалах объемов).
+                  </p>
+
+                  {tickerSuccessMsg && (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-emerald-400 text-xs font-bold">
+                      {tickerSuccessMsg}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleAddNewTicker} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
+                    <div>
+                      <label className="text-[10px] font-mono font-bold text-slate-400 block mb-1 uppercase">Символ Токена (Например: SOL/USDT)</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="SOL/USDT"
+                        value={newSymbol}
+                        onChange={(e) => setNewSymbol(e.target.value)}
+                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner ${
+                          isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-910 bg-slate-900 border-white/5 text-white"
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-mono font-bold text-slate-400 block mb-1 uppercase">Название Проекта (Solana)</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Solana"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        className={`w-full text-xs font-bold rounded-lg px-3 py-2 border shadow-inner ${
+                          isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/5 text-white"
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-mono font-bold text-slate-400 block mb-1 uppercase">Стартовая Цена в USDT</label>
+                      <input
+                        type="number"
+                        step="any"
+                        required
+                        placeholder="142.50"
+                        value={newPrice}
+                        onChange={(e) => setNewPrice(e.target.value)}
+                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner ${
+                          isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/5 text-white"
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-mono font-bold text-slate-400 block mb-1 uppercase">Базовый Шаг Стакана (Price Step)</label>
+                      <select
+                        value={newPriceStep}
+                        onChange={(e) => setNewPriceStep(e.target.value)}
+                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner ${
+                          isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/5 text-white"
+                        }`}
+                      >
+                        <option value="10">10 (Например Bitcoin)</option>
+                        <option value="1">1 (Например Ethereum)</option>
+                        <option value="0.5">0.5 (Средний шаг)</option>
+                        <option value="0.1">0.1 (Например Solana)</option>
+                        <option value="0.01">0.01 (Мелкие токены)</option>
+                        <option value="0.001">0.001 (Ripple)</option>
+                      </select>
+                    </div>
+
+                    <div className="p-3 rounded-lg border bg-blue-500/5 border-blue-500/10 flex flex-col gap-1 md:col-span-2">
+                      <span className="text-[10px] font-mono font-semibold text-blue-400 uppercase block tracking-wider mb-2">Настройки Степени Сжатия</span>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[9.5px] font-sans font-bold text-slate-400 block mb-1">Сжатие Spot Данных (Коэффициент)</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min="1"
+                              max="20"
+                              value={compressionSpotVal}
+                              onChange={(e) => setCompressionSpotVal(e.target.value)}
+                              className="w-full h-1 bg-slate-800 rounded-full appearance-none cursor-pointer"
+                            />
+                            <span className="text-xs font-mono font-bold">{compressionSpotVal}x</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[9.5px] font-sans font-bold text-slate-400 block mb-1">Сжатие Futures Данных (Коэффициент)</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min="1"
+                              max="50"
+                              value={compressionFuturesVal}
+                              onChange={(e) => setCompressionFuturesVal(e.target.value)}
+                              className="w-full h-1 bg-slate-800 rounded-full appearance-none cursor-pointer"
+                            />
+                            <span className="text-xs font-mono font-bold">{compressionFuturesVal}x</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="md:col-span-2 px-4 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-black hover:bg-emerald-600 transition tracking-wide text-xs flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Зарегистрировать Тикер в Реестре Терминала
+                    </button>
+                  </form>
+                </div>
+
+                {/* MANUAL MANIPULATION & FLASH */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between ${
+                    isLight ? "bg-white border-slate-200/80 shadow" : "bg-slate-950/40 border-white/5"
+                  }`}>
+                    <div>
+                      <span className="text-[10px] font-mono font-black text-slate-400 block tracking-wider uppercase mb-1">Коррекция Цен Монет Online</span>
+                      <p className="text-[11px] text-slate-400 mb-4 h-12 overflow-hidden">Установите принудительные курсы, которые мгновенно обновят свечной массив.</p>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex gap-2">
+                        <select
+                          value={activeTokenParam}
+                          onChange={(e) => setActiveTokenParam(e.target.value)}
+                          className={`flex-1 text-xs font-mono font-bold rounded-lg px-2.5 py-2 border focus:outline-none focus:border-red-500/50 ${
+                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
+                          }`}
+                        >
+                          {pairs.map(p => (
+                            <option key={p.symbol} value={p.symbol}>{p.symbol}</option>
+                          ))}
+                        </select>
+
+                        <input
+                          type="number"
+                          value={customPriceInput}
+                          onChange={(e) => setCustomPriceInput(e.target.value)}
+                          className={`w-36 text-xs font-mono font-bold rounded-lg px-2.5 py-2 border focus:outline-none focus:border-red-500/50 ${
+                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
+                          }`}
+                        />
+                      </div>
+                      <button
+                        onClick={handleApplyPriceChange}
+                        className="w-full py-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 text-orange-400 font-bold text-xs cursor-pointer transition-colors"
+                      >
+                        Мгновенно Обновить Курс
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between ${
+                    isLight ? "bg-white border-slate-200/80 shadow" : "bg-slate-950/40 border-white/5"
+                  }`}>
+                    <div>
+                      <span className="text-[10px] font-mono font-black text-slate-450 block tracking-wider uppercase mb-1">ФОРМАТИРОВАНИЕ ОЗУ</span>
+                      <p className="text-[11px] text-slate-400 mb-4 h-12 overflow-hidden">Удаление истории свечей и полная очистка матрицы футпринта из оперативной памяти.</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={handleClear}
+                        className="w-full py-2.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 font-bold text-xs cursor-pointer transition-colors"
+                      >
+                        Стереть ОЗУ Свечей
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* RIGHT COLUMN: HISTORICAL DATA SCRAPET (span 5) */}
+              <div className="lg:col-span-5 flex flex-col gap-6">
+                
+                {/* BINANCE VISION CDN DOWNLOADER */}
+                <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
+                  isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+                }`}>
+                  <h3 className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-yellow-500">
+                    <Download className="w-4 h-4 text-goldenrod" />
+                    Загрузка исторических данных (Binance Vision)
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Импортируйте сырой массив агрегированных сделок (zip format) напрямую из архивов <code className="text-blue-400">data.binance.vision</code>.
+                  </p>
+
+                  <div className="flex flex-col gap-3.5 text-xs font-sans">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[9px] font-mono font-bold text-slate-500 block mb-1">ТИКЕР</label>
+                        <select
+                          value={histTicker}
+                          onChange={(e) => setHistTicker(e.target.value)}
+                          className={`w-full text-xs font-mono font-bold rounded-lg px-2.5 py-1.5 border ${
+                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
+                          }`}
+                        >
+                          {pairs.map(p => (
+                            <option key={p.symbol} value={p.symbol}>{p.symbol}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-mono font-bold text-slate-500 block mb-1">СЕГМЕНТ</label>
+                        <select
+                          value={histType}
+                          onChange={(e) => setHistType(e.target.value as any)}
+                          className={`w-full text-xs font-mono font-bold rounded-lg px-2.5 py-1.5 border ${
+                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
+                          }`}
+                        >
+                          <option value="SPOT">SPOT (Сделки)</option>
+                          <option value="FUTURES">FUTURES (USD-M)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[9px] font-mono font-bold text-slate-500 block mb-1">С (Начало диапазона)</label>
+                        <input
+                          type="date"
+                          value={histStartDate}
+                          onChange={(e) => setHistStartDate(e.target.value)}
+                          className={`w-full text-xs font-mono rounded-lg px-2.5 py-1.5 border ${
+                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-mono font-bold text-slate-500 block mb-1">По (Конец диапазона)</label>
+                        <input
+                          type="date"
+                          value={histEndDate}
+                          onChange={(e) => setHistEndDate(e.target.value)}
+                          className={`w-full text-xs font-mono rounded-lg px-2.5 py-1.5 border ${
+                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Progress reporting UI */}
+                    {downloadProgress !== null && (
+                      <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 flex flex-col gap-2">
+                        <div className="flex justify-between text-[10px] font-mono font-bold">
+                          <span className="text-blue-400">Импорт Прогресс:</span>
+                          <span className="text-blue-400">{downloadProgress}%</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-blue-500 transition-all duration-300"
+                            style={{ width: `${downloadProgress}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-mono italic text-slate-400 block truncate">{downloadStep}</span>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleDownloadBinanceVision}
+                      disabled={downloadProgress !== null}
+                      className={`py-2 px-3.5 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                        downloadProgress !== null 
+                          ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5" 
+                          : "bg-amber-500/15 border border-amber-500/25 text-amber-500 hover:bg-amber-500/25"
+                      }`}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Скачать zip-агрегаты и сжать в Footprint
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+              
+            </div>
+          )}
+
+          {/* TAB 3: USERS & ACTIVE CLIENT WEBSOCKET STREAMS */}
+          {activeTab === "users" && (
+            <div className="flex-1 flex flex-col gap-6 min-h-0">
+              
+              {/* METRICS ROW */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. Host Counter */}
+                <div className={`p-4 rounded-xl border flex items-center gap-4 ${
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950/40 border-white/5"
+                }`}>
+                  <div className="p-3 rounded-lg bg-blue-500/10 text-blue-500">
+                    <Globe className="w-6 h-6 animate-spin-slow" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-mono font-extrabold text-slate-450 block uppercase">Хостов на сайте</span>
+                    <div className="text-lg font-black tracking-tight">{hostsCount.toLocaleString()} <span className="text-[9px] text-emerald-500 font-mono font-bold">LIVE</span></div>
+                    <span className="text-[9.5px] text-slate-450">Идентификация узлов по CDN</span>
+                  </div>
+                </div>
+
+                {/* 2. Licensed / Registered Users */}
+                <div className={`p-4 rounded-xl border flex items-center gap-4 ${
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950/40 border-white/5"
+                }`}>
+                  <div className="p-3 rounded-lg bg-yellow-500/10 text-yellow-500">
+                    <Users className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-mono font-extrabold text-slate-450 block uppercase">Зарегистрировано</span>
+                    <div className="text-lg font-black tracking-tight">{registeredUsersCount.toLocaleString()}</div>
+                    <span className="text-[9.5px] text-slate-450">+15 новых за сегодня</span>
+                  </div>
+                </div>
+
+                {/* 3. Real-time Users Online */}
+                <div className={`p-4 rounded-xl border flex items-center gap-4 ${
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950/40 border-white/5"
+                }`}>
+                  <div className="p-3 rounded-lg bg-emerald-500/10 text-emerald-500">
+                    <Activity className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-mono font-extrabold text-slate-450 block uppercase">Пользователей ОНЛАЙН</span>
+                    <div className="text-lg font-black tracking-tight flex items-center gap-2">
+                      {onlineCount} 
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping inline-block" />
+                    </div>
+                    <span className="text-[9.5px] text-slate-450">Прямое WebSocket соединение</span>
+                  </div>
+                </div>
+
+                {/* 4. WebSocket Link Stat */}
+                <div className={`p-4 rounded-xl border flex items-center gap-4 ${
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950/40 border-white/5"
+                }`}>
+                  <div className="p-3 rounded-lg bg-purple-500/10 text-purple-500">
+                    <Server className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-mono font-extrabold text-slate-450 block uppercase">Стрим Котировок</span>
+                    <div className="text-sm font-bold capitalize select-none mt-1">
+                      <select
+                        value={connectionStatus}
+                        onChange={(e) => onSetConnectionStatus(e.target.value as any)}
+                        className={`text-xs font-mono font-bold rounded px-2 py-1 focus:outline-none border cursor-pointer ${
+                          isLight 
+                            ? "bg-slate-100 border-slate-250 text-slate-800" 
+                            : "bg-slate-900 border-white/10 text-slate-100"
+                        }`}
+                      >
+                        <option value="connected">● Connected (Стабилен)</option>
+                        <option value="syncing">⟳ Syncing (Переподключение)</option>
+                        <option value="stale">✗ Offline (Имитация сбоя)</option>
+                      </select>
+                    </div>
+                    <span className="text-[9.5px] text-slate-450 font-mono">Биржа: Binance Futures/Spot</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* CONNECTION TABLE */}
+              <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
+                isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+              }`}>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xs font-bold font-mono text-slate-400 flex items-center gap-2 uppercase">
+                    <Radio className="w-4 h-4 text-amber-500 animate-pulse" />
+                    Активные сессии Live WebSocket Трейдеров
+                  </h3>
+                  <span className="font-mono text-[9px] text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
+                    SESSIONS NOMINAL
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left font-sans text-xs border-collapse">
+                    <thead>
+                      <tr className={`border-b text-[10px] font-mono text-slate-450 ${
+                        isLight ? "border-slate-200" : "border-white/5"
+                      }`}>
+                        <th className="py-2.5 px-3">Идентификатор</th>
+                        <th className="py-2.5 px-3">IP-адрес</th>
+                        <th className="py-2.5 px-3">Геолокация</th>
+                        <th className="py-2.5 px-3">Конечный Узел</th>
+                        <th className="py-2.5 px-3">Подписка Ticker (WebSocket)</th>
+                        <th className="py-2.5 px-3 text-right">Задержка (Latency)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-500/5 font-mono">
+                      {clients.map(cli => (
+                        <tr key={cli.id} className={`hover:bg-slate-500/5 transition-colors ${
+                          isLight ? "text-slate-800" : "text-slate-200"
+                        }`}>
+                          <td className="py-3 px-3 font-semibold text-amber-500">{cli.id}</td>
+                          <td className="py-3 px-3">{cli.ip}</td>
+                          <td className="py-3 px-3 flex items-center gap-1.5 font-sans">
+                            <Wifi className="w-3.5 h-3.5 text-blue-500" />
+                            <span>{cli.geo}</span>
+                          </td>
+                          <td className="py-3 px-3 font-sans text-slate-400">{cli.origin}</td>
+                          <td className="py-3 px-3"><span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold">{cli.sub}</span></td>
+                          <td className="py-3 px-3 text-right">
+                            <span className={`font-bold ${
+                              cli.ping < 40 ? "text-emerald-500" : cli.ping < 120 ? "text-yellow-500" : "text-red-500"
+                            }`}>
+                              {cli.ping} ms
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="text-[10px] text-slate-500 italic mt-2">
+                  * Таблица сетей автоматически транслирует активный WebSocket фреймрейт. Нажмите симуляцию задержки вверху для имитации сбоя связи.
+                </div>
+              </div>
+
+            </div>
+          )}
+
+        </motion.div>
+      </AnimatePresence>
+
+    </div>
+  );
+}

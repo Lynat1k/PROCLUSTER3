@@ -56,6 +56,8 @@ export interface CryptoPair {
   volume24h: number;
   delta24h: number;
   priceStep: number;  // Price clustering interval (e.g., $10 for BTC, $1 for ETH)
+  compressionSpot?: number;
+  compressionFutures?: number;
 }
 
 export interface AIAnalysis {
