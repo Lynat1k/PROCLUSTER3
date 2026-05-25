@@ -1,0 +1,652 @@
+import React, { useState, useEffect } from "react";
+import { Indicator, IndicatorSettings } from "../types";
+import { X, Search, Star, Trash2, Eye, EyeOff, Layers, Settings, Activity } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+
+interface IndicatorsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  symbol: string;
+  indicators: Indicator[];
+  onApply: (updatedIndicators: Indicator[]) => void;
+  theme?: "dark" | "light";
+}
+
+export default function IndicatorsModal({
+  isOpen,
+  onClose,
+  symbol,
+  indicators,
+  onApply,
+  theme = "dark"
+}: IndicatorsModalProps) {
+  const isLight = theme === "light";
+
+  // We use draft state for edit-and-commit pattern
+  const [draft, setDraft] = useState<Indicator[]>([]);
+  const [activeTab, setActiveTab] = useState<"Все индикаторы" | "Избранные" | "Сообщество">("Все индикаторы");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedId, setSelectedId] = useState<string>("clusterSearch");
+
+  useEffect(() => {
+    if (isOpen) {
+      // Deep copy to ensure safety of draft manipulation
+      setDraft(JSON.parse(JSON.stringify(indicators)));
+    }
+  }, [isOpen, indicators]);
+
+  if (!isOpen) return null;
+
+  // Sync draft and selected id if item gets selected
+  const selectedIndicator = draft.find((i) => i.id === selectedId) || draft[0];
+
+  // Filters for the middle list
+  const filteredIndicators = draft.filter((ind) => {
+    // Tab category checks
+    if (activeTab === "Избранные" && !ind.isFavorite) return false;
+    if (activeTab === "Сообщество" && ind.category !== "Сообщество") return false;
+    
+    // Search filter
+    if (searchQuery.trim() !== "") {
+      return ind.label.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+    return true;
+  });
+
+  // Count matches helper
+  const getCount = (tab: typeof activeTab) => {
+    if (tab === "Все индикаторы") return draft.length;
+    if (tab === "Избранные") return draft.filter(i => i.isFavorite).length;
+    return draft.filter(i => i.category === "Сообщество").length;
+  };
+
+  // Update specific settings of currently active element
+  const updateSettings = (updates: Partial<IndicatorSettings>) => {
+    if (!selectedIndicator) return;
+    setDraft((prev) =>
+      prev.map((ind) => {
+        if (ind.id === selectedIndicator.id) {
+          return {
+            ...ind,
+            settings: { ...ind.settings, ...updates }
+          };
+        }
+        return ind;
+      })
+    );
+  };
+
+  // Toggle favorite on an element
+  const toggleFavorite = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDraft((prev) =>
+      prev.map((ind) => (ind.id === id ? { ...ind, isFavorite: !ind.isFavorite } : ind))
+    );
+  };
+
+  // Toggle active visibility of indicator
+  const toggleActive = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setDraft((prev) =>
+      prev.map((ind) => (ind.id === id ? { ...ind, isActive: !ind.isActive } : ind))
+    );
+  };
+
+  // Completely deactivate indicator (remove from added list)
+  const deactivateIndicator = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDraft((prev) =>
+      prev.map((ind) => (ind.id === id ? { ...ind, isActive: false } : ind))
+    );
+  };
+
+  const handleApply = () => {
+    onApply(draft);
+    onClose();
+  };
+
+  // Currently added indicators (isActive = true)
+  const addedIndicators = draft.filter((ind) => ind.isActive);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none bg-transparent">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 15 }}
+        className={`pointer-events-auto w-full max-w-4xl h-[580px] rounded-3xl flex flex-col overflow-hidden font-sans transition-all duration-300 border shadow-2xl ${
+          isLight
+            ? "bg-white border-slate-200 text-slate-800"
+            : "bg-[#0F1420]/98 border border-white/10 text-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.85)]"
+        }`}
+      >
+        {/* HEADER */}
+        <div className={`flex items-center justify-between px-6 py-4.5 border-b transition-all duration-300 ${
+          isLight ? "bg-slate-50 border-slate-200/80 text-slate-800" : "border-white/5 bg-slate-950/20"
+        }`}>
+          <div className="flex items-center gap-2.5">
+            <Layers className="w-5 h-5 text-blue-500" />
+            <span className="text-base font-bold tracking-wide">
+              Индикаторы <span className={`${isLight ? "text-slate-500" : "text-slate-450"} font-medium font-mono`}>→ {symbol}</span>
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className={`p-1 rounded-full transition-colors cursor-pointer ${
+              isLight
+                ? "hover:bg-slate-200/55 text-slate-550 hover:text-slate-800"
+                : "hover:bg-white/5 text-slate-400 hover:text-slate-100"
+            }`}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* WORKSPACE AREA */}
+        <div className="flex-1 flex min-h-0 overflow-hidden">
+          
+          {/* LEFT SIDEBAR: Categories & Added list */}
+          <div className={`w-[220px] p-4 border-r flex flex-col gap-5 justify-between select-none transition-all duration-300 ${
+            isLight ? "bg-slate-50/50 border-slate-200" : "bg-slate-900/10 border-white/5"
+          }`}>
+            <div className="flex flex-col gap-1.5">
+              {(["Все индикаторы", "Избранные", "Сообщество"] as const).map((tab) => {
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? isLight
+                          ? "bg-blue-50 border border-blue-200 text-blue-700 font-extrabold"
+                          : "bg-gradient-to-r from-blue-600/35 to-blue-500/10 border border-blue-500/25 text-blue-400 font-extrabold"
+                        : isLight
+                          ? "text-slate-500 hover:text-slate-800 hover:bg-slate-100/70"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                    }`}
+                  >
+                    <span>{tab}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all duration-300 ${
+                      isActive 
+                        ? isLight ? "bg-blue-100 text-blue-800" : "bg-blue-500/20 text-blue-400" 
+                        : isLight ? "bg-slate-200 text-slate-600" : "bg-slate-800 text-slate-400"
+                    }`}>
+                      {getCount(tab)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* ДОБАВЛЕНО (Added section) */}
+            <div className={`flex-1 flex flex-col min-h-0 mt-2 border-t pt-3 transition-colors duration-300 ${
+              isLight ? "border-slate-200" : "border-white/5"
+            }`}>
+              <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-2 block font-mono pl-1">
+                ДОБАВЛЕНО
+              </span>
+              <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 scrollbar-thin">
+                <AnimatePresence initial={false}>
+                  {addedIndicators.length === 0 ? (
+                    <div className="text-slate-500 text-[11px] italic pl-1.5 pt-1">
+                      Нет активных
+                    </div>
+                  ) : (
+                    addedIndicators.map((ind) => (
+                      <motion.div
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -8 }}
+                        key={ind.id}
+                        onClick={() => setSelectedId(ind.id)}
+                        className={`flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+                          selectedId === ind.id
+                            ? isLight
+                              ? "bg-blue-50 border-blue-200 text-blue-800"
+                              : "bg-blue-600/15 border-blue-500/30 text-slate-100"
+                            : isLight
+                              ? "bg-transparent border-transparent hover:bg-slate-100 text-slate-600"
+                              : "bg-white/0 border-transparent hover:bg-white/5 text-slate-350"
+                        }`}
+                      >
+                        <span className="text-xs truncate font-medium font-sans pr-2">
+                          {ind.label}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={(e) => toggleActive(ind.id, e)}
+                            className={`p-1 rounded transition ${
+                              isLight 
+                                ? "hover:bg-slate-200/80 text-slate-500 hover:text-slate-800"
+                                : "hover:bg-white/10 text-slate-400 hover:text-slate-200"
+                            }`}
+                          >
+                            {ind.isActive ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5 font-bold" />}
+                          </button>
+                          <button
+                            onClick={(e) => deactivateIndicator(ind.id, e)}
+                            className={`p-1 rounded transition ${
+                              isLight
+                                ? "hover:bg-rose-100 text-slate-500 hover:text-rose-600"
+                                : "hover:bg-rose-500/20 text-slate-400 hover:text-rose-400"
+                            }`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+
+          {/* MIDDLE COLUMN: Search & Select list */}
+          <div className={`w-[280px] p-4 border-r flex flex-col gap-3 min-h-0 transition-all duration-300 ${
+            isLight ? "border-slate-200" : "border-r border-white/5"
+          }`}>
+            {/* Search */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Поиск..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full border rounded-xl py-1.5 px-3.5 pl-9 text-xs outline-none font-sans transition-all duration-300 ${
+                  isLight
+                    ? "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                    : "bg-[#030712]/50 border border-white/10 text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-yellow-500/40 focus:border-yellow-500/40"
+                }`}
+              />
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1 scrollbar-thin">
+              {filteredIndicators.map((ind) => {
+                const isSelected = selectedId === ind.id;
+                return (
+                  <div
+                    key={ind.id}
+                    onClick={() => setSelectedId(ind.id)}
+                    className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition select-none border ${
+                      isSelected
+                        ? isLight
+                          ? "bg-blue-50 border-blue-200"
+                          : "bg-blue-600/10 border border-blue-500/20"
+                        : isLight
+                          ? "bg-transparent border-transparent hover:bg-slate-100/70"
+                          : "bg-white/0 border border-transparent hover:bg-white/5"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-xs font-semibold truncate ${
+                        isSelected 
+                          ? isLight ? "text-blue-900 font-extrabold" : "text-slate-100" 
+                          : isLight ? "text-slate-700" : "text-slate-300"
+                      }`}>
+                        {ind.label}
+                      </span>
+                      {ind.isActive && (
+                        <span className={`text-[9.5px] font-black rounded px-1 text-[8px] uppercase tracking-wide shrink-0 ${
+                          isLight 
+                            ? "bg-blue-100 text-blue-700" 
+                            : "bg-blue-500/10 text-blue-400"
+                        }`}>
+                          ДОБАВЛЕНО
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={(e) => toggleFavorite(ind.id, e)}
+                      className={`p-1 rounded transition ml-2 shrink-0 ${
+                        isLight ? "hover:bg-slate-200 text-slate-400 hover:text-yellow-550" : "hover:bg-white/10 text-slate-400 hover:text-yellow-400"
+                      }`}
+                    >
+                      <Star className={`w-3.5 h-3.5 ${ind.isFavorite ? "fill-yellow-400 text-yellow-400" : "text-slate-500"}`} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Real configuration panel of the active selected indicator */}
+          <div className={`flex-1 p-5 overflow-y-auto scrollbar-thin flex flex-col gap-5 select-none transition-all duration-300 ${
+            isLight ? "bg-slate-50/70" : "bg-slate-950/5"
+          }`}>
+            {selectedIndicator ? (
+              <div className="flex flex-col gap-5">
+                {/* Title Card */}
+                <div className={`flex items-center justify-between pb-3.5 border-b transition-all duration-300 ${
+                  isLight ? "border-slate-200" : "border-white/5"
+                }`}>
+                  <div>
+                    <h3 className={`text-base font-extrabold tracking-tight font-sans flex items-center gap-1.5 ${
+                      isLight ? "text-slate-900" : "text-white"
+                    }`}>
+                      {selectedIndicator.label}
+                    </h3>
+                    <p className="text-[10px] text-slate-500 uppercase font-bold font-mono tracking-widest mt-0.5">
+                      Тип индикатора: {selectedIndicator.type}
+                    </p>
+                  </div>
+                  <span className={`text-[10px] font-semibold rounded-lg px-2.5 py-1 uppercase tracking-wide font-mono scale-90 ${
+                    isLight ? "bg-slate-200/80 text-slate-700" : "bg-slate-800 text-slate-300"
+                  }`}>
+                    Оверлей
+                  </span>
+                </div>
+
+                {/* Main Action Banner */}
+                <div className={`p-4 rounded-2xl flex flex-col items-start gap-3 border transition-all duration-300 ${
+                  isLight ? "bg-slate-100/50 border-slate-200" : "bg-white/5 border border-white/5"
+                }`}>
+                  <div className="flex items-center justify-between w-full">
+                    <button
+                      onClick={() => toggleActive(selectedIndicator.id)}
+                      className="px-4 py-2 font-bold text-xs rounded-xl cursor-pointer transition-all active:scale-[0.98] text-white bg-blue-650 hover:bg-blue-600/90"
+                    >
+                      {selectedIndicator.isActive ? "Добавить еще экземпляр" : "Активировать индикатор"}
+                    </button>
+                    <span className={`text-[11px] font-bold ${
+                      selectedIndicator.isActive 
+                        ? isLight ? "text-emerald-700" : "text-emerald-400" 
+                        : "text-amber-600"
+                    }`}>
+                      {selectedIndicator.isActive ? "✓ Активно экземпляров: 1" : "● Индикатор деактивирован"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* SETTINGS PARAMETERS */}
+                <div className="flex flex-col gap-4">
+                  {/* Option 1: Mode, location, sensitivity (Specific to Cluster Search) */}
+                  {selectedIndicator.id === "clusterSearch" && (
+                    <>
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
+                          СИГНАЛ
+                        </span>
+                        
+                        <div className="grid grid-cols-2 gap-3 font-sans text-xs">
+                          <label className="flex flex-col gap-1.5">
+                            <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Mode</span>
+                            <select
+                              value={selectedIndicator.settings.mode || "Volume"}
+                              onChange={(e) => updateSettings({ mode: e.target.value })}
+                              className={`rounded-xl px-3 py-2 text-xs outline-none cursor-pointer transition-all duration-300 border ${
+                                isLight
+                                  ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40 hover:border-white/20"
+                              }`}
+                            >
+                              <option value="Volume">Volume</option>
+                              <option value="Delta">Delta</option>
+                            </select>
+                          </label>
+
+                          <label className="flex flex-col gap-1.5">
+                            <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Направление</span>
+                            <select
+                              value={selectedIndicator.settings.direction || "Both"}
+                              onChange={(e) => updateSettings({ direction: e.target.value })}
+                              className={`rounded-xl px-3 py-2 text-xs outline-none cursor-pointer transition-all duration-300 border ${
+                                isLight
+                                  ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40 hover:border-white/20"
+                              }`}
+                            >
+                              <option value="Both">Both directions</option>
+                              <option value="Buy">Only Buy / Ask</option>
+                              <option value="Sell">Only Sell / Bid</option>
+                            </select>
+                          </label>
+                        </div>
+
+                        <label className="flex flex-col gap-1.5 font-sans text-xs mt-1.5">
+                          <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Price Location</span>
+                          <select
+                            value={selectedIndicator.settings.location || "Any"}
+                            onChange={(e) => updateSettings({ location: e.target.value })}
+                            className={`rounded-xl px-3 py-2 text-xs outline-none cursor-pointer transition-all duration-300 border ${
+                              isLight
+                                ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40 hover:border-white/20"
+                            }`}
+                          >
+                            <option value="Any">Anywhere inside candle</option>
+                            <option value="Body">Inside Candle Body</option>
+                            <option value="Wick">Inside Candle Wicks</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <div className="flex flex-col gap-2 mt-2">
+                        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
+                          ФИЛЬТРЫ
+                        </span>
+
+                        <div className="flex flex-col gap-3 font-sans text-xs">
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex justify-between font-bold">
+                              <span className={isLight ? "text-slate-700" : "text-slate-300"}>Sensitivity (Чувствительность)</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all duration-300 border ${
+                                isLight ? "bg-slate-200 text-blue-700 border-slate-300" : "bg-slate-900 text-yellow-500 border-transparent"
+                              }`}>
+                                {selectedIndicator.settings.sensitivity || 4}
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min="1"
+                              max="10"
+                              value={selectedIndicator.settings.sensitivity || 4}
+                              onChange={(e) => updateSettings({ sensitivity: parseInt(e.target.value) })}
+                              className={`w-full accent-blue-600 rounded-lg cursor-pointer h-1 ${isLight ? "bg-slate-200" : "bg-slate-800"}`}
+                            />
+                          </div>
+
+                          <label className={`flex items-center gap-2.5 p-1 rounded cursor-pointer mt-1 ${isLight ? "hover:bg-slate-100" : "hover:bg-white/5"}`}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIndicator.settings.useMinMax || false}
+                              onChange={(e) => updateSettings({ useMinMax: e.target.checked })}
+                              className={`rounded text-blue-600 focus:ring-blue-500 w-4 h-4 ${isLight ? "border-slate-350 bg-white" : "border-white/10 bg-slate-900"}`}
+                            />
+                            <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>Use Min/Max (Использовать границы мин/макс)</span>
+                          </label>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Option 2: Volumes viz options */}
+                  {(selectedIndicator.id === "volume" || selectedIndicator.id === "volumeOnChart" || selectedIndicator.id === "volumeProfile") && (
+                    <div className="flex flex-col gap-4 font-sans text-xs">
+                      <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
+                        ВИЗУАЛИЗАЦИЯ
+                      </span>
+                      
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between font-bold">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Opacity / Прозрачность</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-blue-700" : "text-yellow-500"}`}>
+                            {Math.round((selectedIndicator.settings.opacity || 0.7) * 100)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="1.0"
+                          step="0.05"
+                          value={selectedIndicator.settings.opacity || 0.7}
+                          onChange={(e) => updateSettings({ opacity: parseFloat(e.target.value) })}
+                          className={`w-full accent-blue-600 rounded-lg h-1 ${isLight ? "bg-slate-200" : "bg-slate-800"}`}
+                        />
+                      </div>
+
+                      <label className={`flex items-center gap-2.5 p-1 rounded cursor-pointer mt-1 ${isLight ? "hover:bg-slate-100" : "hover:bg-white/5"}`}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIndicator.settings.showLabels !== false}
+                          onChange={(e) => updateSettings({ showLabels: e.target.checked })}
+                          className={`rounded w-4 h-4 ${isLight ? "border-slate-350 bg-white text-blue-600" : "border-white/10 bg-slate-900 text-blue-500"}`}
+                        />
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>Draw Footprint Volume numbers</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Option 3: Delta settings */}
+                  {selectedIndicator.id === "delta" && (
+                    <div className="flex flex-col gap-4 font-sans text-xs">
+                      <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
+                        НАСТРОЙКИ ДЕЛЬТЫ
+                      </span>
+
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between font-bold">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Extreme Delta sensitivity</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-blue-700" : "text-yellow-500"}`}>
+                            {selectedIndicator.settings.sensitivity || 5}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          value={selectedIndicator.settings.sensitivity || 5}
+                          onChange={(e) => updateSettings({ sensitivity: parseInt(e.target.value) })}
+                          className={`w-full accent-blue-600 rounded-lg h-1 ${isLight ? "bg-slate-200" : "bg-slate-800"}`}
+                        />
+                      </div>
+
+                      <label className={`flex items-center gap-2.5 p-1 rounded cursor-pointer mt-1 ${isLight ? "hover:bg-slate-100" : "hover:bg-white/5"}`}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIndicator.settings.showLabels !== false}
+                          onChange={(e) => updateSettings({ showLabels: e.target.checked })}
+                          className={`rounded w-4 h-4 ${isLight ? "border-slate-350 bg-white text-blue-600" : "border-white/10 bg-slate-900 text-blue-500"}`}
+                        />
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>Show Volume Delta Labels under chart</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Option 4: CVD smoothing */}
+                  {selectedIndicator.id === "cvd" && (
+                    <div className={`flex flex-col gap-4 font-sans text-xs p-4.5 rounded-2xl border transition-all duration-300 ${
+                      isLight ? "bg-slate-100/40 border-slate-200/85" : "bg-slate-950/20 border-white/5"
+                    }`}>
+                      <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
+                        ПАРАМЕТРЫ СГЛАЖИВАНИЯ CVD
+                      </span>
+
+                      <div className="flex flex-col gap-2 mt-1">
+                        <div className="flex justify-between font-bold">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Cumulative smoothing period</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-blue-700" : "text-yellow-500"}`}>
+                            {selectedIndicator.settings.smoothing || 10}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="1"
+                          max="40"
+                          value={selectedIndicator.settings.smoothing || 10}
+                          onChange={(e) => updateSettings({ smoothing: parseInt(e.target.value) })}
+                          className={`w-full accent-blue-600 rounded-lg h-1 ${isLight ? "bg-slate-250" : "bg-slate-800"}`}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Option 5: Stacked Imbalance parameters */}
+                  {selectedIndicator.id === "stackedImbalance" && (
+                    <div className={`flex flex-col gap-4 font-sans text-xs p-4.5 rounded-2xl border transition-all duration-300 ${
+                      isLight ? "bg-slate-100/40 border-slate-200/85" : "bg-slate-950/20 border-white/5"
+                    }`}>
+                      <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
+                        ПАРАМЕТРЫ ДИСБАЛАНСА
+                      </span>
+
+                      <div className="grid grid-cols-2 gap-3 mt-1">
+                        <label className="flex flex-col gap-1.5 font-sans text-xs">
+                          <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Ratio Threshold</span>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="1.5"
+                            max="6.0"
+                            value={selectedIndicator.settings.ratio || 3.0}
+                            onChange={(e) => updateSettings({ ratio: parseFloat(e.target.value) })}
+                            className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                              isLight
+                                ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40 hover:border-white/20"
+                            }`}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fallback generic options */}
+                  {selectedIndicator.id !== "clusterSearch" &&
+                    selectedIndicator.id !== "volume" &&
+                    selectedIndicator.id !== "volumeOnChart" &&
+                    selectedIndicator.id !== "volumeProfile" &&
+                    selectedIndicator.id !== "delta" &&
+                    selectedIndicator.id !== "cvd" &&
+                    selectedIndicator.id !== "stackedImbalance" && (
+                      <div className="text-slate-500 italic text-xs py-3 font-sans">
+                        Дополнительные параметры конфигурирования будут добавлены в следующих обновлениях.
+                      </div>
+                    )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs font-sans">
+                Пожалуйста, выберите индикатор для настройки
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* BOTTOM FOOTER */}
+        <div className={`flex items-center justify-between px-6 py-4.5 border-t transition-all duration-300 ${
+          isLight ? "bg-slate-50 border-slate-200" : "border-white/5 bg-slate-950/20"
+        }`}>
+          <span className="text-[10.5px] font-mono text-slate-500 select-none pb-0.5">
+            Хоткей: <span className={`font-bold px-1.5 py-0.5 rounded border transition-colors ${
+              isLight ? "bg-slate-100 text-slate-600 border-slate-200" : "bg-white/5 text-slate-400 border-white/5"
+            }`}>/</span>
+          </span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className={`px-5 py-2 rounded-xl text-xs font-bold font-sans transition cursor-pointer ${
+                isLight 
+                  ? "hover:bg-slate-200/80 text-slate-600 hover:text-slate-800"
+                  : "hover:bg-white/5 text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleApply}
+              className="px-6 py-2 bg-[#2563eb] hover:bg-blue-600 text-white rounded-xl text-xs font-extrabold font-sans transition-all active:scale-[0.98] shadow-lg cursor-pointer flex items-center gap-1.5"
+            >
+              <Activity className="w-3.5 h-3.5 text-blue-200" />
+              <span>Применить</span>
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
