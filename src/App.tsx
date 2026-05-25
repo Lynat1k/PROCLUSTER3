@@ -44,16 +44,76 @@ export default function App() {
   };
 
   // Master Crypto Pairs (ticking prices)
-  const [pairs, setPairs] = useState<CryptoPair[]>(AVAILABLE_PAIRS);
-  const [activePair, setActivePair] = useState<CryptoPair>(AVAILABLE_PAIRS[0]);
+  const [pairs, setPairs] = useState<CryptoPair[]>(() => {
+    const saved = localStorage.getItem("procluster_pairs");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return AVAILABLE_PAIRS;
+      }
+    }
+    return AVAILABLE_PAIRS;
+  });
+
+  const [activePair, setActivePair] = useState<CryptoPair>(() => {
+    const savedSymbol = localStorage.getItem("procluster_active_symbol");
+    const initialPairs = (() => {
+      const saved = localStorage.getItem("procluster_pairs");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+      return AVAILABLE_PAIRS;
+    })();
+    if (savedSymbol) {
+      const found = initialPairs.find((p: CryptoPair) => p.symbol === savedSymbol);
+      if (found) return found;
+    }
+    return initialPairs[0] || AVAILABLE_PAIRS[0];
+  });
   
   // Dashboard Configurations
-  const [interval, setInterval] = useState<string>("15m");
+  const [interval, setInterval] = useState<string>(() => {
+    return localStorage.getItem("procluster_interval") || "15m";
+  });
   const [isTickingAll, setIsTickingAll] = useState<boolean>(true);
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "syncing" | "stale">("connected");
-  const [marketType, setMarketType] = useState<"SPOT" | "FUTURES">("SPOT");
-  const [candleType, setCandleType] = useState<"auto" | "japanese" | "footprint" | "clusters">("auto");
-  const [candleDataType, setCandleDataType] = useState<"bid_ask" | "delta" | "volume">("bid_ask");
+  const [marketType, setMarketType] = useState<"SPOT" | "FUTURES">(() => {
+    return (localStorage.getItem("procluster_market_type") as "SPOT" | "FUTURES") || "SPOT";
+  });
+  const [candleType, setCandleType] = useState<"auto" | "japanese" | "footprint" | "clusters">(() => {
+    return (localStorage.getItem("procluster_candle_type") as any) || "auto";
+  });
+  const [candleDataType, setCandleDataType] = useState<"bid_ask" | "delta" | "volume">(() => {
+    return (localStorage.getItem("procluster_candle_data_type") as any) || "bid_ask";
+  });
+
+  // Persists states when they change
+  useEffect(() => {
+    localStorage.setItem("procluster_pairs", JSON.stringify(pairs));
+  }, [pairs]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_active_symbol", activePair.symbol);
+  }, [activePair.symbol]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_interval", interval);
+  }, [interval]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_market_type", marketType);
+  }, [marketType]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_candle_type", candleType);
+  }, [candleType]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_candle_data_type", candleDataType);
+  }, [candleDataType]);
 
   // Indicators Configuration State
   const [indicators, setIndicators] = useState<Indicator[]>([
