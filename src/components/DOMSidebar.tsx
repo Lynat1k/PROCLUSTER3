@@ -453,9 +453,9 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
   };
 
   // Reverse asks so the highest price is at the top of the vertical ladder!
-  // Show 7 nearest levels for extreme vertical compactness
-  const reversedAsks = [...orderBook.asks].slice(0, 7).reverse();
-  const slicedBids = [...orderBook.bids].slice(0, 7);
+  // Show 15 levels for rich, full-height vertical footprint grid alignment
+  const reversedAsks = [...orderBook.asks].slice(0, 15).reverse();
+  const slicedBids = [...orderBook.bids].slice(0, 15);
 
   // Find overall maximum size in the book to properly scale horizontal depth bars
   const maxAmountInBook = Math.max(
@@ -714,44 +714,7 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
         </div>
       </div>
 
-      {/* 4. TRANSACTION LOGGER */}
-      <div className={`mt-3 pt-3 border-t shrink-0 ${isLight ? "border-slate-200" : "border-white/5"}`}>
-        {/* Real-time Order Actions Tape feed log */}
-        <div className={`rounded-xl p-2 border shadow-inner transition-all duration-300 ${
-          isLight ? "bg-slate-50 border-slate-200" : "bg-slate-955/40 border-white/5"
-        }`}>
-          <div className={`text-[8px] font-black uppercase tracking-widest mb-1.5 border-b pb-1 font-mono ${
-            isLight ? "text-slate-500 border-slate-200" : "text-slate-500 border-white/5"
-          }`}>
-            Trade execution journal log
-          </div>
-          <div className="h-16 overflow-y-auto flex flex-col gap-1 font-mono text-[9px] pr-1 scrollbar-thin">
-            {tradeLogs.length === 0 ? (
-              <div className="text-slate-600 text-center uppercase py-2">idle</div>
-            ) : (
-              tradeLogs.map(log => (
-                <div 
-                  key={log.id} 
-                  className={`flex gap-1 items-start leading-tight ${
-                    log.type === "buy" 
-                      ? "text-emerald-400" 
-                      : log.type === "sell" 
-                      ? "text-rose-400" 
-                      : log.type === "cancel" 
-                      ? "text-slate-450" 
-                      : "text-slate-400"
-                  }`}
-                >
-                  <span className="text-slate-600 shrink-0 select-none">
-                    [{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}]
-                  </span>
-                  <span>{log.message}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 }

@@ -15,6 +15,8 @@ interface HeaderProps {
   theme?: "dark" | "light";
   onToggleTheme?: () => void;
   onOpenAdmin?: () => void;
+  language: "RU" | "EN" | "KZ";
+  onLanguageChange: (lang: "RU" | "EN" | "KZ") => void;
 }
 
 export default function Header({
@@ -23,7 +25,9 @@ export default function Header({
   connectionStatus,
   theme = "dark",
   onToggleTheme,
-  onOpenAdmin
+  onOpenAdmin,
+  language,
+  onLanguageChange
 }: HeaderProps) {
   
   const isLight = theme === "light";
@@ -41,8 +45,6 @@ export default function Header({
   const [loginEmail, setLoginEmail] = useState("");
   const [loginName, setLoginName] = useState("");
 
-  // Custom interactive state mimicking the screenshots
-  const [language, setLanguage] = useState("RU");
   const [copied, setCopied] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -179,10 +181,12 @@ export default function Header({
               ? "bg-red-50 hover:bg-red-100 border-red-150 text-red-700 shadow-sm"
               : "bg-red-950/20 hover:bg-red-900/40 border-red-900/30 text-red-400 shadow-inner hover:text-red-300"
           }`}
-          title="Панель администратора"
+          title={language === "EN" ? "Admin Panel" : language === "KZ" ? "Әкімшілік панелі" : "Панель администратора"}
         >
           <Sliders className="w-3.5 h-3.5 animate-pulse" />
-          <span className="hidden sm:inline">Админка</span>
+          <span className="hidden sm:inline">
+            {language === "EN" ? "Admin" : language === "KZ" ? "Әкімшілік" : "Админка"}
+          </span>
         </button>
 
         {/* LIGHT/DARK THEME TOGGLE BUTTON right next to the profile chip */}
@@ -193,7 +197,10 @@ export default function Header({
               ? "bg-slate-150 hover:bg-slate-200 border-slate-250 text-slate-800 shadow-sm"
               : "bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-yellow-400 hover:text-yellow-300 shadow-inner"
           }`}
-          title={isLight ? "Включить темную тему" : "Включить светлую тему"}
+          title={isLight 
+            ? language === "EN" ? "Enable Dark Theme" : language === "KZ" ? "Түнгі режим" : "Включить темную тему"
+            : language === "EN" ? "Enable Light Theme" : language === "KZ" ? "Күндізгі режим" : "Включить светлую тему"
+          }
         >
           {isLight ? (
             <Moon className="w-4 h-4 text-slate-700 font-bold" />
@@ -284,21 +291,21 @@ export default function Header({
                       isLight ? "text-slate-650 hover:text-slate-900 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-white/5"
                     }`}>
                       <User className="w-4 h-4 text-slate-450" />
-                      <span>Профиль и аватар</span>
+                      <span>{language === "EN" ? "Profile & avatar" : language === "KZ" ? "Профиль және аватар" : "Профиль и аватар"}</span>
                     </button>
 
                     <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[12px] font-bold cursor-pointer transition text-left ${
                       isLight ? "text-slate-650 hover:text-slate-900 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-white/5"
                     }`}>
                       <Home className="w-4 h-4 text-slate-455" />
-                      <span>Главная</span>
+                      <span>{language === "EN" ? "Home" : language === "KZ" ? "Басты бет" : "Главная"}</span>
                     </button>
 
                     <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[12px] font-bold cursor-pointer transition text-left ${
                       isLight ? "text-slate-650 hover:bg-red-50 hover:text-rose-600" : "text-slate-300 hover:text-white hover:bg-white/5"
                     }`}>
                       <Bug className="w-4 h-4 text-rose-450" />
-                      <span>Нашли ошибку?</span>
+                      <span>{language === "EN" ? "Found an error?" : language === "KZ" ? "Қате таптыңыз ба?" : "Нашли ошибку?"}</span>
                     </button>
 
                     {/* Copyable Workspace Segment */}
@@ -322,7 +329,7 @@ export default function Header({
                         <span className={`text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border ${
                           isLight ? "bg-slate-150 border-slate-200 text-slate-600" : "bg-white/5 border-white/5 text-slate-500"
                         }`}>
-                          COPY
+                          {language === "EN" ? "COPY" : language === "KZ" ? "КӨШІРУ" : "КОПИРОВАТЬ"}
                         </span>
                       )}
                     </button>
@@ -333,28 +340,41 @@ export default function Header({
                     <span className={`text-[9px] font-mono font-extrabold tracking-widest uppercase block mb-2 px-1 ${
                       isLight ? "text-slate-500" : "text-slate-400"
                     }`}>
-                      ЯЗЫК
+                      {language === "EN" ? "LANGUAGE" : language === "KZ" ? "ТІЛ" : "ЯЗЫК"}
                     </span>
                     <div className={`grid grid-cols-3 gap-1.5 p-[3px] rounded-2xl border shadow-inner ${
                       isLight ? "bg-slate-100/80 border-slate-200/50" : "bg-slate-950/60 border-white/5"
                     }`}>
-                      {["RU", "EN", "KZ"].map((lang) => (
-                        <button
-                          key={lang}
-                          onClick={() => setLanguage(lang)}
-                          className={`py-1.5 rounded-xl text-[10.5px] font-bold font-mono transition-all duration-200 cursor-pointer text-center relative ${
-                            language === lang
-                              ? isLight 
-                                ? "bg-white border border-slate-250 text-slate-900 shadow-sm font-extrabold"
-                                : "bg-slate-850/80 border border-white/10 text-white shadow-md font-extrabold"
-                              : isLight
-                                ? "text-slate-500 hover:text-slate-800"
-                                : "text-slate-450 hover:text-slate-200"
-                          }`}
-                        >
-                          {lang}
-                        </button>
-                      ))}
+                      {["RU", "EN", "KZ"].map((lang) => {
+                        const isSelected = language === lang;
+                        return (
+                          <button
+                            key={lang}
+                            onClick={() => onLanguageChange(lang as any)}
+                            className="py-1.5 rounded-xl text-[10.5px] font-bold font-mono cursor-pointer text-center relative border-0 outline-none"
+                          >
+                            {isSelected && (
+                              <motion.div
+                                layoutId="activeLanguage"
+                                className={`absolute inset-0 rounded-xl ${
+                                  isLight 
+                                    ? "bg-slate-100 border border-slate-250 shadow-sm"
+                                    : "bg-slate-800 border border-white/10 shadow-md"
+                                }`}
+                                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                                style={{ zIndex: 0 }}
+                              />
+                            )}
+                            <span className={`relative z-10 transition-colors duration-200 ${
+                              isSelected
+                                ? isLight ? "text-slate-900 font-extrabold" : "text-white font-extrabold"
+                                : isLight ? "text-slate-505 hover:text-slate-800 text-slate-500" : "text-slate-450 hover:text-slate-205 text-slate-400 hover:text-slate-200"
+                            }`}>
+                              {lang}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -368,7 +388,7 @@ export default function Header({
                       className="flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[11px] font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50/55 cursor-pointer transition duration-150 text-left"
                     >
                       <LogOut className="w-4 h-4" />
-                      <span>Выйти</span>
+                      <span>{language === "EN" ? "Logout" : language === "KZ" ? "Шығу" : "Выйти"}</span>
                     </button>
                   </div>
                 </motion.div>

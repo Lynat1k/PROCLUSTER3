@@ -25,6 +25,16 @@ export default function App() {
     return (localStorage.getItem("procluster_theme") as "dark" | "light") || "dark";
   });
 
+  // Language management state
+  const [language, setLanguage] = useState<"RU" | "EN" | "KZ">(() => {
+    return (localStorage.getItem("procluster_lang") as "RU" | "EN" | "KZ") || "RU";
+  });
+
+  const handleLanguageChange = (lang: "RU" | "EN" | "KZ") => {
+    setLanguage(lang);
+    localStorage.setItem("procluster_lang", lang);
+  };
+
   const toggleTheme = () => {
     setTheme(prev => {
       const next = prev === "dark" ? "light" : "dark";
@@ -637,6 +647,8 @@ export default function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onOpenAdmin={() => setCurrentView(prev => prev === "admin" ? "terminal" : "admin")}
+        language={language}
+        onLanguageChange={handleLanguageChange}
       />
 
       {currentView === "admin" ? (
@@ -707,7 +719,7 @@ export default function App() {
                     <div className={`text-[10px] font-bold px-2.5 pb-1.5 border-b mb-2 uppercase tracking-widest ${
                       theme === "light" ? "text-slate-500 border-slate-100" : "text-slate-400 border-white/5"
                     }`}>
-                      Доступные пары
+                      {language === "EN" ? "Available Pairs" : language === "KZ" ? "Қолжетімді жұптар" : "Доступные пары"}
                     </div>
                     <div className="flex flex-col gap-1">
                       {pairs.map((p) => (
@@ -803,34 +815,49 @@ export default function App() {
             <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-1 ${
               theme === "light" ? "text-slate-500" : "text-slate-400/80"
             }`}>
-              Тип свечей
+              {language === "EN" ? "Candle Type" : language === "KZ" ? "Шамдар түрі" : "Тип свечей"}
             </span>
             <div className={`flex items-center p-[3px] rounded-xl h-[36px] select-none transition-all duration-300 border ${
               theme === "light" ? "bg-slate-100 border-slate-200" : "bg-slate-950/60 border-white/5"
             }`}>
               {[
-                { id: "auto", label: "Авто", icon: Sparkles },
-                { id: "japanese", label: "Японские свечи", icon: CandlestickChart },
-                { id: "footprint", label: "Футпринт", icon: Footprints },
-                { id: "clusters", label: "Кластера", icon: LayoutGrid }
+                { id: "auto", label: language === "EN" ? "Auto" : "Авто", icon: Sparkles },
+                { id: "japanese", label: language === "EN" ? "Japanese Candlesticks" : language === "KZ" ? "Жапон шамдары" : "Японские свечи", icon: CandlestickChart },
+                { id: "footprint", label: language === "EN" ? "Footprint" : "Футпринт", icon: Footprints },
+                { id: "clusters", label: language === "EN" ? "Clusters" : language === "KZ" ? "Кластерлер" : "Кластера", icon: LayoutGrid }
               ].map((item) => {
                 const IconComponent = item.icon;
+                const isSelected = candleType === item.id;
                 return (
                   <button
                     key={item.id}
                     onClick={() => setCandleType(item.id as any)}
                     title={item.label}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer text-center leading-none h-[28px] flex items-center justify-center ${
-                      candleType === item.id
-                        ? theme === "light"
-                          ? "bg-white text-blue-700 border border-slate-300 shadow-sm font-black"
-                          : "bg-blue-500/10 border border-blue-500/25 text-blue-400 font-extrabold shadow-inner"
-                        : theme === "light"
-                          ? "text-slate-550 hover:text-slate-900 hover:bg-white/40"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
-                    }`}
+                    className="relative flex-1 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer text-center leading-none h-[28px] flex items-center justify-center border-0 outline-none select-none"
                   >
-                    <IconComponent className="w-4 h-4" />
+                    {isSelected && (
+                      <motion.div
+                        layoutId="activeCandleType"
+                        className={`absolute inset-0 rounded-lg ${
+                          theme === "light"
+                            ? "bg-white border border-slate-300 shadow-sm"
+                            : "bg-blue-500/10 border border-blue-500/25 shadow-inner"
+                        }`}
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        style={{ zIndex: 0 }}
+                      />
+                    )}
+                    <span className={`relative z-10 flex items-center justify-center transition-colors duration-200 ${
+                      isSelected
+                        ? theme === "light"
+                          ? "text-blue-700 font-extrabold"
+                          : "text-blue-400 font-extrabold"
+                        : theme === "light"
+                          ? "text-slate-550 hover:text-slate-900"
+                          : "text-slate-400 hover:text-slate-200"
+                    }`}>
+                      <IconComponent className="w-4 h-4" />
+                    </span>
                   </button>
                 );
               })}
@@ -842,7 +869,7 @@ export default function App() {
             <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-1 ${
               theme === "light" ? "text-slate-500" : "text-slate-400/80"
             }`}>
-              Данные в свечах
+              {language === "EN" ? "Candle Data" : language === "KZ" ? "Шамдағы деректер" : "Данные в свечах"}
             </span>
             <div className={`flex items-center p-[3px] rounded-xl h-[36px] select-none transition-all duration-300 border ${
               theme === "light" ? "bg-slate-100 border-slate-200" : "bg-slate-950/60 border-white/5"
@@ -850,24 +877,41 @@ export default function App() {
               {[
                 { id: "bid_ask", label: "Bid Ask" },
                 { id: "delta", label: "Delta" },
-                { id: "volume", label: "Volume" }
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setCandleDataType(item.id as any)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer text-center leading-none h-[28px] flex items-center justify-center ${
-                    candleDataType === item.id
-                      ? theme === "light"
-                        ? "bg-white text-blue-700 border border-slate-300 shadow-sm font-black"
-                        : "bg-blue-500/10 border border-blue-500/25 text-blue-400 font-extrabold shadow-inner"
-                      : theme === "light"
-                        ? "text-slate-550 hover:text-slate-900 hover:bg-white/40"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
-                  }`}
-                >
-                  <span className="font-mono text-[11px] whitespace-nowrap">{item.label}</span>
-                </button>
-              ))}
+                { id: "volume", label: language === "EN" ? "Volume" : language === "KZ" ? "Көлем" : "Объем" }
+              ].map((item) => {
+                const isSelected = candleDataType === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setCandleDataType(item.id as any)}
+                    className="relative flex-1 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer text-center leading-none h-[28px] flex items-center justify-center border-0 outline-none select-none"
+                  >
+                    {isSelected && (
+                      <motion.div
+                        layoutId="activeCandleDataType"
+                        className={`absolute inset-0 rounded-lg ${
+                          theme === "light"
+                            ? "bg-white border border-slate-300 shadow-sm"
+                            : "bg-blue-500/10 border border-blue-500/25 shadow-inner"
+                        }`}
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        style={{ zIndex: 0 }}
+                      />
+                    )}
+                    <span className={`relative z-10 font-mono text-[11px] whitespace-nowrap transition-colors duration-200 ${
+                      isSelected
+                        ? theme === "light"
+                          ? "text-blue-700 font-black"
+                          : "text-blue-400 font-extrabold"
+                        : theme === "light"
+                          ? "text-slate-550 hover:text-slate-900"
+                          : "text-slate-400 hover:text-slate-200"
+                    }`}>
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -887,7 +931,7 @@ export default function App() {
               }`}
             >
               <Layers className="w-4 h-4 text-blue-400 animate-pulse" />
-              <span>Индикаторы</span>
+              <span>{language === "EN" ? "Indicators" : language === "KZ" ? "Индикаторлар" : "Индикаторы"}</span>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
           </div>
