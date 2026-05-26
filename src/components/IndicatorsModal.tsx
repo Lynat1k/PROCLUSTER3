@@ -282,7 +282,9 @@ export default function IndicatorsModal({
             </div>
 
             {/* Accordion Categories */}
-            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin min-h-0">
+            <div className={`flex-1 overflow-y-auto pr-1 flex flex-col gap-2 min-h-0 ${
+              isLight ? "scrollbar-thin-light" : "scrollbar-thin-dark"
+            }`}>
               {(["Все индикаторы", "Избранные", "Сообщество"] as const).map((tab) => {
                 const items = getAccordionIndicators(tab);
                 const isExpanded = isSectionExpanded(tab);
@@ -391,7 +393,9 @@ export default function IndicatorsModal({
               <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-2 block font-mono pl-1">
                 АКТИВНЫЕ ({addedIndicators.length})
               </span>
-              <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 scrollbar-thin">
+              <div className={`flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 ${
+                isLight ? "scrollbar-thin-light" : "scrollbar-thin-dark"
+              }`}>
                 <AnimatePresence initial={false}>
                   {addedIndicators.length === 0 ? (
                     <div className="text-slate-500 text-[11px] italic pl-1.5 pt-1">
@@ -449,8 +453,8 @@ export default function IndicatorsModal({
           </div>
 
           {/* RIGHT COLUMN: Real configuration panel of the active selected indicator */}
-          <div className={`flex-1 p-5 overflow-y-auto scrollbar-thin flex flex-col gap-5 select-none transition-all duration-300 ${
-            isLight ? "bg-slate-50/70" : "bg-slate-950/5"
+          <div className={`flex-1 p-5 overflow-y-auto flex flex-col gap-5 select-none transition-all duration-300 ${
+            isLight ? "bg-slate-50/70 scrollbar-thin-light" : "bg-slate-950/5 scrollbar-thin-dark"
           }`}>
             {selectedIndicator ? (
               <div className="flex flex-col gap-5">

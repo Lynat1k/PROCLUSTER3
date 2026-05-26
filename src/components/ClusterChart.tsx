@@ -399,17 +399,7 @@ export default function ClusterChart({
       });
     }
 
-    // 3.8 Draw solid footer strip for secondary timeline panel decoration
-    ctx.save();
-    ctx.fillStyle = isLight ? "#f1f5f9" : "#090b12";
-    ctx.fillRect(0, totalSvgHeight - margin.bottom, scrollWidth, margin.bottom);
-    ctx.beginPath();
-    ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.1)" : "rgba(255, 255, 255, 0.08)";
-    ctx.lineWidth = 1;
-    ctx.moveTo(0, totalSvgHeight - margin.bottom);
-    ctx.lineTo(scrollWidth, totalSvgHeight - margin.bottom);
-    ctx.stroke();
-    ctx.restore();
+
 
     // 4. Draw each candlestick
     // Find dynamic maximum volume on visible part of the chart
@@ -831,15 +821,62 @@ export default function ClusterChart({
         }
         ctx.restore();
       }
+    });
 
-      // D. Time Axis Label
+    // 5. Drawing Cumulative Volume Delta (CVD) trend line
+    if (activeIndicators.delta && activeIndicators.cvd && cumulativeDeltaPoints.length > 0) {
       ctx.save();
-      const isHovered = isHoveredCol;
+      ctx.translate(0, margin.top + chartHeight + spacing);
+
+      ctx.beginPath();
+      cumulativeDeltaPoints.forEach((p, idx) => {
+        const cy = 35 - (p.value / maxCumDelta) * 26;
+        if (idx === 0) {
+          ctx.moveTo(p.cx, cy);
+        } else {
+          ctx.lineTo(p.cx, cy);
+        }
+      });
+
+      // Add purple glowing effect
+      ctx.shadowColor = isLight ? "rgba(124, 58, 237, 0.4)" : "rgba(192, 132, 252, 0.8)";
+      ctx.shadowBlur = 6;
+      ctx.strokeStyle = isLight ? "#7c3aed" : "#c084fc";
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 5.5 Draw the solid timeline footer strip and time axis labels on top of everything else (to hide overlapping candles/wicks)
+    ctx.save();
+    ctx.fillStyle = isLight ? "#f1f5f9" : "#090b12";
+    // We fill the entire bottom margin (timeline section) as a solid background to cover any overflowed elements from candles
+    ctx.fillRect(0, totalSvgHeight - margin.bottom, scrollWidth, margin.bottom);
+    
+    ctx.beginPath();
+    ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.1)" : "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1.0;
+    ctx.moveTo(0, totalSvgHeight - margin.bottom);
+    ctx.lineTo(scrollWidth, totalSvgHeight - margin.bottom);
+    ctx.stroke();
+    ctx.restore();
+
+    // Now draw the horizontal time axis labels for all candles cleanly on top of this background
+    candles.forEach((candle, cIdx) => {
+      const x = margin.left + cIdx * (candleWidth + candleSpacing);
+      const hoveredCandleIdx = crosshair
+        ? Math.floor((crosshair.x - margin.left) / (candleWidth + candleSpacing))
+        : -1;
+      const isHovered = crosshair && cIdx === hoveredCandleIdx;
+
       const timeStr = new Date(candle.timestamp).toLocaleTimeString(undefined, {
         hour: "2-digit",
         minute: "2-digit",
       });
 
+      ctx.save();
       if (isHovered) {
         ctx.font = "bold 9px Fira Code, monospace";
         const textWidth = ctx.measureText(timeStr).width;
@@ -874,32 +911,6 @@ export default function ClusterChart({
       }
       ctx.restore();
     });
-
-    // 5. Drawing Cumulative Volume Delta (CVD) trend line
-    if (activeIndicators.delta && activeIndicators.cvd && cumulativeDeltaPoints.length > 0) {
-      ctx.save();
-      ctx.translate(0, margin.top + chartHeight + spacing);
-
-      ctx.beginPath();
-      cumulativeDeltaPoints.forEach((p, idx) => {
-        const cy = 35 - (p.value / maxCumDelta) * 26;
-        if (idx === 0) {
-          ctx.moveTo(p.cx, cy);
-        } else {
-          ctx.lineTo(p.cx, cy);
-        }
-      });
-
-      // Add purple glowing effect
-      ctx.shadowColor = isLight ? "rgba(124, 58, 237, 0.4)" : "rgba(192, 132, 252, 0.8)";
-      ctx.shadowBlur = 6;
-      ctx.strokeStyle = isLight ? "#7c3aed" : "#c084fc";
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
-      ctx.restore();
-    }
 
     // 6. Draw Crosshair cursor lines
     if (crosshair) {
@@ -954,7 +965,7 @@ export default function ClusterChart({
       isLight ? "bg-white border-slate-200" : "liquid-glass-card border-none"
     }`}>
       {/* Chart Tools Header */}
-      <div className={`px-5 py-3 flex items-center justify-between z-20 backdrop-blur-md border-b transition-all duration-300 ${
+      <div className={`px-5 py-1.5 flex items-center justify-between z-20 backdrop-blur-md border-b transition-all duration-300 ${
         isLight ? "bg-slate-50/90 border-slate-200" : "bg-slate-950/80 border-white/5"
       }`}>
         <div className="flex items-center gap-3">

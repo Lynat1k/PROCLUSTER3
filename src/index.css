@@ -344,7 +344,51 @@ html, body, #root {
     inset 0 0.5px 0.5px rgba(255, 255, 255, 0.12);
 }
 
-/* Custom Scrollbars suited for modern terminals */
+/* Custom Scrollbars suited for modern terminals and themes */
+.scrollbar-thin-light {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.22) rgba(15, 23, 42, 0.03);
+}
+
+.scrollbar-thin-dark {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) rgba(15, 23, 42, 0.2);
+}
+
+/* Webkit browser scrollbar styling for light theme classes */
+.scrollbar-thin-light::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.scrollbar-thin-light::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: 9999px;
+}
+.scrollbar-thin-light::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.22);
+  border-radius: 9999px;
+}
+.scrollbar-thin-light::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.35);
+}
+
+/* Webkit browser scrollbar styling for dark theme classes */
+.scrollbar-thin-dark::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.scrollbar-thin-dark::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 9999px;
+}
+.scrollbar-thin-dark::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+}
+.scrollbar-thin-dark::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
