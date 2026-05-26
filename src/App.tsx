@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { CryptoPair, ClusterCandle, OrderBook as OrderBookType, LiveTrade, Indicator } from "./types";
+import { CryptoPair, ClusterCandle, ClusterCell, OrderBookRow, OrderBook as OrderBookType, LiveTrade, Indicator } from "./types";
 import {
   AVAILABLE_PAIRS,
   generateHistoricalCandles,
@@ -18,6 +18,265 @@ import IndicatorsModal from "./components/IndicatorsModal";
 import AdminPanel from "./components/AdminPanel";
 import { TrendingUp, TrendingDown, Layers, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+
+const AutoIcon = ({ className }: { className?: string }) => (
+  <span className={`font-sans text-xs font-black select-none ${className || ""}`}>A</span>
+);
+
+const JapaneseIcon = ({ className }: { className?: string }) => (
+  <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="8" y1="3" x2="8" y2="21" strokeWidth="2" />
+    <rect x="5" y="7" width="6" height="10" rx="1" fill="currentColor" fillOpacity="0.3" strokeWidth="2" />
+    <line x1="16" y1="3" x2="16" y2="21" strokeWidth="2" />
+    <rect x="13" y="5" width="6" height="12" rx="1" fill="currentColor" fillOpacity="0.3" strokeWidth="2" />
+  </svg>
+);
+
+const FootprintIcon = ({ className }: { className?: string }) => (
+  <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="4" y1="6" x2="16" y2="6" strokeWidth="2.8" />
+    <line x1="4" y1="12" x2="20" y2="12" strokeWidth="2.8" />
+    <line x1="4" y1="18" x2="12" y2="18" strokeWidth="2.8" />
+  </svg>
+);
+
+const ClustersIcon = ({ className }: { className?: string }) => (
+  <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="5" y="3" width="14" height="18" rx="2" strokeWidth="2" />
+    <line x1="5" y1="9" x2="19" y2="9" strokeWidth="1.5" />
+    <line x1="5" y1="15" x2="19" y2="15" strokeWidth="1.5" />
+    <line x1="12" y1="3" x2="12" y2="21" strokeWidth="1.2" strokeDasharray="2,2" />
+  </svg>
+);
+
+export const getBaseTickSize = (symbol: string): number => {
+  const norm = symbol.toUpperCase().replace("/", "");
+  if (norm.includes("BTC")) return 0.1;
+  if (norm.includes("ETH")) return 0.01;
+  if (norm.includes("SOL")) return 0.01;
+  if (norm.includes("BNB")) return 0.01;
+  if (norm.includes("XRP")) return 0.0001;
+  return 0.01; // default fallback
+};
+
+export async function fetchBinanceKlines(symbol: string, interval: string, isFutures: boolean, priceStep: number): Promise<ClusterCandle[]> {
+  const binanceSymbol = symbol.toUpperCase().replace("/", "");
+  
+  // Binance Kline intervals: 1m, 5m, 15m, 30m, 1h, 4h
+  const endpoint = isFutures
+    ? `https://fapi.binance.com/fapi/v1/klines?symbol=${binanceSymbol}&interval=${interval}&limit=50`
+    : `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=50`;
+
+  try {
+    const res = await fetch(endpoint);
+    if (!res.ok) {
+      throw new Error(`STATUS ${res.status}`);
+    }
+    const data = await res.json();
+    if (!Array.isArray(data)) {
+      throw new Error("Invalid format");
+    }
+
+    const candles: ClusterCandle[] = data.map((item: any) => {
+      const timestamp = Number(item[0]);
+      const open = parseFloat(item[1]);
+      const high = parseFloat(item[2]);
+      const low = parseFloat(item[3]);
+      const close = parseFloat(item[4]);
+      const volume = parseFloat(item[5]);
+      // Taker buy base asset volume is element 9 in the kline k-line array
+      const takerBuyVol = parseFloat(item[9]);
+      const takerSellVol = Math.max(0, volume - takerBuyVol);
+
+      // Create cells based on high/low and priceStep
+      const cells: ClusterCell[] = [];
+      const startPrice = Math.floor(low / priceStep) * priceStep;
+      const endPrice = Math.ceil(high / priceStep) * priceStep;
+
+      // Centered Gaussian approximation to distribute volumes across price levels
+      const centerPrice = (open + close) / 2;
+      const maxPriceDistance = Math.max(endPrice - startPrice, priceStep);
+
+      const tempCells: { price: number; bid: number; ask: number; volume: number }[] = [];
+      let maxCellVol = 0;
+      let pocIndex = -1;
+
+      // Safe guard against cell count exploding on bad precision parameters
+      let cellCount = 0;
+      for (let price = startPrice; price <= endPrice; price += priceStep) {
+        cellCount++;
+        if (cellCount > 250) break;
+      }
+
+      let currentPriceLevel = startPrice;
+      const parsedLevels: number[] = [];
+      for (let i = 0; i < cellCount; i++) {
+        parsedLevels.push(parseFloat(currentPriceLevel.toFixed(4)));
+        currentPriceLevel += priceStep;
+      }
+
+      const weights = parsedLevels.map(p => {
+        const dist = Math.abs(p - centerPrice);
+        return Math.max(0.01, Math.exp(-Math.pow(dist / (maxPriceDistance * 0.45), 2)));
+      });
+      const sumWeights = weights.reduce((s, w) => s + w, 0) || 1;
+
+      parsedLevels.forEach((priceLevel, idx) => {
+        const weight = weights[idx] / sumWeights;
+        const levelVol = volume * weight;
+        const takerRatio = volume > 0 ? takerBuyVol / volume : 0.5;
+        const ask = levelVol * takerRatio;
+        const bid = levelVol * (1 - takerRatio);
+
+        tempCells.push({
+          price: priceLevel,
+          bid,
+          ask,
+          volume: levelVol
+        });
+      });
+
+      // Locate Point of Control (POC) index
+      tempCells.forEach((c, idx) => {
+        if (c.volume > maxCellVol) {
+          maxCellVol = c.volume;
+          pocIndex = idx;
+        }
+      });
+
+      const finalCells: ClusterCell[] = tempCells.map((c, idx) => {
+        const isPoc = idx === pocIndex;
+        // Standard high ratio diagonal/direct cell imbalances
+        const isBuyImbalance = c.ask > c.bid * 1.8 && c.volume > (volume / tempCells.length) * 0.4;
+        const isSellImbalance = c.bid > c.ask * 1.8 && c.volume > (volume / tempCells.length) * 0.4;
+
+        return {
+          price: c.price,
+          bid: parseFloat(c.bid.toFixed(4)),
+          ask: parseFloat(c.ask.toFixed(4)),
+          volume: parseFloat(c.volume.toFixed(4)),
+          isPoc,
+          isBuyImbalance,
+          isSellImbalance
+        };
+      });
+
+      const sortedCells = finalCells.sort((a, b) => b.price - a.price);
+      const pocCell = sortedCells.find(c => c.isPoc);
+
+      // Estimate Value Area (vah, val) and return candle
+      const sortedByVol = [...sortedCells].sort((a, b) => b.volume - a.volume);
+      const targetVolSurround = volume * 0.7;
+      let runningSum = 0;
+      const vahValPrices: number[] = [];
+      for (const itemC of sortedByVol) {
+        runningSum += itemC.volume;
+        vahValPrices.push(itemC.price);
+        if (runningSum >= targetVolSurround) break;
+      }
+
+      return {
+        timestamp,
+        open: parseFloat(open.toFixed(4)),
+        high: parseFloat(high.toFixed(4)),
+        low: parseFloat(low.toFixed(4)),
+        close: parseFloat(close.toFixed(4)),
+        volume: parseFloat(volume.toFixed(4)),
+        delta: parseFloat((takerBuyVol - takerSellVol).toFixed(4)),
+        pocPrice: pocCell ? pocCell.price : parseFloat(((open + close) / 2).toFixed(4)),
+        cells: sortedCells,
+        vah: vahValPrices.length > 0 ? parseFloat(Math.max(...vahValPrices).toFixed(4)) : parseFloat(high.toFixed(4)),
+        val: vahValPrices.length > 0 ? parseFloat(Math.min(...vahValPrices).toFixed(4)) : parseFloat(low.toFixed(4))
+      };
+    });
+
+    return candles;
+  } catch (err) {
+    console.error("[Binance REST] Fetching historical klines failed! Falling back to simulation.", err);
+    throw err;
+  }
+}
+
+export async function fetchBinanceDepth(symbol: string, isFutures: boolean, priceStep: number): Promise<{ bids: OrderBookRow[]; asks: OrderBookRow[] } | null> {
+  const binanceSymbol = symbol.toUpperCase().replace("/", "");
+  const endpoint = isFutures
+    ? `https://fapi.binance.com/fapi/v1/depth?symbol=${binanceSymbol}&limit=1000`
+    : `https://api.binance.com/api/v3/depth?symbol=${binanceSymbol}&limit=1000`;
+
+  try {
+    const res = await fetch(endpoint);
+    if (!res.ok) throw new Error(`depth status ${res.status}`);
+    const data = await res.json();
+    if (!data || !Array.isArray(data.bids) || !Array.isArray(data.asks)) {
+      throw new Error("Invalid raw depth");
+    }
+
+    // Since Binance depth has narrow micro-price ticks, bucket them into 25-tick priceStep
+    const aggBids: Record<number, number> = {};
+    const aggAsks: Record<number, number> = {};
+
+    data.bids.forEach((item: any) => {
+      const p = parseFloat(item[0]);
+      const q = parseFloat(item[1]);
+      const bucketPrice = parseFloat((Math.floor(p / priceStep) * priceStep).toFixed(4));
+      aggBids[bucketPrice] = (aggBids[bucketPrice] || 0) + q;
+    });
+
+    data.asks.forEach((item: any) => {
+      const p = parseFloat(item[0]);
+      const q = parseFloat(item[1]);
+      const bucketPrice = parseFloat((Math.ceil(p / priceStep) * priceStep).toFixed(4));
+      aggAsks[bucketPrice] = (aggAsks[bucketPrice] || 0) + q;
+    });
+
+    const bidsArr: OrderBookRow[] = [];
+    let cumulativeBid = 0;
+    Object.keys(aggBids)
+      .map(Number)
+      .sort((a, b) => b - a)
+      .slice(0, 80)
+      .forEach((price) => {
+        const amount = aggBids[price];
+        cumulativeBid += amount;
+        bidsArr.push({
+          price,
+          amount,
+          total: cumulativeBid,
+          percentage: 0
+        });
+      });
+
+    const asksArr: OrderBookRow[] = [];
+    let cumulativeAsk = 0;
+    Object.keys(aggAsks)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .slice(0, 80)
+      .forEach((price) => {
+        const amount = aggAsks[price];
+        cumulativeAsk += amount;
+        asksArr.push({
+          price,
+          amount,
+          total: cumulativeAsk,
+          percentage: 0
+        });
+      });
+
+    const maxTotal = Math.max(
+      bidsArr.length > 0 ? bidsArr[bidsArr.length - 1].total : 1,
+      asksArr.length > 0 ? asksArr[asksArr.length - 1].total : 1
+    );
+
+    bidsArr.forEach(b => b.percentage = (b.total / maxTotal) * 100);
+    asksArr.forEach(a => a.percentage = (a.total / maxTotal) * 100);
+
+    return { bids: bidsArr, asks: asksArr };
+  } catch (err) {
+    console.error("[Binance Depth] Failed to fetch. Falling back.", err);
+    return null;
+  }
+}
 
 export default function App() {
   // Theme management state
@@ -48,10 +307,12 @@ export default function App() {
     const saved = localStorage.getItem("procluster_pairs");
     if (saved) {
       try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return AVAILABLE_PAIRS;
-      }
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((p: any) => AVAILABLE_PAIRS.some(ap => ap.symbol === p.symbol));
+          if (filtered.length > 0) return filtered;
+        }
+      } catch (e) {}
     }
     return AVAILABLE_PAIRS;
   });
@@ -62,7 +323,11 @@ export default function App() {
       const saved = localStorage.getItem("procluster_pairs");
       if (saved) {
         try {
-          return JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter((p: any) => AVAILABLE_PAIRS.some(ap => ap.symbol === p.symbol));
+            if (filtered.length > 0) return filtered;
+          }
         } catch (e) {}
       }
       return AVAILABLE_PAIRS;
@@ -105,7 +370,10 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem("procluster_market_type", marketType);
-  }, [marketType]);
+    if (marketType === "SPOT" && (interval === "1m" || interval === "5m")) {
+      setInterval("15m");
+    }
+  }, [marketType, interval]);
 
   useEffect(() => {
     localStorage.setItem("procluster_candle_type", candleType);
@@ -245,12 +513,6 @@ export default function App() {
   const [orderBook, setOrderBook] = useState<OrderBookType>({ bids: [], asks: [] });
   const [trades, setTrades] = useState<LiveTrade[]>([]);
 
-  // AI-derived support & resistance target indicators drawn on HUD
-  const [aiTargets, setAiTargets] = useState<{ support: number | null; resistance: number | null }>({
-    support: null,
-    resistance: null
-  });
-
   // --- WebSocket & Real-Time Connection Refs & Buffers ---
   const incomingTradesBufferRef = useRef<{ id: string; timestamp: number; price: number; amount: number; side: "buy" | "sell" }[]>([]);
   const lastTickTimeRef = useRef<number>(Date.now());
@@ -275,26 +537,73 @@ export default function App() {
 
   // Re-generate database sets when active token changes
   useEffect(() => {
+    let active = true;
     setConnectionStatus("syncing");
-    
-    // Generate historical candles
-    const histCandles = generateHistoricalCandles(activePair, 30, parseInterval(interval));
-    setCandles(histCandles);
 
-    // Generate Order Book L2 depths
-    const initialBook = generateOrderBook(activePair.price, activePair.priceStep);
-    setOrderBook(initialBook);
+    const baseTickStep = getBaseTickSize(activePair.symbol);
+    const tickStep = baseTickStep * 25;
+
+    async function loadRealBinanceData() {
+      try {
+        const isFutures = marketType === "FUTURES";
+        
+        // 1. Fetch real historical candles from Binance REST API with 25-tick compression
+        const realCandles = await fetchBinanceKlines(activePair.symbol, interval, isFutures, tickStep);
+        if (!active) return;
+        setCandles(realCandles);
+
+        if (realCandles.length > 0) {
+          const lastCandle = realCandles[realCandles.length - 1];
+          // Re-align activePair's live price to match the close of the last kline
+          setActivePair(prev => {
+            if (prev.symbol === activePair.symbol) {
+              return {
+                ...prev,
+                price: lastCandle.close,
+                priceStep: tickStep
+              };
+            }
+            return prev;
+          });
+        }
+
+        // 2. Fetch real initial Order Book depth from Binance Depth API
+        const realBook = await fetchBinanceDepth(activePair.symbol, isFutures, tickStep);
+        if (!active) return;
+        if (realBook) {
+          setOrderBook(realBook);
+        } else {
+          setOrderBook(generateOrderBook(activePair.price, tickStep));
+        }
+
+        setConnectionStatus("connected");
+      } catch (err) {
+        console.warn("[Binance REST] Load failed, falling back to simulated data with 25-tick compression", err);
+        if (!active) return;
+
+        const histCandles = generateHistoricalCandles({ ...activePair, priceStep: tickStep }, 30, parseInterval(interval));
+        setCandles(histCandles);
+
+        const initialBook = generateOrderBook(activePair.price, tickStep);
+        setOrderBook(initialBook);
+
+        setConnectionStatus("connected");
+      }
+    }
+
+    loadRealBinanceData();
 
     // Presets some historical starting trades
     const histTrades: LiveTrade[] = [];
     for (let i = 0; i < 15; i++) {
-      histTrades.push(generateLiveTrade(activePair.price, activePair.priceStep));
+      histTrades.push(generateLiveTrade(activePair.price, tickStep));
     }
     setTrades(histTrades.sort((a, b) => b.timestamp - a.timestamp));
 
-    // Clear targets
-    setAiTargets({ support: null, resistance: null });
-  }, [activePair.symbol, interval]);
+    return () => {
+      active = false;
+    };
+  }, [activePair.symbol, interval, marketType]);
 
   // Batch process incoming trades to keep the chart performant and buttery-smooth
   const processTicks = (newTicks: { id: string; timestamp: number; price: number; amount: number; side: "buy" | "sell" }[]) => {
@@ -549,20 +858,11 @@ export default function App() {
     };
   }, [isTickingAll, activePair.symbol, marketType]);
 
-  // 2. High frequency queue flushing timer with robust local simulation fallback
+  // 2. High frequency queue flushing timer for real-time ticks
   useEffect(() => {
     if (!isTickingAll) return;
 
-    lastTickTimeRef.current = Date.now();
-
     const flusherId = window.setInterval(() => {
-      // Sandbox fallback protector: if no real ticks are coming (e.g., sandbox offline or market slow), inject healthy simulated feeds
-      if (Date.now() - lastTickTimeRef.current > 3000) {
-        const mockTrade = generateLiveTrade(activePairRef.current.price, activePairRef.current.priceStep);
-        mockTrade.timestamp = Date.now();
-        incomingTradesBufferRef.current.push(mockTrade);
-      }
-
       if (incomingTradesBufferRef.current.length === 0) return;
 
       const ticksToProcess = [...incomingTradesBufferRef.current];
@@ -572,21 +872,20 @@ export default function App() {
     }, 100);
 
     return () => window.clearInterval(flusherId);
-  }, [isTickingAll, activePair.symbol, interval]);
+  }, [isTickingAll]);
 
   // Translate intervals to minutes
   const parseInterval = (val: string): number => {
     if (val === "1m") return 1;
     if (val === "5m") return 5;
     if (val === "15m") return 15;
+    if (val === "30m") return 30;
     if (val === "1h") return 60;
     if (val === "4h") return 240;
     return 15;
   };
 
-  const handleSelectTargets = (sup: number, res: number) => {
-    setAiTargets({ support: sup, resistance: res });
-  };
+
 
   // --- Admin Panel API Callbacks ---
   const handleUpdatePairPrice = (symbol: string, newPrice: number) => {
@@ -733,15 +1032,15 @@ export default function App() {
       ) : (
         <>
           {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
-      <section className={`backdrop-blur-md border-b px-6 py-4 flex flex-wrap items-center justify-between gap-6 relative z-30 transition-shadow duration-300 ${
+      <section className={`backdrop-blur-md border-b px-5 py-2 flex flex-wrap items-center justify-between gap-y-3 gap-x-5 relative z-30 transition-shadow duration-300 ${
         theme === "light"
           ? "bg-white/80 border-slate-200/80 shadow-sm"
           : "bg-slate-950/40 border-slate-900/60 shadow-md"
       }`}>
-        <div className="flex flex-wrap items-center gap-6 sm:gap-10">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           {/* 1. Ticker Dropdown Select */}
           <div>
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-1 ${
+            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
               theme === "light" ? "text-slate-500" : "text-slate-400/80"
             }`}>
               Active Ticker
@@ -749,17 +1048,17 @@ export default function App() {
             <div className="relative font-sans" ref={tickerMenuRef}>
               <button
                 onClick={() => setShowTickerMenu(!showTickerMenu)}
-                className={`flex items-center justify-between gap-3 px-4 py-2 rounded-xl text-sm sm:text-base md:text-lg cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all min-w-[150px] h-[36px] select-none border ${
+                className={`flex items-center justify-between gap-3 px-3 py-1 rounded-lg text-sm cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all min-w-[130px] h-[30px] select-none border ${
                   theme === "light"
                     ? "bg-white hover:bg-slate-50 border-slate-200 text-slate-800 shadow-sm"
                     : "liquid-glass-button border-white/5 text-yellow-400 font-extrabold"
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_#10b981]" />
-                  <span className={`font-mono tracking-tight font-extrabold ${theme === "light" ? "text-slate-800" : "text-white"}`}>{activePair.symbol}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10b981]" />
+                  <span className={`font-mono tracking-tight font-extrabold text-xs sm:text-sm ${theme === "light" ? "text-slate-800" : "text-white"}`}>{activePair.symbol}</span>
                 </div>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${
                   theme === "light" ? "text-slate-600" : "text-slate-400"
                 } ${showTickerMenu ? "rotate-180" : ""}`} />
               </button>
@@ -767,21 +1066,21 @@ export default function App() {
               <AnimatePresence>
                 {showTickerMenu && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    initial={{ opacity: 0, y: 6, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    className={`absolute left-0 mt-2 w-52 rounded-2xl p-2.5 z-50 text-left select-none shadow-2xl backdrop-blur-md border transition-all duration-300 ${
+                    exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                    className={`absolute left-0 mt-1.5 w-48 rounded-xl p-2 z-50 text-left select-none shadow-2xl backdrop-blur-md border transition-all duration-300 ${
                       theme === "light"
                         ? "bg-white border-slate-200 text-slate-800"
                         : "bg-[#090d16]/98 border border-white/10 text-slate-100"
                     }`}
                   >
-                    <div className={`text-[10px] font-bold px-2.5 pb-1.5 border-b mb-2 uppercase tracking-widest ${
+                    <div className={`text-[9px] font-bold px-2 pb-1 border-b mb-1.5 uppercase tracking-widest ${
                       theme === "light" ? "text-slate-500 border-slate-100" : "text-slate-400 border-white/5"
                     }`}>
                       {language === "EN" ? "Available Pairs" : language === "KZ" ? "Қолжетімді жұптар" : "Доступные пары"}
                     </div>
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-0.5">
                       {pairs.map((p) => (
                         <button
                           key={p.symbol}
@@ -789,7 +1088,7 @@ export default function App() {
                             setActivePair(p);
                             setShowTickerMenu(false);
                           }}
-                          className={`flex items-center justify-between px-3 py-1.5 rounded-xl text-left cursor-pointer transition-all ${
+                          className={`flex items-center justify-between px-2 py-1 rounded-lg text-left cursor-pointer transition-all ${
                             activePair.symbol === p.symbol
                               ? theme === "light"
                                 ? "bg-amber-50 text-amber-700 font-extrabold border border-amber-200 shadow-sm"
@@ -801,7 +1100,7 @@ export default function App() {
                         >
                           <span className="font-mono text-xs font-bold">{p.symbol}</span>
                           {activePair.symbol === p.symbol && (
-                            <Check className="w-3.5 h-3.5 text-yellow-600 dark:text-yellow-500 font-bold" />
+                            <Check className="w-3" />
                           )}
                         </button>
                       ))}
@@ -814,19 +1113,19 @@ export default function App() {
 
           {/* Market Type (SPOT / FUTURES) Segment Control */}
           <div>
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-1 ${
+            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
               theme === "light" ? "text-slate-500" : "text-slate-400/80"
             }`}>
               Market Type
             </span>
-            <div className={`grid grid-cols-2 gap-1 p-[3px] rounded-xl h-[36px] items-center min-w-[150px] select-none transition-all duration-300 border ${
+            <div className={`grid grid-cols-2 gap-0.5 p-[2px] rounded-lg h-[30px] items-center min-w-[130px] select-none transition-all duration-300 border ${
               theme === "light" ? "bg-slate-100 border-slate-200" : "bg-slate-950/60 border-white/5"
             }`}>
               {(["SPOT", "FUTURES"] as const).map((type) => (
                 <button
                   key={type}
                   onClick={() => setMarketType(type)}
-                  className={`px-3.5 py-1 rounded-lg text-xs font-bold font-mono transition-all duration-200 cursor-pointer text-center leading-none ${
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition-all duration-200 cursor-pointer text-center leading-none ${
                     marketType === type
                       ? theme === "light"
                         ? "bg-white text-slate-900 font-extrabold border border-slate-300 shadow-sm"
@@ -844,17 +1143,17 @@ export default function App() {
 
           {/* 2. Interval */}
           <div>
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-1 ${
+            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
               theme === "light" ? "text-slate-500" : "text-slate-400/80"
             }`}>
               Interval
             </span>
-            <div className="flex items-center gap-1.5">
-              {["1m", "5m", "15m", "1h", "4h"].map((item) => (
+            <div className="flex items-center gap-1">
+              {(marketType === "SPOT" ? ["15m", "30m", "1h", "4h"] : ["1m", "5m", "15m", "30m", "1h", "4h"]).map((item) => (
                 <button
                   key={item}
                   onClick={() => setInterval(item)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono cursor-pointer transition-all duration-200 h-[36px] ${
+                  className={`px-2 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer transition-all duration-200 h-[30px] ${
                     interval === item
                       ? theme === "light"
                         ? "bg-amber-100 text-amber-800 border border-amber-300 font-extrabold shadow-sm"
@@ -872,19 +1171,19 @@ export default function App() {
 
           {/* Candle Type Switcher */}
           <div>
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-1 ${
+            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
               theme === "light" ? "text-slate-500" : "text-slate-400/80"
             }`}>
               {language === "EN" ? "Candle Type" : language === "KZ" ? "Шамдар түрі" : "Тип свечей"}
             </span>
-            <div className={`flex items-center p-[3px] rounded-xl h-[36px] select-none transition-all duration-300 border ${
+            <div className={`flex items-center p-[2px] rounded-lg h-[30px] select-none transition-all duration-300 border ${
               theme === "light" ? "bg-slate-100 border-slate-200" : "bg-slate-950/60 border-white/5"
             }`}>
               {[
-                { id: "auto", label: language === "EN" ? "Auto" : "Авто", icon: Sparkles },
-                { id: "japanese", label: language === "EN" ? "Japanese Candlesticks" : language === "KZ" ? "Жапон шамдары" : "Японские свечи", icon: CandlestickChart },
-                { id: "footprint", label: language === "EN" ? "Footprint" : "Футпринт", icon: Footprints },
-                { id: "clusters", label: language === "EN" ? "Clusters" : language === "KZ" ? "Кластерлер" : "Кластера", icon: LayoutGrid }
+                { id: "auto", label: language === "EN" ? "Auto" : "Авто", icon: AutoIcon },
+                { id: "japanese", label: language === "EN" ? "Japanese Candlesticks" : language === "KZ" ? "Жапон шамдары" : "Японские свечи", icon: JapaneseIcon },
+                { id: "footprint", label: language === "EN" ? "Footprint" : "Футпринт", icon: FootprintIcon },
+                { id: "clusters", label: language === "EN" ? "Clusters" : language === "KZ" ? "Кластерлер" : "Кластера", icon: ClustersIcon }
               ].map((item) => {
                 const IconComponent = item.icon;
                 const isSelected = candleType === item.id;
@@ -893,12 +1192,12 @@ export default function App() {
                     key={item.id}
                     onClick={() => setCandleType(item.id as any)}
                     title={item.label}
-                    className="relative flex-1 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer text-center leading-none h-[28px] flex items-center justify-center border-0 outline-none select-none"
+                    className="relative flex-1 px-2 py-0.5 rounded-md text-xs font-bold cursor-pointer text-center leading-none h-[24px] flex items-center justify-center border-0 outline-none select-none"
                   >
                     {isSelected && (
                       <motion.div
                         layoutId="activeCandleType"
-                        className={`absolute inset-0 rounded-lg ${
+                        className={`absolute inset-0 rounded-md ${
                           theme === "light"
                             ? "bg-white border border-slate-300 shadow-sm"
                             : "bg-blue-500/10 border border-blue-500/25 shadow-inner"
@@ -916,7 +1215,7 @@ export default function App() {
                           ? "text-slate-550 hover:text-slate-900"
                           : "text-slate-400 hover:text-slate-200"
                     }`}>
-                      <IconComponent className="w-4 h-4" />
+                      <IconComponent className="w-3.5 h-3.5" />
                     </span>
                   </button>
                 );
@@ -926,12 +1225,12 @@ export default function App() {
 
           {/* Candle Data Type Switcher */}
           <div>
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-1 ${
+            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
               theme === "light" ? "text-slate-500" : "text-slate-400/80"
             }`}>
               {language === "EN" ? "Candle Data" : language === "KZ" ? "Шамдағы деректер" : "Данные в свечах"}
             </span>
-            <div className={`flex items-center p-[3px] rounded-xl h-[36px] select-none transition-all duration-300 border ${
+            <div className={`flex items-center p-[2px] rounded-lg h-[30px] select-none transition-all duration-300 border ${
               theme === "light" ? "bg-slate-100 border-slate-200" : "bg-slate-950/60 border-white/5"
             }`}>
               {[
@@ -944,12 +1243,12 @@ export default function App() {
                   <button
                     key={item.id}
                     onClick={() => setCandleDataType(item.id as any)}
-                    className="relative flex-1 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer text-center leading-none h-[28px] flex items-center justify-center border-0 outline-none select-none"
+                    className="relative flex-1 px-2 py-0.5 rounded-md text-xs font-bold cursor-pointer text-center leading-none h-[24px] flex items-center justify-center border-0 outline-none select-none"
                   >
                     {isSelected && (
                       <motion.div
                         layoutId="activeCandleDataType"
-                        className={`absolute inset-0 rounded-lg ${
+                        className={`absolute inset-0 rounded-md ${
                           theme === "light"
                             ? "bg-white border border-slate-300 shadow-sm"
                             : "bg-blue-500/10 border border-blue-500/25 shadow-inner"
@@ -958,7 +1257,7 @@ export default function App() {
                         style={{ zIndex: 0 }}
                       />
                     )}
-                    <span className={`relative z-10 font-mono text-[11px] whitespace-nowrap transition-colors duration-200 ${
+                    <span className={`relative z-10 font-mono text-[10px] sm:text-[11px] whitespace-nowrap transition-colors duration-200 ${
                       isSelected
                         ? theme === "light"
                           ? "text-blue-700 font-black"
@@ -977,56 +1276,25 @@ export default function App() {
 
           {/* 3. Indicators Trigger Button */}
           <div>
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-1 ${
+            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
               theme === "light" ? "text-slate-500" : "text-slate-400/80"
             }`}>
               Active Controls
             </span>
             <button
               onClick={() => setIsIndicatorsModalOpen(true)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-extrabold text-xs cursor-pointer h-[36px] hover:scale-[1.01] active:scale-[0.99] transition-all border ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-extrabold text-xs cursor-pointer h-[30px] hover:scale-[1.01] active:scale-[0.99] transition-all border ${
                 theme === "light"
                   ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700 shadow-sm"
                   : "liquid-glass-button text-slate-300 hover:text-slate-100"
               }`}
             >
-              <Layers className="w-4 h-4 text-blue-400 animate-pulse" />
+              <Layers className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
               <span>{language === "EN" ? "Indicators" : language === "KZ" ? "Индикаторлар" : "Индикаторы"}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
           </div>
-
-
-
-          {/* AI derive targets banner overlays */}
-          {aiTargets.support && aiTargets.resistance && (
-            <div className={`hidden lg:flex items-center gap-4 px-4 py-2 border rounded-lg transition-all ${
-              theme === "light"
-                ? "bg-amber-50/50 border-amber-200/60"
-                : "bg-yellow-500/5 border-yellow-500/20"
-            }`}>
-              <div>
-                <span className="text-[8px] uppercase font-mono text-slate-500 font-black tracking-widest">
-                  AI Support Range
-                </span>
-                <span className={`text-xs font-mono font-bold block ${theme === "light" ? "text-emerald-700" : "text-emerald-400"}`}>
-                  ${aiTargets.support.toLocaleString()}
-                </span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              <div>
-                <span className="text-[8px] uppercase font-mono text-slate-500 font-black tracking-widest">
-                  AI Resistance Range
-                </span>
-                <span className={`text-xs font-mono font-bold block ${theme === "light" ? "text-rose-700" : "text-rose-400"}`}>
-                  ${aiTargets.resistance.toLocaleString()}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
-
-
       </section>
 
       {/* MAIN WORKSTATION PANEL: CONTENT VIEWS */}
@@ -1071,17 +1339,7 @@ export default function App() {
               </aside>
             </div>
 
-            {/* User Warning Banner regarding Simulation environment */}
-            <footer className={`border rounded-lg p-4 flex gap-3 text-xs items-center leading-relaxed shrink-0 transition-all duration-300 ${
-              theme === "light"
-                ? "bg-slate-50 border-slate-200 text-slate-600"
-                : "bg-slate-900/20 border-slate-900 text-slate-550"
-            }`}>
-              <AlertTriangle className="w-6 h-6 text-yellow-500/40 shrink-0 stroke-[1.25]" />
-              <p>
-                <strong>Disclaimer & Setup Rule</strong>: PROCLUSTER is a professional simulation sandbox. Tickers are ticking on simulated real-time telemetry matching actual crypto values. To unlock deep generative AI order flow predictions, make sure your specific <strong>GEMINI_API_KEY</strong> environment variable is saved securely inside the Secrets config panel in the workspace.
-              </p>
-            </footer>
+
           </main>
         );
       })()}

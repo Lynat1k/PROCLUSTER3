@@ -64,6 +64,8 @@ export default function ClusterChart({
   const [startX, setStartX] = useState(0);
   const [startY, setStartY] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [visibleScrollLeft, setVisibleScrollLeft] = useState(0);
+  const [visibleClientWidth, setVisibleClientWidth] = useState(800);
   const [priceCenterOffset, setPriceCenterOffset] = useState<number>(0);
   const [startPriceOffset, setStartPriceOffset] = useState<number>(0);
 
@@ -76,6 +78,10 @@ export default function ClusterChart({
         if (height && height > 100) {
           setContainerHeight(height);
         }
+        const width = containerRef.current?.clientWidth || entry.contentRect.width;
+        if (width && width > 100) {
+          setVisibleClientWidth(width);
+        }
       }
     });
     resizeObserver.observe(containerRef.current);
@@ -83,6 +89,10 @@ export default function ClusterChart({
     const initialHeight = containerRef.current.clientHeight;
     if (initialHeight && initialHeight > 100) {
       setContainerHeight(initialHeight);
+    }
+    const initialWidth = containerRef.current.clientWidth;
+    if (initialWidth && initialWidth > 100) {
+      setVisibleClientWidth(initialWidth);
     }
 
     return () => resizeObserver.disconnect();
@@ -96,16 +106,27 @@ export default function ClusterChart({
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       
-      // Scroll on main area or timeline (with or without Shift) -> Stretch / compress horizontally
-      setCandleWidth(prev => {
-        const delta = e.deltaY;
-        const direction = Math.sign(delta);
-        if (direction === 0) return prev;
-        // Scroll down (positive deltaY) -> zoom out / compress horizontally (decrease candleWidth)
-        // Scroll up (negative deltaY) -> zoom in / stretch horizontally (increase candleWidth)
-        const next = prev - direction * 8;
-        return Math.min(240, Math.max(30, next));
-      });
+      if (e.shiftKey) {
+        // Shift + Wheel on the main chart area -> zoom/stretch vertically!
+        setVerticalScale(prev => {
+          const delta = e.deltaY;
+          const direction = Math.sign(delta);
+          if (direction === 0) return prev;
+          // scroll up (negative delta) => stretch => multiplier > 1
+          const multiplier = direction < 0 ? 1.15 : 0.85;
+          const next = prev * multiplier;
+          return Math.min(2000.0, Math.max(0.1, next));
+        });
+      } else {
+        // Standard Wheel -> zoom horizontally
+        setCandleWidth(prev => {
+          const delta = e.deltaY;
+          const direction = Math.sign(delta);
+          if (direction === 0) return prev;
+          const next = prev - direction * 12;
+          return Math.min(450, Math.max(30, next));
+        });
+      }
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
@@ -118,8 +139,10 @@ export default function ClusterChart({
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollLeft = containerRef.current.scrollWidth;
+      setVisibleScrollLeft(containerRef.current.scrollLeft);
+      setVisibleClientWidth(containerRef.current.clientWidth);
     }
-  }, [activePair.symbol]);
+  }, [activePair.symbol, candles.length]);
 
   // Reset vertical panning offset only when pair changes
   useEffect(() => {
@@ -130,19 +153,20 @@ export default function ClusterChart({
   const handleZoom = (factor: number) => {
     setCandleWidth(prev => {
       const next = prev + factor;
-      return Math.min(240, Math.max(30, next));
+      return Math.min(450, Math.max(30, next));
     });
   };
 
   const handleVerticalZoom = (factor: number) => {
     setVerticalScale(prev => {
-      const next = prev + factor;
-      return Math.min(3.0, Math.max(0.3, next));
+      const multiplier = factor > 0 ? 1.25 : 0.8;
+      const next = prev * multiplier;
+      return Math.min(2000.0, Math.max(0.1, next));
     });
   };
 
   const handleResetZoom = () => {
-    setCandleWidth(130);
+    setCandleWidth(145);
     setVerticalScale(1.0);
     setPriceCenterOffset(0);
   };
@@ -178,7 +202,7 @@ export default function ClusterChart({
   const scrollWidth = candles.length * (candleWidth + candleSpacing) + margin.left + margin.right;
 
   // Zoom threshold: Detailed cluster footprint mode vs default Candlestick view
-  const isDetailedModeCalculated = candleWidth >= 85;
+  const isDetailedModeCalculated = candleWidth >= 60;
   const isDetailedMode = candleType === "japanese"
     ? false
     : (candleType === "footprint" || candleType === "clusters"
@@ -388,11 +412,30 @@ export default function ClusterChart({
     ctx.restore();
 
     // 4. Draw each candlestick
+    // Find dynamic maximum volume on visible part of the chart
+    const visibleCandlesList = candles.filter((_, cIdx) => {
+      const x = margin.left + cIdx * (candleWidth + candleSpacing);
+      return x + candleWidth >= visibleScrollLeft && x <= visibleScrollLeft + visibleClientWidth;
+    });
+    const candlesToScale = visibleCandlesList.length > 0 ? visibleCandlesList : candles;
+    const visibleMaxCellVol = Math.max(
+      ...candlesToScale.flatMap(c => c.cells.map(cell => cell.volume)),
+      1
+    );
+
     candles.forEach((candle, cIdx) => {
       const x = margin.left + cIdx * (candleWidth + candleSpacing);
       const bodyY1 = priceToY(Math.max(candle.open, candle.close));
       const bodyY2 = priceToY(Math.min(candle.open, candle.close));
       const isGreen = candle.close >= candle.open;
+
+      // Determine the dynamic/live POC cell of the candle based on the visible vertical range [minPrice, maxPrice]
+      const visibleCellsOfCandle = candle.cells.filter(cl => cl.price >= minPrice && cl.price <= maxPrice);
+      const activePocCell = visibleCellsOfCandle.length > 0
+        ? visibleCellsOfCandle.reduce((max, c) => c.volume > max.volume ? c : max, visibleCellsOfCandle[0])
+        : candle.cells.reduce((max, c) => c.volume > max.volume ? c : max, candle.cells[0]);
+
+      const activePocPrice = activePocCell ? activePocCell.price : candle.pocPrice;
 
       const hoveredCandleIdx = crosshair
         ? Math.floor((crosshair.x - margin.left) / (candleWidth + candleSpacing))
@@ -436,41 +479,57 @@ export default function ClusterChart({
         ctx.strokeStyle = "#f59e0b";
         ctx.lineWidth = 2.5;
         ctx.lineCap = "round";
-        ctx.moveTo(x, priceToY(candle.pocPrice));
-        ctx.lineTo(x + candleWidth, priceToY(candle.pocPrice));
+        ctx.moveTo(x, priceToY(activePocPrice));
+        ctx.lineTo(x + candleWidth, priceToY(activePocPrice));
         ctx.stroke();
         ctx.lineCap = "butt";
       }
 
       // B. Zoomed in Footprint detailed view
       if (isDetailedMode) {
-        // Draw premium glassy candle body frame container
-        ctx.fillStyle = isGreen ? "rgba(16, 185, 129, 0.06)" : "rgba(244, 63, 94, 0.06)";
-        ctx.strokeStyle = isGreen ? "rgba(16, 185, 129, 0.2)" : "rgba(244, 63, 94, 0.2)";
-        ctx.lineWidth = 1;
-        const rectY = Math.min(bodyY1, bodyY2);
-        const rectH = Math.max(4, Math.abs(bodyY1 - bodyY2));
-        ctx.fillRect(x, rectY, candleWidth, rectH);
-        ctx.strokeRect(x, rectY, candleWidth, rectH);
-
-        // Sliced Price Cells
-        const candleMaxVol = Math.max(...candle.cells.map(c => Math.max(c.bid, c.ask, 1)), 1);
+        // Find maximums for normalization
         const candleMaxTotalVol = Math.max(...candle.cells.map(c => Math.max(c.volume, 1)), 1);
         const isClustersMode = candleType === "clusters";
 
-        candle.cells.forEach((cell) => {
+        // Place the vertical separator/spine depending on the mode:
+        // Inside clusters mode, place it exactly in the center. In footprint mode, at 23% of the column width.
+        const sepX = isClustersMode ? x + Math.round(candleWidth / 2) : x + Math.round(candleWidth * 0.23);
+
+        // Draw the vertical separator line covering the entire high-low range of the cells
+        if (candle.cells.length > 0) {
+          ctx.beginPath();
+          ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.22)" : "rgba(255, 255, 255, 0.22)";
+          ctx.lineWidth = 1.0;
+          const topPriceY = priceToY(candle.cells[0].price + activePair.priceStep / 2);
+          const bottomPriceY = priceToY(candle.cells[candle.cells.length - 1].price - activePair.priceStep / 2);
+          ctx.moveTo(sepX, topPriceY);
+          ctx.lineTo(sepX, bottomPriceY);
+          ctx.stroke();
+        }
+
+        candle.cells.forEach((cell, cellIdx) => {
+          const cellBelow = candle.cells[cellIdx + 1];
+          const cellAbove = candle.cells[cellIdx - 1];
+
+          const isDiagonalBuyImbalance = !!(cellBelow && cell.ask > cellBelow.bid * 3.0 && cell.ask > 0);
+          const isDiagonalSellImbalance = !!(cellAbove && cell.bid > cellAbove.ask * 3.0 && cell.bid > 0);
+
           const yTop = priceToY(cell.price + activePair.priceStep / 2);
           const yBottom = priceToY(cell.price - activePair.priceStep / 2);
           const cellHeight = Math.max(1.5, yBottom - yTop);
           const cellY = yTop;
-          const drawHeight = Math.max(1, cellHeight - 0.8);
+          // Very neat horizontal brick gap for a crisp layout
+          const drawHeight = Math.max(1.0, cellHeight - 0.6);
 
-          const midX = x + candleWidth / 2;
-          const halfWidth = candleWidth / 2 - 4;
+          const isCellPoc = activePocCell && cell.price === activePocCell.price;
 
-          const bidBarWidth = cell.bid > 0 ? Math.max(2, (cell.bid / candleMaxVol) * halfWidth) : 0;
-          const askBarWidth = cell.ask > 0 ? Math.max(2, (cell.ask / candleMaxVol) * halfWidth) : 0;
-          const clusterBarWidth = cell.volume > 0 ? Math.max(4, (cell.volume / candleMaxTotalVol) * (candleWidth - 8)) : 0;
+          // Histogram parameters:
+          // In clusters mode, bars start from sepX and extend right (for buy) or left (for sell).
+          // In footprint mode, standard normal cells have left-aligned histogram bars starting at sepX and extending left.
+          const maxBarWidth = isClustersMode 
+            ? Math.round((candleWidth / 2) * 0.88)
+            : Math.round(candleWidth * 0.21);
+          const barWidth = cell.volume > 0 ? (cell.volume / visibleMaxCellVol) * maxBarWidth : 0;
 
           // Double check Cluster Search parameters
           const csSettings = indicatorSettings?.clusterSearch || {
@@ -517,86 +576,78 @@ export default function ClusterChart({
             matchesClusterSearch = isTargetMode && isTargetDirection && isTargetLocation;
           }
 
-          if (!isClustersMode) {
-            // Draw left side (Bid) block
-            ctx.fillStyle = !activeIndicators.volume ? "rgba(255,255,255,0.01)" : cell.isSellImbalance ? "rgba(239, 68, 68, 0.48)" : "rgba(239, 68, 68, 0.18)";
-            ctx.strokeStyle = "rgba(244, 63, 94, 0.06)";
-            ctx.lineWidth = 0.5;
-            ctx.fillRect(midX - bidBarWidth, cellY + 0.5, bidBarWidth, drawHeight);
-            ctx.strokeRect(midX - bidBarWidth, cellY + 0.5, bidBarWidth, drawHeight);
+          // Render background elements:
+          if (isCellPoc) {
+            // POC row has a full solid background block covering the entire width of the candle
+            const fillLeft = x + 1;
+            const fillWidth = candleWidth - 2;
+            ctx.fillStyle = cell.ask > cell.bid
+              ? (isLight ? "rgba(34, 197, 94, 0.88)" : "rgba(16, 185, 129, 0.85)")
+              : (isLight ? "rgba(239, 68, 68, 0.88)" : "rgba(239, 68, 68, 0.85)");
+            ctx.fillRect(fillLeft, cellY + 0.5, fillWidth, drawHeight);
 
-            // Draw right side (Ask) block
-            ctx.fillStyle = !activeIndicators.volume ? "rgba(255,255,255,0.01)" : cell.isBuyImbalance ? "rgba(16, 185, 129, 0.48)" : "rgba(16, 185, 129, 0.18)";
-            ctx.strokeStyle = "rgba(16, 185, 129, 0.06)";
-            ctx.fillRect(midX, cellY + 0.5, askBarWidth, drawHeight);
-            ctx.strokeRect(midX, cellY + 0.5, askBarWidth, drawHeight);
-
-            // Draw central separating line
-            ctx.beginPath();
-            ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.15)" : "rgba(255, 255, 255, 0.15)";
-            ctx.lineWidth = 0.8;
-            ctx.moveTo(midX, cellY);
-            ctx.lineTo(midX, cellY + cellHeight);
-            ctx.stroke();
+            // Highlight border for POC
+            ctx.strokeStyle = "#f59e0b";
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(fillLeft, cellY + 0.5, fillWidth, drawHeight);
           } else {
-            // Clusters Mode unified block
-            ctx.fillStyle = !activeIndicators.volume
-              ? "rgba(255,255,255,0.01)"
-              : cell.isPoc
-                ? "rgba(245, 158, 11, 0.35)"
-                : cell.ask > cell.bid
-                  ? cell.isBuyImbalance
-                    ? "rgba(16, 185, 129, 0.45)"
-                    : "rgba(16, 185, 129, 0.18)"
-                  : cell.isSellImbalance
-                    ? "rgba(239, 68, 68, 0.45)"
-                    : "rgba(239, 68, 68, 0.18)";
-            ctx.strokeStyle = cell.isPoc
-              ? "rgba(245, 158, 11, 0.6)"
-              : cell.ask > cell.bid
-                ? "rgba(16, 185, 129, 0.15)"
-                : "rgba(244, 63, 94, 0.15)";
-            ctx.lineWidth = 0.5;
-            ctx.fillRect(midX - clusterBarWidth / 2, cellY + 0.5, clusterBarWidth, drawHeight);
-            ctx.strokeRect(midX - clusterBarWidth / 2, cellY + 0.5, clusterBarWidth, drawHeight);
+            // Normal cell: draw histogram
+            if (barWidth > 0) {
+              const barIsBuy = cell.ask > cell.bid;
+              
+              const fillStyle = barIsBuy
+                ? (isLight ? "rgba(34, 197, 94, 0.35)" : "rgba(16, 185, 129, 0.32)")
+                : (isLight ? "rgba(239, 68, 68, 0.35)" : "rgba(239, 68, 68, 0.32)");
+                
+              const strokeStyle = barIsBuy
+                ? (isLight ? "rgba(34, 197, 94, 0.55)" : "rgba(16, 185, 129, 0.55)")
+                : (isLight ? "rgba(239, 68, 68, 0.55)" : "rgba(239, 68, 68, 0.55)");
+
+              // Determine horizontal coordinates depending on mode
+              // In clusters mode, the histogram is bidirectional starting from sepX (the center of the column).
+              // In footprint mode, the histogram is one-sided, expanding to the left of sepX.
+              const barX = isClustersMode 
+                ? (barIsBuy ? sepX : sepX - barWidth)
+                : (sepX - barWidth);
+
+              ctx.fillStyle = fillStyle;
+              ctx.fillRect(barX, cellY + 0.5, barWidth, drawHeight);
+
+              // Subtle brick outline for depth as seen in screenshot
+              ctx.strokeStyle = strokeStyle;
+              ctx.lineWidth = 0.5;
+              ctx.strokeRect(barX, cellY + 0.5, barWidth, drawHeight);
+            }
           }
 
-          // Cluster Search glow
+          // Active indicator additions (Search, Imbalance overlay)
           if (matchesClusterSearch) {
             ctx.strokeStyle = "#fbbf24";
             ctx.lineWidth = 2.2;
             ctx.setLineDash([3, 2]);
-            const strokeX = isClustersMode ? midX - clusterBarWidth / 2 : midX - bidBarWidth;
-            const strokeW = isClustersMode ? clusterBarWidth : Math.max(6, bidBarWidth + askBarWidth);
-            ctx.strokeRect(strokeX, cellY + 0.5, strokeW, drawHeight);
+            const strokeLeft = x + 1;
+            const strokeWidth = candleWidth - 2;
+            ctx.strokeRect(strokeLeft, cellY + 0.5, strokeWidth, drawHeight);
             ctx.setLineDash([]);
           }
 
-          // Stacked Imbalance highlights
           if (activeIndicators.stackedImbalance && (cell.isBuyImbalance || cell.isSellImbalance)) {
+            // Draw nice highlight outlines
             ctx.strokeStyle = cell.isBuyImbalance ? "#05f38c" : "#ff3355";
             ctx.lineWidth = 2;
-            const strokeX = isClustersMode ? midX - clusterBarWidth / 2 : midX - (cell.isSellImbalance ? bidBarWidth : 0);
-            const strokeW = isClustersMode ? clusterBarWidth : (cell.isSellImbalance ? bidBarWidth : askBarWidth);
-            ctx.strokeRect(strokeX, cellY + 0.5, strokeW, drawHeight);
+            const strokeLeft = x + 1;
+            const strokeWidth = candleWidth - 2;
+            ctx.strokeRect(strokeLeft, cellY + 0.5, strokeWidth, drawHeight);
           }
 
-          // POC outline highlight
-          if (cell.isPoc && activeIndicators.volume) {
-            ctx.strokeStyle = "#f59e0b";
-            ctx.lineWidth = 1.2;
-            const strokeX = isClustersMode ? midX - clusterBarWidth / 2 : midX - bidBarWidth;
-            const strokeW = isClustersMode ? Math.max(6, clusterBarWidth) : Math.max(6, bidBarWidth + askBarWidth);
-            ctx.strokeRect(strokeX, cellY + 0.5, strokeW, drawHeight);
-          }
-
-          // Text metrics & Drawing
-          if (activeIndicators.volume && cellHeight > 10) {
+          // Bid Ask standard text rendering or delta/volume mode
+          if (cellHeight >= 4.0) {
             ctx.save();
-            ctx.shadowColor = isLight ? "rgba(255, 255, 255, 0.85)" : "rgba(0, 0, 0, 0.95)";
-            ctx.shadowBlur = 1.5;
+            ctx.shadowColor = isLight ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.9)";
+            ctx.shadowBlur = 1.0;
             ctx.shadowOffsetX = 0.5;
             ctx.shadowOffsetY = 0.5;
+            ctx.textBaseline = "middle";
 
             const bidValStr = cell.bid >= 10 ? cell.bid.toFixed(0) : cell.bid.toFixed(1);
             const askValStr = cell.ask >= 10 ? cell.ask.toFixed(0) : cell.ask.toFixed(1);
@@ -604,55 +655,123 @@ export default function ClusterChart({
             const deltaDisplayStr = (cellDeltaVal > 0 ? "+" : "") + (Math.abs(cellDeltaVal) >= 10 ? cellDeltaVal.toFixed(0) : cellDeltaVal.toFixed(1));
             const volStr = cell.volume >= 10 ? cell.volume.toFixed(0) : cell.volume.toFixed(1);
 
-            const fontSize = candleWidth >= 135 ? "9px" : "7.5px";
-            ctx.font = `600 ${fontSize} Fira Code, monospace`;
+            const bidCol = isDiagonalSellImbalance
+              ? (isLight ? "#dc2626" : "#ff3355")
+              : (isLight ? (isCellPoc ? "#ffffff" : "#1e293b") : (isCellPoc ? "#ffffff" : "#cbd5e1"));
 
-            if (!isClustersMode) {
-              if (candleDataType === "bid_ask" && candleWidth >= 95) {
-                // Bid Left
-                ctx.fillStyle = isLight
-                  ? (cell.isSellImbalance ? "#b91c1c" : "#1e293b")
-                  : (cell.isSellImbalance ? "#f87171" : "#cbd5e1");
-                ctx.textAlign = "right";
-                ctx.fillText(bidValStr, midX - 4, cellY + cellHeight / 2);
+            const askCol = isDiagonalBuyImbalance
+              ? (isLight ? "#16a34a" : "#05f38c")
+              : (isLight ? (isCellPoc ? "#ffffff" : "#1e293b") : (isCellPoc ? "#ffffff" : "#cbd5e1"));
 
-                // Ask Right
-                ctx.fillStyle = isLight
-                  ? (cell.isBuyImbalance ? "#15803d" : "#1e293b")
-                  : (cell.isBuyImbalance ? "#4ade80" : "#cbd5e1");
-                ctx.textAlign = "left";
-                ctx.fillText(askValStr, midX + 4, cellY + cellHeight / 2);
-              } else if (candleDataType === "delta" && candleWidth >= 55) {
-                ctx.fillStyle = isLight
-                  ? (cellDeltaVal > 0 ? "#047857" : cellDeltaVal < 0 ? "#b91c1c" : "#475569")
-                  : (cellDeltaVal > 0 ? "#10b981" : cellDeltaVal < 0 ? "#ef4444" : "#94a3b8");
-                ctx.textAlign = "center";
-                ctx.font = `bold ${candleWidth >= 110 ? "9px" : candleWidth >= 80 ? "8px" : "7.2px"} Fira Code, monospace`;
-                ctx.fillText(deltaDisplayStr, midX, cellY + cellHeight / 2);
-              } else if (candleDataType === "volume" && candleWidth >= 55) {
-                ctx.fillStyle = isLight
-                  ? (cell.isPoc ? "#b45309" : "#1e293b")
-                  : (cell.isPoc ? "#f59e0b" : "#cbd5e1");
-                ctx.textAlign = "center";
-                ctx.font = `bold ${candleWidth >= 110 ? "9px" : candleWidth >= 80 ? "8px" : "7.2px"} Fira Code, monospace`;
-                ctx.fillText(volStr, midX, cellY + cellHeight / 2);
+            const drawCenteredBidAsk = (targetX: number, targetY: number) => {
+              ctx.textAlign = "center";
+              const separator = "x";
+              const bidW = ctx.measureText(bidValStr).width;
+              const sepW = ctx.measureText(separator).width;
+              const askW = ctx.measureText(askValStr).width;
+              const totalW = bidW + sepW + askW;
+
+              const startX = targetX - totalW / 2;
+
+              ctx.textAlign = "left";
+              ctx.fillStyle = bidCol;
+              ctx.fillText(bidValStr, startX, targetY);
+
+              ctx.fillStyle = isLight ? (isCellPoc ? "rgba(255,255,255,0.7)" : "#64748b") : (isCellPoc ? "rgba(255,255,255,0.7)" : "#94a3b8");
+              ctx.fillText(separator, startX + bidW, targetY);
+
+              ctx.fillStyle = askCol;
+              ctx.fillText(askValStr, startX + bidW + sepW, targetY);
+            };
+
+            // Compute font sizes matching height and width perfectly, allowing vertical stretch scalability
+            let idealSize = Math.max(5, Math.floor(cellHeight * 0.72));
+            const maxByWidth = Math.max(7, Math.floor(candleWidth / 5.2));
+            let finalFontSize = Math.min(idealSize, maxByWidth);
+            // If the user stretched clusters vertically, allow font to upscale independently of narrow width restriction
+            if (cellHeight > 24) {
+              finalFontSize = Math.max(finalFontSize, Math.min(16, Math.floor(cellHeight * 0.65)));
+            }
+            if (finalFontSize < 5) finalFontSize = 5;
+            if (finalFontSize > 28) finalFontSize = 28;
+            const fontSizeVal = `${finalFontSize}px`;
+            ctx.font = `600 ${fontSizeVal} Fira Code, monospace`;
+
+            // Calculate x-coords for Bid and Ask Columns in Footprint text space
+            const textWidthSpace = candleWidth - (sepX - x);
+            const midTextX = sepX + textWidthSpace / 2;
+
+            if (isCellPoc) {
+              // High contrast white text on POC background
+              ctx.fillStyle = "#ffffff";
+              if (isClustersMode) {
+                const centerTextX = x + candleWidth / 2;
+                if (candleDataType === "bid_ask") {
+                  drawCenteredBidAsk(centerTextX, cellY + cellHeight / 2);
+                } else if (candleDataType === "delta") {
+                  ctx.fillText(deltaDisplayStr, centerTextX, cellY + cellHeight / 2);
+                } else if (candleDataType === "volume") {
+                  ctx.fillText(volStr, centerTextX, cellY + cellHeight / 2);
+                }
+              } else {
+                if (candleDataType === "bid_ask") {
+                  ctx.textAlign = "right";
+                  ctx.fillStyle = bidCol;
+                  ctx.fillText(bidValStr, midTextX - 4, cellY + cellHeight / 2);
+                  ctx.textAlign = "left";
+                  ctx.fillStyle = askCol;
+                  ctx.fillText(askValStr, midTextX + 4, cellY + cellHeight / 2);
+                } else {
+                  ctx.fillText(candleDataType === "delta" ? deltaDisplayStr : volStr, midTextX, cellY + cellHeight / 2);
+                }
               }
             } else {
-              // Clusters Mode Text Rendering
-              if (candleDataType === "delta" && candleWidth >= 55) {
-                ctx.fillStyle = isLight
-                  ? (cellDeltaVal > 0 ? "#047857" : cellDeltaVal < 0 ? "#b91c1c" : "#475569")
-                  : (cellDeltaVal > 0 ? "#10b981" : cellDeltaVal < 0 ? "#ef4444" : "#94a3b8");
-                ctx.textAlign = "center";
-                ctx.font = `bold ${candleWidth >= 110 ? "9px" : candleWidth >= 80 ? "8px" : "7.2px"} Fira Code, monospace`;
-                ctx.fillText(deltaDisplayStr, midX, cellY + cellHeight / 2);
-              } else if (candleDataType === "volume" && candleWidth >= 55) {
-                ctx.fillStyle = isLight
-                  ? (cell.isPoc ? "#b45309" : "#1e293b")
-                  : (cell.isPoc ? "#f59e0b" : "#cbd5e1");
-                ctx.textAlign = "center";
-                ctx.font = `bold ${candleWidth >= 110 ? "9px" : candleWidth >= 80 ? "8px" : "7.2px"} Fira Code, monospace`;
-                ctx.fillText(volStr, midX, cellY + cellHeight / 2);
+              // Non-POC cells: Color depending on display type
+              if (!isClustersMode) {
+                if (candleDataType === "bid_ask") {
+                  if (candleWidth >= 35) {
+                    if (candleWidth >= 55) {
+                      // Standard Bid x Ask columns
+                      // Bid on Left (right aligned)
+                      ctx.fillStyle = bidCol;
+                      ctx.textAlign = "right";
+                      ctx.fillText(bidValStr, midTextX - 4, cellY + cellHeight / 2);
+
+                      // Ask on Right (left aligned)
+                      ctx.fillStyle = askCol;
+                      ctx.textAlign = "left";
+                      ctx.fillText(askValStr, midTextX + 4, cellY + cellHeight / 2);
+                    } else {
+                      drawCenteredBidAsk(midTextX, cellY + cellHeight / 2);
+                    }
+                  }
+                } else if (candleDataType === "delta") {
+                  ctx.fillStyle = isLight
+                    ? (cellDeltaVal > 0 ? "#047857" : cellDeltaVal < 0 ? "#b91c1c" : "#475569")
+                    : (cellDeltaVal > 0 ? "#10b981" : cellDeltaVal < 0 ? "#ef4444" : "#94a3b8");
+                  ctx.textAlign = "center";
+                  ctx.fillText(deltaDisplayStr, midTextX, cellY + cellHeight / 2);
+                } else if (candleDataType === "volume") {
+                  ctx.fillStyle = isLight ? "#1e293b" : "#cbd5e1";
+                  ctx.textAlign = "center";
+                  ctx.fillText(volStr, midTextX, cellY + cellHeight / 2);
+                }
+              } else {
+                // Clusters Mode Text Rendering (centered)
+                const centerTextX = x + candleWidth / 2;
+                if (candleDataType === "bid_ask" && candleWidth >= 35) {
+                  drawCenteredBidAsk(centerTextX, cellY + cellHeight / 2);
+                } else if (candleDataType === "delta" && candleWidth >= 45) {
+                  ctx.fillStyle = isLight
+                    ? (cellDeltaVal > 0 ? "#047857" : cellDeltaVal < 0 ? "#b91c1c" : "#475569")
+                    : (cellDeltaVal > 0 ? "#10b981" : cellDeltaVal < 0 ? "#ef4444" : "#94a3b8");
+                  ctx.textAlign = "center";
+                  ctx.fillText(deltaDisplayStr, centerTextX, cellY + cellHeight / 2);
+                } else if (candleDataType === "volume" && candleWidth >= 45) {
+                  ctx.fillStyle = isLight ? "#1e293b" : "#cbd5e1";
+                  ctx.textAlign = "center";
+                  ctx.fillText(volStr, centerTextX, cellY + cellHeight / 2);
+                }
               }
             }
             ctx.restore();
@@ -825,7 +944,9 @@ export default function ClusterChart({
     isDetailedMode,
     isLight,
     activePair.price,
-    activePair.priceStep
+    activePair.priceStep,
+    visibleScrollLeft,
+    visibleClientWidth
   ]);
 
   return (
@@ -939,6 +1060,10 @@ export default function ClusterChart({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUpOrLeave}
           onMouseLeave={handleMouseUpOrLeave}
+          onScroll={(e) => {
+            setVisibleScrollLeft(e.currentTarget.scrollLeft);
+            setVisibleClientWidth(e.currentTarget.clientWidth);
+          }}
           className={`flex-1 overflow-x-auto overflow-y-hidden select-none terminal-grid relative transition-all duration-300 ${
             isLight ? "bg-[#f8fafc]" : "bg-[#06080f]"
           } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
@@ -966,8 +1091,9 @@ export default function ClusterChart({
             const delta = e.deltaY;
             const direction = Math.sign(delta);
             if (direction === 0) return prev;
-            const next = prev - direction * 0.08;
-            return Math.min(3.0, Math.max(0.3, next));
+            const multiplier = direction < 0 ? 1.15 : 0.85;
+            const next = prev * multiplier;
+            return Math.min(2000.0, Math.max(0.1, next));
           });
         }}
         className={`w-[90px] flex-none border-l select-none transition-all duration-300 relative flex flex-col justify-between ${

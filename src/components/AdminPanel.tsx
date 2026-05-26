@@ -26,6 +26,7 @@ import {
   Calendar, 
   Terminal,
   Settings,
+  Edit2,
   Database,
   TrendingUp,
   Radio,
@@ -97,7 +98,35 @@ export default function AdminPanel({
   const [diskUsageGB, setDiskUsageGB] = useState<number>(184.2);
   const [hostsCount, setHostsCount] = useState<number>(1482);
   const [onlineCount, setOnlineCount] = useState<number>(342);
-  const [registeredUsersCount] = useState<number>(12985);
+  const [registeredUsersCount, setRegisteredUsersCount] = useState<number>(12985);
+
+  interface AdminUser {
+    id: string;
+    nickname: string;
+    registerDate: string;
+    subscriptionLevel: "free" | "RPO" | "VIP";
+    ip: string;
+    country: string;
+  }
+
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([
+    { id: "usr_001", nickname: "@cryptomaster", registerDate: "2026-05-24", subscriptionLevel: "free", ip: "185.220.101.5", country: "Germany 🇩🇪" },
+    { id: "usr_002", nickname: "@whale_hunter", registerDate: "2026-04-12", subscriptionLevel: "VIP", ip: "91.198.174.19", country: "Japan 🇯🇵" },
+    { id: "usr_003", nickname: "@scalper_pro", registerDate: "2026-03-20", subscriptionLevel: "RPO", ip: "104.244.42.1", country: "USA 🇺🇸" },
+    { id: "usr_004", nickname: "@moonwalker", registerDate: "2025-12-14", subscriptionLevel: "free", ip: "8.8.8.8", country: "United Kingdom 🇬🇧" },
+    { id: "usr_005", nickname: "@kzt_trader", registerDate: "2026-02-18", subscriptionLevel: "RPO", ip: "178.90.220.44", country: "Kazakhstan 🇰🇿" },
+  ]);
+
+  // Editing and dynamic additions state for Users Tab
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editNickname, setEditNickname] = useState("");
+  const [editLevel, setEditLevel] = useState<"free" | "RPO" | "VIP">("free");
+
+  const [newNickInput, setNewNickInput] = useState("");
+  const [newLevelInput, setNewLevelInput] = useState<"free" | "RPO" | "VIP">("free");
+  const [newIpInput, setNewIpInput] = useState("");
+  const [newCountryInput, setNewCountryInput] = useState("");
+  const [userSuccessMsg, setUserSuccessMsg] = useState("");
 
   // Live connections simulation
   const [clients, setClients] = useState<ClientConnection[]>([
@@ -338,14 +367,18 @@ export default function AdminPanel({
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs font-mono text-slate-400">Состояние Симулятора:</span>
+          <span className={`text-xs font-mono ${isLight ? "text-slate-600 font-bold" : "text-slate-400"}`}>Состояние Симулятора:</span>
           <div className="flex gap-1.5 p-0.5 rounded-lg border bg-slate-950/20 border-white/5">
             <button
               onClick={onToggleTicking}
               className={`px-3 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer ${
                 isTickingAll
-                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20"
-                  : "bg-rose-500/20 text-rose-400 border border-rose-500/20"
+                  ? isLight 
+                    ? "bg-emerald-600 text-white shadow-sm font-extrabold" 
+                    : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20"
+                  : isLight 
+                    ? "bg-rose-600 text-white shadow-sm font-extrabold" 
+                    : "bg-rose-500/20 text-rose-400 border border-rose-500/20"
               }`}
             >
               <Zap className={`w-3 h-3 ${isTickingAll ? "animate-bounce" : ""}`} />
@@ -362,10 +395,10 @@ export default function AdminPanel({
           className={`px-5 py-2.5 rounded-t-xl text-xs font-bold tracking-wider uppercase flex items-center gap-2 border-t-2 border-x transition-all duration-150 cursor-pointer ${
             activeTab === "server"
               ? isLight
-                ? "bg-white border-t-blue-500 border-x-slate-200 text-slate-850 shadow-sm" 
+                ? "bg-white border-t-blue-500 border-x-slate-200 text-slate-900 shadow-sm" 
                 : "bg-slate-900 border-t-blue-500 border-x-white/5 text-white"
               : isLight
-                ? "bg-transparent border-t-transparent border-x-transparent text-slate-500 hover:bg-slate-200/40 hover:text-slate-700"
+                ? "bg-transparent border-t-transparent border-x-transparent text-slate-600 hover:bg-slate-200/40 hover:text-slate-800"
                 : "bg-transparent border-t-transparent border-x-transparent text-slate-400 hover:bg-white/[0.02] hover:text-white"
           }`}
         >
@@ -378,10 +411,10 @@ export default function AdminPanel({
           className={`px-5 py-2.5 rounded-t-xl text-xs font-bold tracking-wider uppercase flex items-center gap-2 border-t-2 border-x transition-all duration-150 cursor-pointer ${
             activeTab === "database"
               ? isLight
-                ? "bg-white border-t-emerald-500 border-x-slate-200 text-slate-850 shadow-sm" 
+                ? "bg-white border-t-emerald-500 border-x-slate-200 text-slate-900 shadow-sm" 
                 : "bg-slate-900 border-t-emerald-500 border-x-white/5 text-white"
               : isLight
-                ? "bg-transparent border-t-transparent border-x-transparent text-slate-500 hover:bg-slate-200/40 hover:text-slate-700"
+                ? "bg-transparent border-t-transparent border-x-transparent text-slate-600 hover:bg-slate-200/40 hover:text-slate-800"
                 : "bg-transparent border-t-transparent border-x-transparent text-slate-400 hover:bg-white/[0.02] hover:text-white"
           }`}
         >
@@ -394,10 +427,10 @@ export default function AdminPanel({
           className={`px-5 py-2.5 rounded-t-xl text-xs font-bold tracking-wider uppercase flex items-center gap-2 border-t-2 border-x transition-all duration-150 cursor-pointer ${
             activeTab === "users"
               ? isLight
-                ? "bg-white border-t-amber-500 border-x-slate-200 text-slate-850 shadow-sm" 
+                ? "bg-white border-t-amber-500 border-x-slate-200 text-slate-900 shadow-sm" 
                 : "bg-slate-900 border-t-amber-500 border-x-white/5 text-white"
               : isLight
-                ? "bg-transparent border-t-transparent border-x-transparent text-slate-500 hover:bg-slate-200/40 hover:text-slate-700"
+                ? "bg-transparent border-t-transparent border-x-transparent text-slate-600 hover:bg-slate-200/40 hover:text-slate-800"
                 : "bg-transparent border-t-transparent border-x-transparent text-slate-400 hover:bg-white/[0.02] hover:text-white"
           }`}
         >
@@ -533,51 +566,69 @@ export default function AdminPanel({
                 <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
                   isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
                 }`}>
-                  <h3 className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-emerald-500">
+                  <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
+                    isLight ? "text-emerald-700" : "text-emerald-500"
+                  }`}>
                     <Plus className="w-4 h-4" />
                     Добавление и Сжатие Новых Монет
                   </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className={`text-xs leading-relaxed ${
+                    isLight ? "text-slate-600 font-medium" : "text-slate-400"
+                  }`}>
                     Внесите в систему новые рыночные активы. Также укажите степень сжатия цен стакана для Spot (в базовых пунктах) и Futures (в усредненных интервалах объемов).
                   </p>
 
                   {tickerSuccessMsg && (
-                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-emerald-400 text-xs font-bold">
+                    <div className={`p-3 rounded-xl text-xs font-bold border ${
+                      isLight 
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-850" 
+                        : "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
+                    }`}>
                       {tickerSuccessMsg}
                     </div>
                   )}
 
                   <form onSubmit={handleAddNewTicker} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
                     <div>
-                      <label className="text-[10px] font-mono font-bold text-slate-400 block mb-1 uppercase">Символ Токена (Например: SOL/USDT)</label>
+                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
+                        isLight ? "text-slate-700" : "text-slate-400"
+                      }`}>Символ Токена (Например: SOL/USDT)</label>
                       <input
                         type="text"
                         required
                         placeholder="SOL/USDT"
                         value={newSymbol}
                         onChange={(e) => setNewSymbol(e.target.value)}
-                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner ${
-                          isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-910 bg-slate-900 border-white/5 text-white"
+                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                          isLight 
+                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+                            : "bg-slate-900 border-white/5 text-white focus:border-emerald-500"
                         }`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-mono font-bold text-slate-400 block mb-1 uppercase">Название Проекта (Solana)</label>
+                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
+                        isLight ? "text-slate-700" : "text-slate-400"
+                      }`}>Название Проекта (Solana)</label>
                       <input
                         type="text"
                         required
                         placeholder="Solana"
                         value={newName}
                         onChange={(e) => setNewName(e.target.value)}
-                        className={`w-full text-xs font-bold rounded-lg px-3 py-2 border shadow-inner ${
-                          isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/5 text-white"
+                        className={`w-full text-xs font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                          isLight 
+                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+                            : "bg-slate-900 border-white/5 text-white focus:border-emerald-500"
                         }`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-mono font-bold text-slate-400 block mb-1 uppercase">Стартовая Цена в USDT</label>
+                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
+                        isLight ? "text-slate-700" : "text-slate-400"
+                      }`}>Стартовая Цена в USDT</label>
                       <input
                         type="number"
                         step="any"
@@ -585,19 +636,25 @@ export default function AdminPanel({
                         placeholder="142.50"
                         value={newPrice}
                         onChange={(e) => setNewPrice(e.target.value)}
-                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner ${
-                          isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/5 text-white"
+                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                          isLight 
+                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+                            : "bg-slate-900 border-white/5 text-white focus:border-emerald-500"
                         }`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-mono font-bold text-slate-400 block mb-1 uppercase">Базовый Шаг Стакана (Price Step)</label>
+                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
+                        isLight ? "text-slate-700" : "text-slate-400"
+                      }`}>Базовый Шаг Стакана (Price Step)</label>
                       <select
                         value={newPriceStep}
                         onChange={(e) => setNewPriceStep(e.target.value)}
-                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner ${
-                          isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/5 text-white"
+                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                          isLight 
+                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+                            : "bg-slate-900 border-white/10 text-white focus:border-emerald-500"
                         }`}
                       >
                         <option value="10">10 (Например Bitcoin)</option>
@@ -609,12 +666,18 @@ export default function AdminPanel({
                       </select>
                     </div>
 
-                    <div className="p-3 rounded-lg border bg-blue-500/5 border-blue-500/10 flex flex-col gap-1 md:col-span-2">
-                      <span className="text-[10px] font-mono font-semibold text-blue-400 uppercase block tracking-wider mb-2">Настройки Степени Сжатия</span>
+                    <div className={`p-3 rounded-lg border flex flex-col gap-1 md:col-span-2 ${
+                      isLight ? "bg-blue-50/70 border-blue-200" : "bg-blue-500/5 border-blue-500/10"
+                    }`}>
+                      <span className={`text-[10px] font-mono font-bold uppercase block tracking-wider mb-2 ${
+                        isLight ? "text-blue-700" : "text-blue-400"
+                      }`}>Настройки Степени Сжатия</span>
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="text-[9.5px] font-sans font-bold text-slate-400 block mb-1">Сжатие Spot Данных (Коэффициент)</label>
+                          <label className={`text-[9.5px] font-[600] block mb-1 ${
+                            isLight ? "text-slate-700" : "text-slate-400"
+                          }`}>Сжатие Spot Данных (Коэффициент)</label>
                           <div className="flex items-center gap-2">
                             <input
                               type="range"
@@ -622,14 +685,18 @@ export default function AdminPanel({
                               max="20"
                               value={compressionSpotVal}
                               onChange={(e) => setCompressionSpotVal(e.target.value)}
-                              className="w-full h-1 bg-slate-800 rounded-full appearance-none cursor-pointer"
+                              className={`w-full h-1.5 rounded-full appearance-none cursor-pointer ${
+                                isLight ? "bg-slate-300 accent-blue-600" : "bg-slate-800 accent-blue-500"
+                              }`}
                             />
                             <span className="text-xs font-mono font-bold">{compressionSpotVal}x</span>
                           </div>
                         </div>
 
                         <div>
-                          <label className="text-[9.5px] font-sans font-bold text-slate-400 block mb-1">Сжатие Futures Данных (Коэффициент)</label>
+                          <label className={`text-[9.5px] font-[600] block mb-1 ${
+                            isLight ? "text-slate-700" : "text-slate-400"
+                          }`}>Сжатие Futures Данных (Коэффициент)</label>
                           <div className="flex items-center gap-2">
                             <input
                               type="range"
@@ -637,7 +704,9 @@ export default function AdminPanel({
                               max="50"
                               value={compressionFuturesVal}
                               onChange={(e) => setCompressionFuturesVal(e.target.value)}
-                              className="w-full h-1 bg-slate-800 rounded-full appearance-none cursor-pointer"
+                              className={`w-full h-1.5 rounded-full appearance-none cursor-pointer ${
+                                isLight ? "bg-slate-300 accent-blue-600" : "bg-slate-800 accent-blue-500"
+                              }`}
                             />
                             <span className="text-xs font-mono font-bold">{compressionFuturesVal}x</span>
                           </div>
@@ -647,7 +716,11 @@ export default function AdminPanel({
 
                     <button
                       type="submit"
-                      className="md:col-span-2 px-4 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-black hover:bg-emerald-600 transition tracking-wide text-xs flex items-center justify-center gap-2 cursor-pointer"
+                      className={`md:col-span-2 px-4 py-2.5 rounded-xl font-black transition tracking-wide text-xs flex items-center justify-center gap-2 cursor-pointer ${
+                        isLight 
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow" 
+                          : "bg-emerald-500 text-slate-950 hover:bg-emerald-600"
+                      }`}
                     >
                       <Plus className="w-4 h-4" />
                       Зарегистрировать Тикер в Реестре Терминала
@@ -804,7 +877,7 @@ export default function AdminPanel({
                             style={{ width: `${downloadProgress}%` }}
                           />
                         </div>
-                        <span className="text-[10px] font-mono italic text-slate-400 block truncate">{downloadStep}</span>
+                        <span className="text-[10px] font-mono italic text-slate-450 block truncate">{downloadStep}</span>
                       </div>
                     )}
 
@@ -876,7 +949,7 @@ export default function AdminPanel({
                       {onlineCount} 
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping inline-block" />
                     </div>
-                    <span className="text-[9.5px] text-slate-450">Прямое WebSocket соединение</span>
+                    <span className="text-[9.5px] text-slate-450 font-sans">Прямое WebSocket соединение</span>
                   </div>
                 </div>
 
@@ -893,7 +966,7 @@ export default function AdminPanel({
                       <select
                         value={connectionStatus}
                         onChange={(e) => onSetConnectionStatus(e.target.value as any)}
-                        className={`text-xs font-mono font-bold rounded px-2 py-1 focus:outline-none border cursor-pointer ${
+                        className={`text-xs font-mono font-bold rounded-lg px-2 py-1 focus:outline-none border cursor-pointer ${
                           isLight 
                             ? "bg-slate-100 border-slate-250 text-slate-800" 
                             : "bg-slate-900 border-white/10 text-slate-100"
@@ -909,13 +982,248 @@ export default function AdminPanel({
                 </div>
               </div>
 
+              {/* REGISTERED USERS MANAGEMENT PANEL */}
+              <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
+                isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+              }`}>
+                <div className="flex flex-wrap justify-between items-center gap-4">
+                  <h3 className="text-sm font-bold font-mono text-slate-455 flex items-center gap-2 uppercase">
+                    <Users className="w-4 h-4 text-emerald-500" />
+                    Список и Управление Пользователями
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                      DATABASE REPLICATED
+                    </span>
+                  </div>
+                </div>
+
+                {/* ADD NEW USER FORM */}
+                <div className={`p-4 rounded-xl border flex flex-col gap-3 font-sans ${
+                  isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/40 border-white/10"
+                }`}>
+                  <h4 className="text-xs font-bold tracking-wider uppercase text-slate-400">Добавить нового пользователя</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Никнейм (e.g. @pro_trader)"
+                        value={newNickInput}
+                        onChange={(e) => setNewNickInput(e.target.value)}
+                        className={`text-xs w-full rounded-lg px-2.5 py-1.5 focus:outline-none border ${
+                          isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <select
+                        value={newLevelInput}
+                        onChange={(e) => setNewLevelInput(e.target.value as any)}
+                        className={`text-xs w-full rounded-lg px-2.5 py-1.5 focus:outline-none border ${
+                          isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
+                        }`}
+                      >
+                        <option value="free">free (Бесплатный)</option>
+                        <option value="RPO">RPO (Профессионал)</option>
+                        <option value="VIP">VIP (Привилегированный)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="IP-адрес"
+                        value={newIpInput}
+                        onChange={(e) => setNewIpInput(e.target.value)}
+                        className={`text-xs w-full rounded-lg px-2.5 py-1.5 focus:outline-none border ${
+                          isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Страна & Флаг (e.g. Kazakhstan 🇰🇿)"
+                        value={newCountryInput}
+                        onChange={(e) => setNewCountryInput(e.target.value)}
+                        className={`text-xs w-full rounded-lg px-2.5 py-1.5 focus:outline-none border ${
+                          isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
+                        }`}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center mt-1">
+                    <button
+                      onClick={() => {
+                        if (!newNickInput) return;
+                        const defaultIp = newIpInput || `${Math.floor(Math.random() * 200 + 40)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+                        const defaultCountry = newCountryInput || "Kazakhstan 🇰🇿";
+                        const registerDate = new Date().toISOString().split("T")[0];
+                        const newUser: AdminUser = {
+                          id: `usr_${Math.floor(Math.random() * 900 + 100)}`,
+                          nickname: newNickInput.startsWith("@") ? newNickInput : "@" + newNickInput,
+                          registerDate,
+                          subscriptionLevel: newLevelInput,
+                          ip: defaultIp,
+                          country: defaultCountry
+                        };
+                        setAdminUsers(prev => [newUser, ...prev]);
+                        setRegisteredUsersCount(prev => prev + 1);
+                        setNewNickInput("");
+                        setNewIpInput("");
+                        setNewCountryInput("");
+                        setUserSuccessMsg("Пользователь успешно зарегистрирован!");
+                        setTimeout(() => setUserSuccessMsg(""), 3000);
+                      }}
+                      className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold font-sans cursor-pointer flex items-center gap-1.5 active:scale-95 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Добавить пользователя
+                    </button>
+                    {userSuccessMsg && (
+                      <span className="text-emerald-500 text-[11px] font-bold animate-pulse">{userSuccessMsg}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* INLINE EDITING CONTAINER */}
+                {editingUserId && (
+                  <div className={`p-4 rounded-xl border flex flex-col gap-3 font-sans ${
+                    isLight ? "bg-amber-100/40 border-amber-300" : "bg-yellow-500/5 border-yellow-500/15"
+                  }`}>
+                    <h4 className="text-xs font-bold tracking-wider uppercase text-yellow-500">Редактировать учетную запись #{editingUserId}</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block uppercase mb-1">Никнейм</label>
+                        <input
+                          type="text"
+                          value={editNickname}
+                          onChange={(e) => setEditNickname(e.target.value)}
+                          className={`text-xs w-full rounded px-2.5 py-1.5 focus:outline-none border ${
+                            isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block uppercase mb-1">Уровень Подписки</label>
+                        <select
+                          value={editLevel}
+                          onChange={(e) => setEditLevel(e.target.value as any)}
+                          className={`text-xs w-full rounded px-2.5 py-1.5 focus:outline-none border ${
+                            isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
+                          }`}
+                        >
+                          <option value="free">free</option>
+                          <option value="RPO">RPO</option>
+                          <option value="VIP">VIP</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end mt-1">
+                      <button
+                        onClick={() => {
+                          setEditingUserId(null);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer font-sans transition-all ${
+                          isLight ? "bg-slate-200 hover:bg-slate-300 text-slate-700" : "bg-slate-900 hover:bg-slate-800 text-slate-350"
+                        }`}
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAdminUsers(prev => prev.map(u => u.id === editingUserId ? { ...u, nickname: editNickname, subscriptionLevel: editLevel } : u));
+                          setEditingUserId(null);
+                          setUserSuccessMsg("Успешно изменено!");
+                          setTimeout(() => setUserSuccessMsg(""), 3000);
+                        }}
+                        className="px-3.5 py-1.5 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-extrabold text-xs font-sans cursor-pointer active:scale-95 transition-all"
+                      >
+                        Сохранить изменения
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* USER MANAGEMENT TABLE */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left font-sans text-xs border-collapse">
+                    <thead>
+                      <tr className={`border-b text-[10px] font-mono text-slate-450 ${
+                        isLight ? "border-slate-200" : "border-white/5"
+                      }`}>
+                        <th className="py-2.5 px-3">Идентификатор</th>
+                        <th className="py-2.5 px-3">Никнейм</th>
+                        <th className="py-2.5 px-3">Уровень</th>
+                        <th className="py-2.5 px-3">IP-адрес</th>
+                        <th className="py-2.5 px-3">Страна</th>
+                        <th className="py-2.5 px-3">Дата регистрации</th>
+                        <th className="py-2.5 px-3 text-right">Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-500/5 font-mono">
+                      {adminUsers.map(user => (
+                        <tr key={user.id} className={`hover:bg-slate-500/5 transition-colors ${
+                          isLight ? "text-slate-800" : "text-slate-200"
+                        }`}>
+                          <td className="py-3 px-3 font-semibold text-slate-550">{user.id}</td>
+                          <td className="py-3 px-3 font-bold text-amber-500">{user.nickname}</td>
+                          <td className="py-3 px-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase border ${
+                              user.subscriptionLevel === "free"
+                                ? isLight ? "bg-slate-100 border-slate-300 text-slate-600" : "bg-slate-900 border-white/5 text-slate-400"
+                                : user.subscriptionLevel === "RPO"
+                                ? isLight ? "bg-orange-50 border-orange-300 text-orange-700" : "bg-orange-500/10 border-orange-500/25 text-orange-400"
+                                : isLight ? "bg-yellow-50 border-yellow-300 text-yellow-850" : "bg-yellow-500/10 border-yellow-500/25 text-yellow-450 font-bold"
+                            }`}>
+                              {user.subscriptionLevel}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">{user.ip}</td>
+                          <td className="py-3 px-3 font-sans">{user.country}</td>
+                          <td className="py-3 px-3 text-slate-400">{user.registerDate}</td>
+                          <td className="py-3 px-3 text-right">
+                            <div className="flex items-center gap-2 justify-end">
+                              <button
+                                onClick={() => {
+                                  setEditingUserId(user.id);
+                                  setEditNickname(user.nickname);
+                                  setEditLevel(user.subscriptionLevel);
+                                }}
+                                className="p-1 rounded bg-blue-500/15 text-blue-400 hover:text-blue-300 cursor-pointer active:scale-95 transition-all"
+                                title="Редактировать профиль"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Вы действительно хотите удалить пользователя ${user.nickname}?`)) {
+                                    setAdminUsers(prev => prev.filter(u => u.id !== user.id));
+                                    setRegisteredUsersCount(prev => Math.max(0, prev - 1));
+                                    setUserSuccessMsg(`Пользователь ${user.nickname} удален`);
+                                    setTimeout(() => setUserSuccessMsg(""), 3000);
+                                  }
+                                }}
+                                className="p-1 rounded bg-rose-500/15 text-rose-500 hover:text-rose-400 cursor-pointer active:scale-95 transition-all"
+                                title="Удалить"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               {/* CONNECTION TABLE */}
               <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
                 isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
               }`}>
                 <div className="flex justify-between items-center">
                   <h3 className="text-xs font-bold font-mono text-slate-400 flex items-center gap-2 uppercase">
-                    <Radio className="w-4 h-4 text-amber-500 animate-pulse" />
+                    <Radio className="w-4 h-4 text-emerald-500 animate-pulse" />
                     Активные сессии Live WebSocket Трейдеров
                   </h3>
                   <span className="font-mono text-[9px] text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">

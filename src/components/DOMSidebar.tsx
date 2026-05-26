@@ -43,6 +43,68 @@ interface TradeLog {
 
 export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DOMSidebarProps) {
   const isLight = theme === "light";
+  
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastInteractionTimeRef = useRef<number>(Date.now());
+  const isAutoCenteringRef = useRef<boolean>(false);
+
+  // Center scroll vertically on mount or pair/book length changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const midPoint = (container.scrollHeight - container.clientHeight) / 2;
+      container.scrollTop = midPoint;
+      lastInteractionTimeRef.current = Date.now();
+    }
+  }, [activePair.symbol, orderBook.bids.length, orderBook.asks.length]);
+
+  // Track interaction and auto-center after 3 seconds of inactivity
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isAutoCenteringRef.current) {
+        // Scroll event from auto-centering, ignore it
+        return;
+      }
+      lastInteractionTimeRef.current = Date.now();
+    };
+
+    const handleMouseMove = () => {
+      lastInteractionTimeRef.current = Date.now();
+    };
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", handleScroll, { passive: true });
+      container.addEventListener("mousemove", handleMouseMove, { passive: true });
+    }
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      if (now - lastInteractionTimeRef.current >= 3000) {
+        if (scrollContainerRef.current) {
+          const cont = scrollContainerRef.current;
+          const midPoint = (cont.scrollHeight - cont.clientHeight) / 2;
+          if (Math.abs(cont.scrollTop - midPoint) > 10) {
+            isAutoCenteringRef.current = true;
+            cont.scrollTo({ top: midPoint, behavior: "smooth" });
+            // Reset the flag after smooth scroll is complete
+            setTimeout(() => {
+              isAutoCenteringRef.current = false;
+            }, 600);
+          }
+        }
+      }
+    }, 1000);
+
+    return () => {
+      if (container) {
+        container.removeEventListener("scroll", handleScroll);
+        container.removeEventListener("mousemove", handleMouseMove);
+      }
+      clearInterval(interval);
+    };
+  }, [activePair.symbol]);
+
   // --- Persistent Simulator State ---
   const [balance, setBalance] = useState<number>(() => {
     const saved = localStorage.getItem("procluster_balance_v2");
@@ -453,9 +515,9 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
   };
 
   // Reverse asks so the highest price is at the top of the vertical ladder!
-  // Show 15 levels for rich, full-height vertical footprint grid alignment
-  const reversedAsks = [...orderBook.asks].slice(0, 15).reverse();
-  const slicedBids = [...orderBook.bids].slice(0, 15);
+  // Show 200 levels for deeper scroll and analysis
+  const reversedAsks = [...orderBook.asks].slice(0, 200).reverse();
+  const slicedBids = [...orderBook.bids].slice(0, 200);
 
   // Find overall maximum size in the book to properly scale horizontal depth bars
   const maxAmountInBook = Math.max(
@@ -593,7 +655,7 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
           <div className="text-left pl-3">Price ({activePair.symbol.split("/")[1] || "USDT"})</div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-1">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto pr-1 scrollbar-thin">
           {/* ----- ASKS SIDE (HIGH TO LOW) ----- */}
           {reversedAsks.map((ask) => {
             const hasPendingLimit = limitOrders.filter(o => o.side === "sell" && Math.abs(o.price - ask.price) < 0.001);

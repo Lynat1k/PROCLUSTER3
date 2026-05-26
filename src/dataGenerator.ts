@@ -7,11 +7,9 @@ import { ClusterCandle, ClusterCell, OrderBookRow, LiveTrade, CryptoPair } from 
 
 // Supported Crypto Pairs
 export const AVAILABLE_PAIRS: CryptoPair[] = [
-  { symbol: "BTC/USDT", name: "Bitcoin", price: 68420.0, change24h: 3.42, volume24h: 3420000000, delta24h: 12450.0, priceStep: 10 },
-  { symbol: "ETH/USDT", name: "Ethereum", price: 3420.5, change24h: -1.25, volume24h: 1890000000, delta24h: -4120.0, priceStep: 1 },
-  { symbol: "SOL/USDT", name: "Solana", price: 142.75, change24h: 8.84, volume24h: 920000000, delta24h: 8900.0, priceStep: 0.1 },
-  { symbol: "BNB/USDT", name: "BNB", price: 585.2, change24h: 0.55, volume24h: 410000000, delta24h: 340.0, priceStep: 0.5 },
-  { symbol: "XRP/USDT", name: "Ripple", price: 0.584, change24h: -0.22, volume24h: 220000000, delta24h: -105.0, priceStep: 0.001 }
+  { symbol: "BTC/USDT", name: "Bitcoin", price: 68420.0, change24h: 3.42, volume24h: 3420000000, delta24h: 12450.0, priceStep: 2.5 },
+  { symbol: "ETH/USDT", name: "Ethereum", price: 3420.5, change24h: -1.25, volume24h: 1890000000, delta24h: -4120.0, priceStep: 0.25 },
+  { symbol: "SOL/USDT", name: "Solana", price: 142.75, change24h: 8.84, volume24h: 920000000, delta24h: 8900.0, priceStep: 0.25 }
 ];
 
 // Helper to generate a normal (Gaussian) distribution number
@@ -171,7 +169,7 @@ export function generateHistoricalCandles(
 export function generateOrderBook(midPrice: number, priceStep: number): { bids: OrderBookRow[]; asks: OrderBookRow[] } {
   const bids: OrderBookRow[] = [];
   const asks: OrderBookRow[] = [];
-  const rowsCount = 15;
+  const rowsCount = 200;
 
   let totalBid = 0;
   let totalAsk = 0;

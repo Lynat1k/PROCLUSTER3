@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Indicator, IndicatorSettings } from "../types";
-import { X, Search, Star, Trash2, Eye, EyeOff, Layers, Settings, Activity } from "lucide-react";
+import { X, Search, Star, Trash2, Eye, EyeOff, Layers, Settings, Activity, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface IndicatorsModalProps {
@@ -24,9 +24,50 @@ export default function IndicatorsModal({
 
   // We use draft state for edit-and-commit pattern
   const [draft, setDraft] = useState<Indicator[]>([]);
-  const [activeTab, setActiveTab] = useState<"Все индикаторы" | "Избранные" | "Сообщество">("Все индикаторы");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string>("clusterSearch");
+
+  // Dynamic sizing state
+  const [size, setSize] = useState({ width: 855, height: 580 });
+  const [resizing, setResizing] = useState(false);
+  const resizeStart = useRef({ x: 0, y: 0 });
+  const sizeStart = useRef({ width: 855, height: 580 });
+  const resizeOffsetStart = useRef({ x: 0, y: 0 });
+
+  // Accordion collapsed state for categories
+  const [expandedTabs, setExpandedTabs] = useState<{
+    "Все индикаторы": boolean;
+    "Избранные": boolean;
+    "Сообщество": boolean;
+  }>({
+    "Все индикаторы": true,
+    "Избранные": false,
+    "Сообщество": false,
+  });
+
+  const toggleTabExpanded = (tabName: keyof typeof expandedTabs) => {
+    setExpandedTabs(prev => ({
+      ...prev,
+      [tabName]: !prev[tabName]
+    }));
+  };
+
+  const isSectionExpanded = (tabName: keyof typeof expandedTabs) => {
+    if (searchQuery.trim() !== "") return true; // auto-expand on search
+    return expandedTabs[tabName];
+  };
+
+  const getAccordionIndicators = (tabName: keyof typeof expandedTabs) => {
+    return draft.filter((ind) => {
+      if (tabName === "Избранные" && !ind.isFavorite) return false;
+      if (tabName === "Сообщество" && ind.category !== "Сообщество") return false;
+      
+      if (searchQuery.trim() !== "") {
+        return ind.label.toLowerCase().includes(searchQuery.toLowerCase());
+      }
+      return true;
+    });
+  };
 
   // Draggable window positioning state
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -39,6 +80,7 @@ export default function IndicatorsModal({
       // Deep copy to ensure safety of draft manipulation
       setDraft(JSON.parse(JSON.stringify(indicators)));
       setOffset({ x: 0, y: 0 }); // Reset window offset on open
+      setSize({ width: 855, height: 580 }); // Reset size on open
     }
   }, [isOpen, indicators]);
 
@@ -66,6 +108,42 @@ export default function IndicatorsModal({
     };
   }, [dragging]);
 
+  // Resizing mouse handle event listeners
+  useEffect(() => {
+    if (!resizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - resizeStart.current.x;
+      const dy = e.clientY - resizeStart.current.y;
+      
+      const newWidth = Math.max(700, Math.min(1300, sizeStart.current.width + dx));
+      const newHeight = Math.max(480, Math.min(950, sizeStart.current.height + dy));
+      
+      setSize({
+        width: newWidth,
+        height: newHeight
+      });
+
+      // Compensate the centering offset of items-center justify-center container
+      // so the modal only resizes down and right, keeping top-left anchor stationary.
+      setOffset({
+        x: resizeOffsetStart.current.x + (newWidth - sizeStart.current.width) / 2,
+        y: resizeOffsetStart.current.y + (newHeight - sizeStart.current.height) / 2
+      });
+    };
+
+    const handleMouseUp = () => {
+      setResizing(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [resizing]);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target instanceof HTMLElement && e.target.closest(".no-drag")) {
       return; // Do not drag when clicking on button or controls
@@ -76,30 +154,19 @@ export default function IndicatorsModal({
     modalOffset.current = { ...offset };
   };
 
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizing(true);
+    resizeStart.current = { x: e.clientX, y: e.clientY };
+    sizeStart.current = { ...size };
+    resizeOffsetStart.current = { ...offset };
+  };
+
   if (!isOpen) return null;
 
   // Sync draft and selected id if item gets selected
   const selectedIndicator = draft.find((i) => i.id === selectedId) || draft[0];
-
-  // Filters for the middle list
-  const filteredIndicators = draft.filter((ind) => {
-    // Tab category checks
-    if (activeTab === "Избранные" && !ind.isFavorite) return false;
-    if (activeTab === "Сообщество" && ind.category !== "Сообщество") return false;
-    
-    // Search filter
-    if (searchQuery.trim() !== "") {
-      return ind.label.toLowerCase().includes(searchQuery.toLowerCase());
-    }
-    return true;
-  });
-
-  // Count matches helper
-  const getCount = (tab: typeof activeTab) => {
-    if (tab === "Все индикаторы") return draft.length;
-    if (tab === "Избранные") return draft.filter(i => i.isFavorite).length;
-    return draft.filter(i => i.category === "Сообщество").length;
-  };
 
   // Update specific settings of currently active element
   const updateSettings = (updates: Partial<IndicatorSettings>) => {
@@ -159,11 +226,12 @@ export default function IndicatorsModal({
           initial={{ opacity: 0, scale: 0.94, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 15 }}
-          className={`w-full max-w-4xl h-[580px] rounded-3xl flex flex-col overflow-hidden font-sans transition-all duration-300 border shadow-2xl ${
+          className={`rounded-3xl flex flex-col overflow-hidden font-sans border shadow-2xl relative ${
             isLight
               ? "bg-white border-slate-200 text-slate-850"
               : "bg-[#0F1420]/98 border border-white/10 text-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.85)]"
           }`}
+          style={{ width: `${size.width}px`, height: `${size.height}px` }}
         >
           {/* HEADER (Draggable panel header) */}
           <div 
@@ -193,52 +261,141 @@ export default function IndicatorsModal({
         {/* WORKSPACE AREA */}
         <div className="flex-1 flex min-h-0 overflow-hidden">
           
-          {/* LEFT SIDEBAR: Categories & Added list */}
-          <div className={`w-[220px] p-4 border-r flex flex-col gap-5 justify-between select-none transition-all duration-300 ${
+          {/* LEFT SIDEBAR: Accordions (Categories & Lists) & Active list */}
+          <div className={`w-[335px] p-4 border-r flex flex-col gap-4 select-none transition-all duration-300 shrink-0 ${
             isLight ? "bg-slate-50/50 border-slate-200" : "bg-slate-900/10 border-white/5"
           }`}>
-            <div className="flex flex-col gap-1.5">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Поиск индикаторов..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full border rounded-xl py-1.5 px-3.5 pl-9 text-xs outline-none font-sans transition-all duration-300 no-drag ${
+                  isLight
+                    ? "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                    : "bg-[#030712]/50 border border-white/10 text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-yellow-500/40 focus:border-yellow-500/40"
+                }`}
+              />
+            </div>
+
+            {/* Accordion Categories */}
+            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin min-h-0">
               {(["Все индикаторы", "Избранные", "Сообщество"] as const).map((tab) => {
-                const isActive = activeTab === tab;
+                const items = getAccordionIndicators(tab);
+                const isExpanded = isSectionExpanded(tab);
+                const count = items.length;
+
                 return (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-                      isActive
-                        ? isLight
-                          ? "bg-blue-50 border border-blue-200 text-blue-700 font-extrabold"
-                          : "bg-gradient-to-r from-blue-600/35 to-blue-500/10 border border-blue-500/25 text-blue-400 font-extrabold"
-                        : isLight
-                          ? "text-slate-500 hover:text-slate-800 hover:bg-slate-100/70"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
-                    }`}
-                  >
-                    <span>{tab}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all duration-300 ${
-                      isActive 
-                        ? isLight ? "bg-blue-100 text-blue-800" : "bg-blue-500/20 text-blue-400" 
-                        : isLight ? "bg-slate-200 text-slate-600" : "bg-slate-800 text-slate-400"
-                    }`}>
-                      {getCount(tab)}
-                    </span>
-                  </button>
+                  <div key={tab} className="flex flex-col gap-1 shrink-0">
+                    <button
+                      onClick={() => toggleTabExpanded(tab)}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer no-drag ${
+                        isExpanded
+                          ? isLight
+                            ? "bg-blue-50 border border-blue-205 text-blue-700 font-extrabold"
+                            : "bg-gradient-to-r from-blue-600/35 to-blue-500/10 border border-blue-500/25 text-blue-400 font-extrabold"
+                          : isLight
+                            ? "text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200/50"
+                            : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-white/5"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"}`} />
+                        <span>{tab}</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all duration-300 ${
+                        isExpanded 
+                          ? isLight ? "bg-blue-100 text-blue-800" : "bg-blue-500/20 text-blue-400" 
+                          : isLight ? "bg-slate-200 text-slate-600" : "bg-slate-800 text-slate-400"
+                      }`}>
+                        {count}
+                      </span>
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.18 }}
+                          className="overflow-hidden flex flex-col gap-1 pl-1"
+                        >
+                          {items.length === 0 ? (
+                            <div className="text-slate-500 text-[10.5px] italic pl-6 py-1.5">
+                              Нет индикаторов
+                            </div>
+                          ) : (
+                            items.map((ind) => {
+                              const isSelected = selectedId === ind.id;
+                              return (
+                                <div
+                                  key={ind.id}
+                                  onClick={() => setSelectedId(ind.id)}
+                                  className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition select-none border no-drag ${
+                                    isSelected
+                                      ? isLight
+                                        ? "bg-blue-50 border-blue-200"
+                                        : "bg-blue-600/10 border border-blue-500/20"
+                                      : isLight
+                                        ? "bg-transparent border-transparent hover:bg-slate-100/70"
+                                        : "bg-white/0 border border-transparent hover:bg-white/5"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`text-xs truncate font-medium ${
+                                      isSelected 
+                                        ? isLight ? "text-blue-900 font-extrabold" : "text-slate-100 font-bold" 
+                                        : isLight ? "text-slate-700" : "text-slate-300"
+                                    }`}>
+                                      {ind.label}
+                                    </span>
+                                    {ind.isActive && (
+                                      <span className={`text-[8px] font-black rounded px-1 uppercase tracking-wide shrink-0 ${
+                                        isLight 
+                                          ? "bg-blue-100 text-blue-700" 
+                                          : "bg-blue-500/10 text-blue-400"
+                                      }`}>
+                                        АКТИВЕН
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <button
+                                    onClick={(e) => toggleFavorite(ind.id, e)}
+                                    className={`p-1 rounded transition ml-2 shrink-0 ${
+                                      isLight ? "hover:bg-slate-200/50 text-slate-400 hover:text-yellow-550" : "hover:bg-white/10 text-slate-400 hover:text-yellow-400"
+                                    }`}
+                                  >
+                                    <Star className={`w-3.5 h-3.5 ${ind.isFavorite ? "fill-yellow-400 text-yellow-400" : "text-slate-500"}`} />
+                                  </button>
+                                </div>
+                              );
+                            })
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 );
               })}
             </div>
 
-            {/* ДОБАВЛЕНО (Added section) */}
-            <div className={`flex-1 flex flex-col min-h-0 mt-2 border-t pt-3 transition-colors duration-300 ${
+            {/* ДОБАВЛЕНО (Active Indicators section) */}
+            <div className={`flex flex-col min-h-0 border-t pt-3 shrink-0 flex-[0.7] ${
               isLight ? "border-slate-200" : "border-white/5"
             }`}>
               <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-2 block font-mono pl-1">
-                ДОБАВЛЕНО
+                АКТИВНЫЕ ({addedIndicators.length})
               </span>
               <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 scrollbar-thin">
                 <AnimatePresence initial={false}>
                   {addedIndicators.length === 0 ? (
                     <div className="text-slate-500 text-[11px] italic pl-1.5 pt-1">
-                      Нет активных
+                      Нет активных индикаторов
                     </div>
                   ) : (
                     addedIndicators.map((ind) => (
@@ -248,7 +405,7 @@ export default function IndicatorsModal({
                         exit={{ opacity: 0, x: -8 }}
                         key={ind.id}
                         onClick={() => setSelectedId(ind.id)}
-                        className={`flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+                        className={`flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer no-drag ${
                           selectedId === ind.id
                             ? isLight
                               ? "bg-blue-50 border-blue-200 text-blue-800"
@@ -288,77 +445,6 @@ export default function IndicatorsModal({
                   )}
                 </AnimatePresence>
               </div>
-            </div>
-          </div>
-
-          {/* MIDDLE COLUMN: Search & Select list */}
-          <div className={`w-[280px] p-4 border-r flex flex-col gap-3 min-h-0 transition-all duration-300 ${
-            isLight ? "border-slate-200" : "border-r border-white/5"
-          }`}>
-            {/* Search */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Поиск..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full border rounded-xl py-1.5 px-3.5 pl-9 text-xs outline-none font-sans transition-all duration-300 ${
-                  isLight
-                    ? "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-                    : "bg-[#030712]/50 border border-white/10 text-slate-200 placeholder-slate-500 focus:ring-1 focus:ring-yellow-500/40 focus:border-yellow-500/40"
-                }`}
-              />
-            </div>
-
-            {/* List */}
-            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1 scrollbar-thin">
-              {filteredIndicators.map((ind) => {
-                const isSelected = selectedId === ind.id;
-                return (
-                  <div
-                    key={ind.id}
-                    onClick={() => setSelectedId(ind.id)}
-                    className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition select-none border ${
-                      isSelected
-                        ? isLight
-                          ? "bg-blue-50 border-blue-200"
-                          : "bg-blue-600/10 border border-blue-500/20"
-                        : isLight
-                          ? "bg-transparent border-transparent hover:bg-slate-100/70"
-                          : "bg-white/0 border border-transparent hover:bg-white/5"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={`text-xs font-semibold truncate ${
-                        isSelected 
-                          ? isLight ? "text-blue-900 font-extrabold" : "text-slate-100" 
-                          : isLight ? "text-slate-700" : "text-slate-300"
-                      }`}>
-                        {ind.label}
-                      </span>
-                      {ind.isActive && (
-                        <span className={`text-[9.5px] font-black rounded px-1 text-[8px] uppercase tracking-wide shrink-0 ${
-                          isLight 
-                            ? "bg-blue-100 text-blue-700" 
-                            : "bg-blue-500/10 text-blue-400"
-                        }`}>
-                          ДОБАВЛЕНО
-                        </span>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={(e) => toggleFavorite(ind.id, e)}
-                      className={`p-1 rounded transition ml-2 shrink-0 ${
-                        isLight ? "hover:bg-slate-200 text-slate-400 hover:text-yellow-550" : "hover:bg-white/10 text-slate-400 hover:text-yellow-400"
-                      }`}
-                    >
-                      <Star className={`w-3.5 h-3.5 ${ind.isFavorite ? "fill-yellow-400 text-yellow-400" : "text-slate-500"}`} />
-                    </button>
-                  </div>
-                );
-              })}
             </div>
           </div>
 
@@ -671,7 +757,7 @@ export default function IndicatorsModal({
         }`}>
           <span className="text-[10.5px] font-mono text-slate-500 select-none pb-0.5">
             Хоткей: <span className={`font-bold px-1.5 py-0.5 rounded border transition-colors ${
-              isLight ? "bg-slate-100 text-slate-600 border-slate-200" : "bg-white/5 text-slate-400 border-white/5"
+              isLight ? "bg-slate-105 text-slate-600 border-slate-200" : "bg-white/5 text-slate-400 border-white/5"
             }`}>/</span>
           </span>
           <div className="flex items-center gap-3">
@@ -693,6 +779,16 @@ export default function IndicatorsModal({
               <span>Применить</span>
             </button>
           </div>
+        </div>
+
+        {/* RESIZE HANDLE */}
+        <div
+          onMouseDown={handleResizeMouseDown}
+          className="absolute bottom-1 right-1 w-5 h-5 cursor-se-resize flex items-end justify-end p-0.5 select-none z-50 no-drag"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" className="text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+            <path d="M10 0 L0 10 M10 4 L4 10 M10 7 L7 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
         </div>
       </motion.div>
       </div>
