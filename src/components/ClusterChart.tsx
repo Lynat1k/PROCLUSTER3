@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings } from "../types";
-import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2 } from "lucide-react";
 
 interface ClusterChartProps {
   candles: ClusterCandle[];
@@ -17,6 +17,9 @@ interface ClusterChartProps {
   theme?: "dark" | "light";
   candleType?: "auto" | "japanese" | "footprint" | "clusters";
   candleDataType?: "bid_ask" | "delta" | "volume";
+  onToggleIndicator?: (id: string) => void;
+  onRemoveIndicator?: (id: string) => void;
+  onShowIndicatorsSettings?: () => void;
 }
 
 export default function ClusterChart({
@@ -34,7 +37,10 @@ export default function ClusterChart({
   onToggleMarketType,
   theme = "dark",
   candleType = "auto",
-  candleDataType = "bid_ask"
+  candleDataType = "bid_ask",
+  onToggleIndicator,
+  onRemoveIndicator,
+  onShowIndicatorsSettings
 }: ClusterChartProps) {
   
   const isLight = theme === "light";
@@ -49,12 +55,36 @@ export default function ClusterChart({
   const [verticalScale, setVerticalScale] = useState<number>(1.0);
 
   // Height configurations dynamic calculations
-  const deltaHeight = activeIndicators.delta ? 70 : 0;
-  const spacing = activeIndicators.delta ? 20 : 0;
+  const [deltaPanelHeight, setDeltaPanelHeight] = useState<number>(() => {
+    const saved = localStorage.getItem("procluster_delta_panel_height");
+    return saved ? parseInt(saved, 10) : 120;
+  });
+  const [cvdPanelHeight, setCvdPanelHeight] = useState<number>(() => {
+    const saved = localStorage.getItem("procluster_cvd_panel_height");
+    return saved ? parseInt(saved, 10) : 120;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("procluster_delta_panel_height", deltaPanelHeight.toString());
+  }, [deltaPanelHeight]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_cvd_panel_height", cvdPanelHeight.toString());
+  }, [cvdPanelHeight]);
+
+  const [resizingPanel, setResizingPanel] = useState<"delta" | "cvd" | null>(null);
+
+  const panelGap = 24;
+  const deltaHeightTotal = activeIndicators.delta ? (deltaPanelHeight + panelGap) : 0;
+  const cvdHeightTotal = activeIndicators.cvd ? (cvdPanelHeight + panelGap) : 0;
 
   // Calculate base chart height to fill container exactly, ensuring Delta/CVD are always pinned at the bottom
-  const chartHeight = Math.max(150, containerHeight - margin.top - margin.bottom - spacing - deltaHeight);
-  const totalSvgHeight = margin.top + chartHeight + spacing + deltaHeight + margin.bottom;
+  const chartHeight = Math.max(150, containerHeight - margin.top - margin.bottom - deltaHeightTotal - cvdHeightTotal);
+  
+  const deltaTopY = margin.top + chartHeight + (activeIndicators.delta ? panelGap : 0);
+  const cvdTopY = deltaTopY + (activeIndicators.delta ? deltaPanelHeight : 0) + (activeIndicators.cvd ? panelGap : 0);
+
+  const totalSvgHeight = margin.top + chartHeight + deltaHeightTotal + cvdHeightTotal + margin.bottom;
 
   const [hoveredCell, setHoveredCell] = useState<{ candleIndex: number; cell: ClusterCell } | null>(null);
   const [crosshair, setCrosshair] = useState<{ x: number; y: number; price: number } | null>(null);
@@ -171,8 +201,14 @@ export default function ClusterChart({
     setPriceCenterOffset(0);
   };
 
-  // Find min/max price boundaries for mapping coordinates
-  const prices = candles.length > 0 ? candles.flatMap(c => [c.high, c.low]) : [];
+  // Find min/max price boundaries for mapping coordinates based on VISIBLE candles!
+  const visibleCandlesList = candles.filter((_, cIdx) => {
+    const x = margin.left + cIdx * (candleWidth + candleSpacing);
+    return x + candleWidth >= visibleScrollLeft && x <= visibleScrollLeft + visibleClientWidth;
+  });
+  const candlesToScale = visibleCandlesList.length > 0 ? visibleCandlesList : candles;
+
+  const prices = candlesToScale.length > 0 ? candlesToScale.flatMap(c => [c.high, c.low]) : [];
   const maxPriceRaw = prices.length > 0 ? Math.max(...prices) : 100;
   const minPriceRaw = prices.length > 0 ? Math.min(...prices) : 0;
   // Add 10% padding to price bounds so candles don't touch top/bottom wicks
@@ -327,11 +363,59 @@ export default function ClusterChart({
     return { cx, value: runningDelta };
   });
 
-  const maxCumDelta = cumulativeDeltaPoints.length > 0 ? Math.max(...cumulativeDeltaPoints.map(p => Math.abs(p.value)), 1) : 1;
-  const deltaToY = (val: number) => {
-    const rootY = margin.top + chartHeight + spacing + deltaHeight / 2;
-    return rootY - (val / maxCumDelta) * (deltaHeight / 2.5);
+  const minCumDeltaVal = cumulativeDeltaPoints.length > 0 ? Math.min(...cumulativeDeltaPoints.map(p => p.value), 0) : 0;
+  const maxCumDeltaVal = cumulativeDeltaPoints.length > 0 ? Math.max(...cumulativeDeltaPoints.map(p => p.value), 1) : 1;
+  const cvdDeltaRange = Math.max(1, maxCumDeltaVal - minCumDeltaVal);
+
+  const getCvdY = (val: number, panelH: number) => {
+    return panelH - ((val - minCumDeltaVal) / cvdDeltaRange) * (panelH * 0.7) - (panelH * 0.15);
   };
+
+  // Window-level mouse resize tracker for indicator panels
+  useEffect(() => {
+    if (!resizingPanel) return;
+
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const relativeY = e.clientY - rect.top;
+
+      if (resizingPanel === "delta") {
+        const deltaBottomY = deltaTopY + deltaPanelHeight;
+        const newHeight = Math.max(50, Math.min(350, deltaBottomY - relativeY));
+        setDeltaPanelHeight(newHeight);
+      } else if (resizingPanel === "cvd") {
+        const cvdBottomY = cvdTopY + cvdPanelHeight;
+        const newHeight = Math.max(50, Math.min(350, cvdBottomY - relativeY));
+        setCvdPanelHeight(newHeight);
+      }
+    };
+
+    const handleWindowMouseUp = () => {
+      setResizingPanel(null);
+    };
+
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleWindowMouseMove);
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+    };
+  }, [resizingPanel, deltaTopY, deltaPanelHeight, cvdTopY, cvdPanelHeight]);
+
+  // Find hovered candle's values in components main render scope so overlays can display them dynamically
+  const hoveredCandleIdx = crosshair
+    ? Math.floor((crosshair.x - margin.left) / (candleWidth + candleSpacing))
+    : -1;
+  const hoveredCandle = (hoveredCandleIdx >= 0 && hoveredCandleIdx < candles.length) ? candles[hoveredCandleIdx] : null;
+
+  const deltaValueText = hoveredCandle 
+    ? `${hoveredCandle.delta >= 0 ? "+" : ""}${hoveredCandle.delta.toFixed(1)}K`
+    : "--";
+
+  const cvdValueText = (hoveredCandleIdx >= 0 && hoveredCandleIdx < cumulativeDeltaPoints.length)
+    ? `${cumulativeDeltaPoints[hoveredCandleIdx].value >= 0 ? "+" : ""}${cumulativeDeltaPoints[hoveredCandleIdx].value.toFixed(1)}K`
+    : "--";
 
   useEffect(() => {
     if (candles.length === 0) return;
@@ -370,6 +454,27 @@ export default function ClusterChart({
       ctx.setLineDash([]);
     });
 
+    // Solid horizontal separator line between main chart panel and subcharts
+    if (activeIndicators.delta || activeIndicators.cvd) {
+      ctx.beginPath();
+      ctx.strokeStyle = isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)";
+      ctx.lineWidth = 1.0;
+      ctx.moveTo(0, margin.top + chartHeight);
+      ctx.lineTo(scrollWidth, margin.top + chartHeight);
+      ctx.stroke();
+    }
+
+    // Dividers between Delta and CVD panels if both are active
+    if (activeIndicators.delta && activeIndicators.cvd) {
+      ctx.beginPath();
+      ctx.strokeStyle = isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)";
+      ctx.lineWidth = 1.0;
+      const midDividerY = deltaTopY + deltaPanelHeight + panelGap / 2;
+      ctx.moveTo(0, midDividerY);
+      ctx.lineTo(scrollWidth, midDividerY);
+      ctx.stroke();
+    }
+
     // 2. Real-time active price tracker tag on chart grid
     const activePriceY = priceToY(activePair.price);
     if (activePriceY >= margin.top && activePriceY <= margin.top + chartHeight) {
@@ -403,13 +508,12 @@ export default function ClusterChart({
 
     // 4. Draw each candlestick
     // Find dynamic maximum volume on visible part of the chart
-    const visibleCandlesList = candles.filter((_, cIdx) => {
-      const x = margin.left + cIdx * (candleWidth + candleSpacing);
-      return x + candleWidth >= visibleScrollLeft && x <= visibleScrollLeft + visibleClientWidth;
-    });
-    const candlesToScale = visibleCandlesList.length > 0 ? visibleCandlesList : candles;
     const visibleMaxCellVol = Math.max(
       ...candlesToScale.flatMap(c => c.cells.map(cell => cell.volume)),
+      1
+    );
+    const visibleMaxSingleVol = Math.max(
+      ...candlesToScale.flatMap(c => c.cells.flatMap(cell => [cell.bid, cell.ask])),
       1
     );
 
@@ -481,9 +585,8 @@ export default function ClusterChart({
         const candleMaxTotalVol = Math.max(...candle.cells.map(c => Math.max(c.volume, 1)), 1);
         const isClustersMode = candleType === "clusters";
 
-        // Place the vertical separator/spine depending on the mode:
-        // Inside clusters mode, place it exactly in the center. In footprint mode, at 23% of the column width.
-        const sepX = isClustersMode ? x + Math.round(candleWidth / 2) : x + Math.round(candleWidth * 0.23);
+        // Place the vertical separator/spine exactly in the center for symmetrical Bid/Ask columns
+        const sepX = x + Math.round(candleWidth / 2);
 
         // Draw the vertical separator line covering the entire high-low range of the cells
         if (candle.cells.length > 0) {
@@ -511,15 +614,13 @@ export default function ClusterChart({
           // Very neat horizontal brick gap for a crisp layout
           const drawHeight = Math.max(1.0, cellHeight - 0.6);
 
-          const isCellPoc = activePocCell && cell.price === activePocCell.price;
+          const isCellPoc = cell.isPoc;
 
-          // Histogram parameters:
-          // In clusters mode, bars start from sepX and extend right (for buy) or left (for sell).
-          // In footprint mode, standard normal cells have left-aligned histogram bars starting at sepX and extending left.
-          const maxBarWidth = isClustersMode 
-            ? Math.round((candleWidth / 2) * 0.88)
-            : Math.round(candleWidth * 0.21);
-          const barWidth = cell.volume > 0 ? (cell.volume / visibleMaxCellVol) * maxBarWidth : 0;
+          // Compute volume normalization ratios
+          const maxValSingle = visibleMaxSingleVol;
+          const bidRatio = cell.bid > 0 ? cell.bid / maxValSingle : 0;
+          const askRatio = cell.ask > 0 ? cell.ask / maxValSingle : 0;
+          const volRatio = cell.volume > 0 ? cell.volume / visibleMaxCellVol : 0;
 
           // Double check Cluster Search parameters
           const csSettings = indicatorSettings?.clusterSearch || {
@@ -566,48 +667,105 @@ export default function ClusterChart({
             matchesClusterSearch = isTargetMode && isTargetDirection && isTargetLocation;
           }
 
-          // Render background elements:
-          if (isCellPoc) {
-            // POC row has a full solid background block covering the entire width of the candle
-            const fillLeft = x + 1;
-            const fillWidth = candleWidth - 2;
-            ctx.fillStyle = cell.ask > cell.bid
-              ? (isLight ? "rgba(34, 197, 94, 0.88)" : "rgba(16, 185, 129, 0.85)")
-              : (isLight ? "rgba(239, 68, 68, 0.88)" : "rgba(239, 68, 68, 0.85)");
-            ctx.fillRect(fillLeft, cellY + 0.5, fillWidth, drawHeight);
+          // A. Draw Heatmap Cell Background Fills (Bid left, Ask right)
+          if (candleDataType === "bid_ask") {
+            // Calculate opacity proportional to volume ratio
+            const bidOpacity = 0.04 + bidRatio * 0.45;
+            const askOpacity = 0.04 + askRatio * 0.45;
 
-            // Highlight border for POC
-            ctx.strokeStyle = "#f59e0b";
-            ctx.lineWidth = 1.2;
-            ctx.strokeRect(fillLeft, cellY + 0.5, fillWidth, drawHeight);
+            // Left (Bid) Column Fill
+            ctx.fillStyle = isLight
+              ? `rgba(239, 68, 68, ${bidOpacity * 0.70})`
+              : `rgba(220, 38, 38, ${bidOpacity})`;
+            ctx.fillRect(x + 0.5, cellY + 0.5, sepX - x - 0.5, drawHeight);
+
+            // Right (Ask) Column Fill
+            ctx.fillStyle = isLight
+              ? `rgba(34, 197, 94, ${askOpacity * 0.70})`
+              : `rgba(4, 120, 87, ${askOpacity})`;
+            ctx.fillRect(sepX, cellY + 0.5, x + candleWidth - sepX - 0.5, drawHeight);
+
+            // Dynamic clean wireframe cell grid border
+            ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.04)";
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(x + 0.5, cellY + 0.5, candleWidth - 1, drawHeight);
+          } else if (candleDataType === "delta") {
+            const cellDeltaVal = cell.ask - cell.bid;
+            const deltaRatio = Math.abs(cellDeltaVal) / maxValSingle;
+            const deltaOpacity = 0.04 + deltaRatio * 0.45;
+            const isBuyDelta = cellDeltaVal > 0;
+
+            ctx.fillStyle = isBuyDelta
+              ? (isLight ? `rgba(34, 197, 94, ${deltaOpacity * 0.70})` : `rgba(4, 120, 87, ${deltaOpacity})`)
+              : (isLight ? `rgba(239, 68, 68, ${deltaOpacity * 0.70})` : `rgba(220, 38, 38, ${deltaOpacity})`);
+            ctx.fillRect(x + 0.5, cellY + 0.5, candleWidth - 1, drawHeight);
+
+            ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.04)";
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(x + 0.5, cellY + 0.5, candleWidth - 1, drawHeight);
+          } else if (candleDataType === "volume") {
+            const volOpacity = 0.04 + volRatio * 0.45;
+            ctx.fillStyle = isLight
+              ? `rgba(100, 116, 139, ${volOpacity * 0.70})`
+              : `rgba(148, 163, 184, ${volOpacity * 0.6})`;
+            ctx.fillRect(x + 0.5, cellY + 0.5, candleWidth - 1, drawHeight);
+
+            ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.04)";
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(x + 0.5, cellY + 0.5, candleWidth - 1, drawHeight);
+          }
+
+          // B. Overlay Horizontal Histogram Profile Bars Inside Left/Right Columns (Provisional depth visualization)
+          if (candleDataType === "bid_ask") {
+            const maxBarWidth = Math.round((candleWidth / 2) * 0.85);
+            const bidBarWidth = cell.bid > 0 ? (cell.bid / maxValSingle) * maxBarWidth : 0;
+            const askBarWidth = cell.ask > 0 ? (cell.ask / maxValSingle) * maxBarWidth : 0;
+
+            if (isClustersMode) {
+              if (bidBarWidth > 0) {
+                const bidBarFill = isLight ? "rgba(220, 38, 38, 0.16)" : "rgba(239, 68, 68, 0.14)";
+                ctx.fillStyle = bidBarFill;
+                // Growing INWARD (starts from the left outer edge and grows rightwards towards the center)
+                ctx.fillRect(x + 1, cellY + 0.5, bidBarWidth, drawHeight);
+              }
+              if (askBarWidth > 0) {
+                const askBarFill = isLight ? "rgba(22, 163, 74, 0.16)" : "rgba(16, 185, 129, 0.14)";
+                ctx.fillStyle = askBarFill;
+                // Growing INWARD (starts from the right outer edge and grows leftwards towards the center)
+                ctx.fillRect(x + candleWidth - askBarWidth - 1, cellY + 0.5, askBarWidth, drawHeight);
+              }
+            } else {
+              // Footprint Mode: Growing OUTWARD from the center spine (sepX)
+              if (bidBarWidth > 0) {
+                const bidBarFill = isLight ? "rgba(220, 38, 38, 0.16)" : "rgba(239, 68, 68, 0.14)";
+                ctx.fillStyle = bidBarFill;
+                // Left side grows leftwards from center line (sepX)
+                ctx.fillRect(sepX - bidBarWidth, cellY + 0.5, bidBarWidth, drawHeight);
+              }
+              if (askBarWidth > 0) {
+                const askBarFill = isLight ? "rgba(22, 163, 74, 0.16)" : "rgba(16, 185, 129, 0.14)";
+                ctx.fillStyle = askBarFill;
+                // Right side grows rightwards from center line (sepX)
+                ctx.fillRect(sepX, cellY + 0.5, askBarWidth, drawHeight);
+              }
+            }
           } else {
-            // Normal cell: draw histogram
+            const maxBarWidth = candleWidth - 2;
+            const barWidth = cell.volume > 0 ? (cell.volume / visibleMaxCellVol) * maxBarWidth : 0;
             if (barWidth > 0) {
               const barIsBuy = cell.ask > cell.bid;
-              
-              const fillStyle = barIsBuy
-                ? (isLight ? "rgba(34, 197, 94, 0.35)" : "rgba(16, 185, 129, 0.32)")
-                : (isLight ? "rgba(239, 68, 68, 0.35)" : "rgba(239, 68, 68, 0.32)");
-                
-              const strokeStyle = barIsBuy
-                ? (isLight ? "rgba(34, 197, 94, 0.55)" : "rgba(16, 185, 129, 0.55)")
-                : (isLight ? "rgba(239, 68, 68, 0.55)" : "rgba(239, 68, 68, 0.55)");
-
-              // Determine horizontal coordinates depending on mode
-              // In clusters mode, the histogram is bidirectional starting from sepX (the center of the column).
-              // In footprint mode, the histogram is one-sided, expanding to the left of sepX.
-              const barX = isClustersMode 
-                ? (barIsBuy ? sepX : sepX - barWidth)
-                : (sepX - barWidth);
-
-              ctx.fillStyle = fillStyle;
-              ctx.fillRect(barX, cellY + 0.5, barWidth, drawHeight);
-
-              // Subtle brick outline for depth as seen in screenshot
-              ctx.strokeStyle = strokeStyle;
-              ctx.lineWidth = 0.5;
-              ctx.strokeRect(barX, cellY + 0.5, barWidth, drawHeight);
+              ctx.fillStyle = barIsBuy
+                ? (isLight ? "rgba(22, 163, 74, 0.16)" : "rgba(16, 185, 129, 0.14)")
+                : (isLight ? "rgba(220, 38, 38, 0.16)" : "rgba(239, 68, 68, 0.14)");
+              ctx.fillRect(x + 1, cellY + 0.5, barWidth, drawHeight);
             }
+          }
+
+          // C. Highlight POC row with an elegant gold border around the cell row (like in the references)
+          if (isCellPoc) {
+            ctx.strokeStyle = "#eab308";
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(x + 0.5, cellY + 0.5, candleWidth - 1, drawHeight);
           }
 
           // Active indicator additions (Search, Imbalance overlay)
@@ -639,11 +797,21 @@ export default function ClusterChart({
             ctx.shadowOffsetY = 0.5;
             ctx.textBaseline = "middle";
 
-            const bidValStr = cell.bid >= 10 ? cell.bid.toFixed(0) : cell.bid.toFixed(1);
-            const askValStr = cell.ask >= 10 ? cell.ask.toFixed(0) : cell.ask.toFixed(1);
+            // Intelligent adaptive precision volume formatter - prevents BTC/ETH cell numbers from showing as empty "0.0 x 0.0"
+            const getFormatter = (maxSingleVal: number) => {
+              if (maxSingleVal < 0.1) return (v: number) => v === 0 ? "0" : v.toFixed(4);
+              if (maxSingleVal < 1.0) return (v: number) => v === 0 ? "0" : v.toFixed(3);
+              if (maxSingleVal < 10.0) return (v: number) => v === 0 ? "0" : v.toFixed(2);
+              if (maxSingleVal < 100.0) return (v: number) => v === 0 ? "0" : v.toFixed(1);
+              return (v: number) => v === 0 ? "0" : v.toFixed(0);
+            };
+
+            const fmt = getFormatter(visibleMaxSingleVol);
+            const bidValStr = fmt(cell.bid);
+            const askValStr = fmt(cell.ask);
             const cellDeltaVal = cell.ask - cell.bid;
-            const deltaDisplayStr = (cellDeltaVal > 0 ? "+" : "") + (Math.abs(cellDeltaVal) >= 10 ? cellDeltaVal.toFixed(0) : cellDeltaVal.toFixed(1));
-            const volStr = cell.volume >= 10 ? cell.volume.toFixed(0) : cell.volume.toFixed(1);
+            const deltaDisplayStr = (cellDeltaVal > 0 ? "+" : "") + fmt(Math.abs(cellDeltaVal));
+            const volStr = fmt(cell.volume);
 
             const bidCol = isDiagonalSellImbalance
               ? (isLight ? "#dc2626" : "#ff3355")
@@ -687,32 +855,37 @@ export default function ClusterChart({
             const fontSizeVal = `${finalFontSize}px`;
             ctx.font = `600 ${fontSizeVal} Fira Code, monospace`;
 
-            // Calculate x-coords for Bid and Ask Columns in Footprint text space
-            const textWidthSpace = candleWidth - (sepX - x);
-            const midTextX = sepX + textWidthSpace / 2;
+            // Symmetrical horizontal midpoints for Bid (left column) and Ask (right column)
+            const leftMidX = x + Math.round(candleWidth * 0.25);
+            const rightMidX = x + Math.round(candleWidth * 0.75);
+            const centerTextX = x + candleWidth / 2;
 
             if (isCellPoc) {
               // High contrast white text on POC background
               ctx.fillStyle = "#ffffff";
               if (isClustersMode) {
-                const centerTextX = x + candleWidth / 2;
                 if (candleDataType === "bid_ask") {
                   drawCenteredBidAsk(centerTextX, cellY + cellHeight / 2);
                 } else if (candleDataType === "delta") {
+                   ctx.textAlign = "center";
                   ctx.fillText(deltaDisplayStr, centerTextX, cellY + cellHeight / 2);
                 } else if (candleDataType === "volume") {
+                  ctx.textAlign = "center";
                   ctx.fillText(volStr, centerTextX, cellY + cellHeight / 2);
                 }
               } else {
                 if (candleDataType === "bid_ask") {
-                  ctx.textAlign = "right";
-                  ctx.fillStyle = bidCol;
-                  ctx.fillText(bidValStr, midTextX - 4, cellY + cellHeight / 2);
-                  ctx.textAlign = "left";
-                  ctx.fillStyle = askCol;
-                  ctx.fillText(askValStr, midTextX + 4, cellY + cellHeight / 2);
+                  if (candleWidth >= 55) {
+                    ctx.textAlign = "center";
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillText(bidValStr, leftMidX, cellY + cellHeight / 2);
+                    ctx.fillText(askValStr, rightMidX, cellY + cellHeight / 2);
+                  } else {
+                    drawCenteredBidAsk(centerTextX, cellY + cellHeight / 2);
+                  }
                 } else {
-                  ctx.fillText(candleDataType === "delta" ? deltaDisplayStr : volStr, midTextX, cellY + cellHeight / 2);
+                  ctx.textAlign = "center";
+                  ctx.fillText(candleDataType === "delta" ? deltaDisplayStr : volStr, centerTextX, cellY + cellHeight / 2);
                 }
               }
             } else {
@@ -721,18 +894,16 @@ export default function ClusterChart({
                 if (candleDataType === "bid_ask") {
                   if (candleWidth >= 35) {
                     if (candleWidth >= 55) {
-                      // Standard Bid x Ask columns
-                      // Bid on Left (right aligned)
+                      // Standard Bid x Ask columns symmetrically spaced
                       ctx.fillStyle = bidCol;
-                      ctx.textAlign = "right";
-                      ctx.fillText(bidValStr, midTextX - 4, cellY + cellHeight / 2);
+                      ctx.textAlign = "center";
+                      ctx.fillText(bidValStr, leftMidX, cellY + cellHeight / 2);
 
-                      // Ask on Right (left aligned)
                       ctx.fillStyle = askCol;
-                      ctx.textAlign = "left";
-                      ctx.fillText(askValStr, midTextX + 4, cellY + cellHeight / 2);
+                      ctx.textAlign = "center";
+                      ctx.fillText(askValStr, rightMidX, cellY + cellHeight / 2);
                     } else {
-                      drawCenteredBidAsk(midTextX, cellY + cellHeight / 2);
+                      drawCenteredBidAsk(centerTextX, cellY + cellHeight / 2);
                     }
                   }
                 } else if (candleDataType === "delta") {
@@ -740,15 +911,14 @@ export default function ClusterChart({
                     ? (cellDeltaVal > 0 ? "#047857" : cellDeltaVal < 0 ? "#b91c1c" : "#475569")
                     : (cellDeltaVal > 0 ? "#10b981" : cellDeltaVal < 0 ? "#ef4444" : "#94a3b8");
                   ctx.textAlign = "center";
-                  ctx.fillText(deltaDisplayStr, midTextX, cellY + cellHeight / 2);
+                  ctx.fillText(deltaDisplayStr, centerTextX, cellY + cellHeight / 2);
                 } else if (candleDataType === "volume") {
                   ctx.fillStyle = isLight ? "#1e293b" : "#cbd5e1";
                   ctx.textAlign = "center";
-                  ctx.fillText(volStr, midTextX, cellY + cellHeight / 2);
+                  ctx.fillText(volStr, centerTextX, cellY + cellHeight / 2);
                 }
               } else {
                 // Clusters Mode Text Rendering (centered)
-                const centerTextX = x + candleWidth / 2;
                 if (candleDataType === "bid_ask" && candleWidth >= 35) {
                   drawCenteredBidAsk(centerTextX, cellY + cellHeight / 2);
                 } else if (candleDataType === "delta" && candleWidth >= 45) {
@@ -790,18 +960,21 @@ export default function ClusterChart({
       // C. Bottom Delta Sub-panel drawing
       if (activeIndicators.delta) {
         ctx.save();
-        ctx.translate(0, margin.top + chartHeight + spacing);
+        ctx.translate(0, deltaTopY);
+
+        const deltaMidY = deltaPanelHeight / 2;
+        const maxBarScaledHeight = deltaPanelHeight * 0.35;
 
         // Axis
         ctx.beginPath();
         ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.15)" : "rgba(255, 255, 255, 0.12)";
         ctx.lineWidth = 0.8;
-        ctx.moveTo(x, 35);
-        ctx.lineTo(x + candleWidth, 35);
+        ctx.moveTo(x, deltaMidY);
+        ctx.lineTo(x + candleWidth, deltaMidY);
         ctx.stroke();
 
-        const barHeight = Math.max(2, (Math.abs(candle.delta) / maxCandleDelta) * 26);
-        const barY = candle.delta >= 0 ? 35 - barHeight : 35;
+        const barHeight = Math.max(2, (Math.abs(candle.delta) / maxCandleDelta) * maxBarScaledHeight);
+        const barY = candle.delta >= 0 ? deltaMidY - barHeight : deltaMidY;
 
         // Draw Delta volume bar
         ctx.fillStyle = candle.delta >= 0 ? "rgba(16, 185, 129, 0.3)" : "rgba(244, 63, 94, 0.3)";
@@ -815,7 +988,7 @@ export default function ClusterChart({
           ctx.font = "bold 8px Fira Code, monospace";
           ctx.textAlign = "center";
           ctx.fillStyle = candle.delta >= 0 ? (isLight ? "#047857" : "#10b981") : (isLight ? "#be123c" : "#f43f5e");
-          const lblY = candle.delta >= 0 ? 35 - barHeight - 4 : 35 + barHeight + 11;
+          const lblY = candle.delta >= 0 ? deltaMidY - barHeight - 4 : deltaMidY + barHeight + 11;
           const deltaText = (candle.delta >= 0 ? "+" : "") + candle.delta.toFixed(0) + "K";
           ctx.fillText(deltaText, x + candleWidth / 2, lblY);
         }
@@ -824,13 +997,23 @@ export default function ClusterChart({
     });
 
     // 5. Drawing Cumulative Volume Delta (CVD) trend line
-    if (activeIndicators.delta && activeIndicators.cvd && cumulativeDeltaPoints.length > 0) {
+    if (activeIndicators.cvd && cumulativeDeltaPoints.length > 0) {
       ctx.save();
-      ctx.translate(0, margin.top + chartHeight + spacing);
+      ctx.translate(0, cvdTopY);
+
+      // CVD subchart horizontal reference axis (mid-line)
+      ctx.beginPath();
+      ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.15)" : "rgba(255, 255, 255, 0.12)";
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([3, 3]);
+      ctx.moveTo(margin.left, cvdPanelHeight / 2);
+      ctx.lineTo(scrollWidth, cvdPanelHeight / 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
 
       ctx.beginPath();
       cumulativeDeltaPoints.forEach((p, idx) => {
-        const cy = 35 - (p.value / maxCumDelta) * 26;
+        const cy = getCvdY(p.value, cvdPanelHeight);
         if (idx === 0) {
           ctx.moveTo(p.cx, cy);
         } else {
@@ -846,6 +1029,7 @@ export default function ClusterChart({
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.stroke();
+      ctx.shadowBlur = 0; // reset shadow
       ctx.restore();
     }
 
@@ -948,7 +1132,8 @@ export default function ClusterChart({
     totalSvgHeight,
     maxCellVolume,
     maxCandleDelta,
-    maxCumDelta,
+    maxCumDeltaVal,
+    minCumDeltaVal,
     profileBuckets,
     maxProfileVol,
     profileBucketSize,
@@ -1197,6 +1382,106 @@ export default function ClusterChart({
             return null;
           })()}
 
+          {/* Panel Dividers for right pricing panel */}
+          {(activeIndicators.delta || activeIndicators.cvd) && (
+            <line
+              x1={0}
+              y1={margin.top + chartHeight}
+              x2={90}
+              y2={margin.top + chartHeight}
+              stroke={isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)"}
+              strokeWidth="1"
+            />
+          )}
+          {activeIndicators.delta && activeIndicators.cvd && (
+            <line
+              x1={0}
+              y1={deltaTopY + deltaPanelHeight + panelGap / 2}
+              x2={90}
+              y2={deltaTopY + deltaPanelHeight + panelGap / 2}
+              stroke={isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)"}
+              strokeWidth="1"
+            />
+          )}
+
+          {/* Delta subchart Y-axis labels */}
+          {activeIndicators.delta && (
+            <g key="delta-panel-ticks">
+              {/* Top Tick */}
+              <text
+                x={8}
+                y={deltaTopY + deltaPanelHeight * 0.15 + 4}
+                fill={isLight ? "#047857" : "#10b981"}
+                fontSize="9"
+                fontFamily="Fira Code, monospace"
+                fontWeight="bold"
+              >
+                +{maxCandleDelta.toFixed(1)}K
+              </text>
+              {/* Mid Tick */}
+              <text
+                x={8}
+                y={deltaTopY + deltaPanelHeight / 2 + 4}
+                fill={isLight ? "#475569" : "#94a3b8"}
+                fontSize="9"
+                fontFamily="Fira Code, monospace"
+                fontWeight="bold"
+              >
+                0.0K
+              </text>
+              {/* Bottom Tick */}
+              <text
+                x={8}
+                y={deltaTopY + deltaPanelHeight * 0.85 + 4}
+                fill={isLight ? "#be123c" : "#f43f5e"}
+                fontSize="9"
+                fontFamily="Fira Code, monospace"
+                fontWeight="bold"
+              >
+                -{maxCandleDelta.toFixed(1)}K
+              </text>
+            </g>
+          )}
+
+          {/* CVD subchart Y-axis labels */}
+          {activeIndicators.cvd && (
+            <g key="cvd-panel-ticks">
+              {/* Top Tick */}
+              <text
+                x={8}
+                y={cvdTopY + cvdPanelHeight * 0.15 + 4}
+                fill={isLight ? "#7c3aed" : "#c084fc"}
+                fontSize="9"
+                fontFamily="Fira Code, monospace"
+                fontWeight="bold"
+              >
+                +{maxCumDeltaVal.toFixed(1)}K
+              </text>
+              {/* Mid Tick */}
+              <text
+                x={8}
+                y={cvdTopY + cvdPanelHeight / 2 + 4}
+                fill={isLight ? "#475569" : "#94a3b8"}
+                fontSize="9"
+                fontFamily="Fira Code, monospace"
+                fontWeight="bold"
+              >
+                {((maxCumDeltaVal + minCumDeltaVal)/2).toFixed(1)}K
+              </text>
+              {/* Bottom Tick */}
+              <text
+                x={8}
+                y={cvdTopY + cvdPanelHeight * 0.85 + 4}
+                fill={isLight ? "#7c3aed" : "#c084fc"}
+                fontSize="9"
+                fontFamily="Fira Code, monospace"
+                fontWeight="bold"
+              >
+                {minCumDeltaVal.toFixed(1)}K
+              </text>
+            </g>
+          )}
+
           {/* Hover Crosshair price label */}
           {crosshair && (
             <g key="fixed-crosshair-price">
@@ -1225,6 +1510,168 @@ export default function ClusterChart({
           )}
         </svg>
       </div>
+
+      {/* Absolute Pinned Indicators Control Overlays (Top-right of subcharts) */}
+      {activeIndicators.delta && (
+        <div 
+          className="absolute z-30 flex items-center gap-2 px-3 py-1 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 select-none"
+          style={{
+            top: `${deltaTopY + 6}px`,
+            right: "100px", // Pinned just to the left of the 90px price scale panel
+            backgroundColor: isLight ? "rgba(241, 245, 249, 0.9)" : "rgba(15, 23, 42, 0.75)",
+            borderColor: isLight ? "rgba(203, 213, 225, 0.8)" : "rgba(255, 255, 255, 0.08)",
+          }}
+        >
+          {/* Label / Dynamic value indicator */}
+          <div className="flex items-center gap-1.5 font-mono text-[10px] sm:text-[11px] font-bold tracking-wider">
+            <span className={isLight ? "text-slate-800" : "text-white"}>DELTA</span>
+            <span className={hoveredCandle ? (hoveredCandle.delta >= 0 ? "text-emerald-500 font-extrabold" : "text-rose-500 font-extrabold") : "text-slate-500"}>
+              {deltaValueText}
+            </span>
+          </div>
+
+          <div className={`w-[1px] h-3 ${isLight ? "bg-slate-300" : "bg-white/10"}`} />
+
+          {/* Control Buttons */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onToggleIndicator?.("delta")}
+              className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${
+                isLight 
+                  ? "hover:bg-slate-200 text-slate-500 hover:text-slate-800" 
+                  : "hover:bg-white/10 text-slate-400 hover:text-white"
+              }`}
+              title="Hide Delta"
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={onShowIndicatorsSettings}
+              className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${
+                isLight 
+                  ? "hover:bg-slate-200 text-slate-500 hover:text-slate-800" 
+                  : "hover:bg-white/10 text-slate-400 hover:text-white"
+              }`}
+              title="Delta Settings"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={() => onRemoveIndicator?.("delta")}
+              className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${
+                isLight 
+                  ? "hover:bg-slate-300 hover:text-rose-600 text-slate-500" 
+                  : "hover:bg-rose-500/20 hover:text-rose-450 text-slate-400"
+              }`}
+              title="Remove Delta Overlay"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeIndicators.cvd && (
+        <div 
+          className="absolute z-30 flex items-center gap-2 px-3 py-1 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 select-none"
+          style={{
+            top: `${cvdTopY + 6}px`,
+            right: "100px",
+            backgroundColor: isLight ? "rgba(241, 245, 249, 0.9)" : "rgba(15, 23, 42, 0.75)",
+            borderColor: isLight ? "rgba(203, 213, 225, 0.8)" : "rgba(255, 255, 255, 0.08)",
+          }}
+        >
+          {/* Label / Dynamic value indicator */}
+          <div className="flex items-center gap-1.5 font-mono text-[10px] sm:text-[11px] font-bold tracking-wider">
+            <span className={isLight ? "text-slate-800" : "text-white"}>CVD</span>
+            <span className={hoveredCandleIdx >= 0 && hoveredCandleIdx < cumulativeDeltaPoints.length ? "text-purple-400 font-extrabold" : "text-slate-500"}>
+              {cvdValueText}
+            </span>
+          </div>
+
+          <div className={`w-[1px] h-3 ${isLight ? "bg-slate-300" : "bg-white/10"}`} />
+
+          {/* Control Buttons */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onToggleIndicator?.("cvd")}
+              className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${
+                isLight 
+                  ? "hover:bg-slate-200 text-slate-500 hover:text-slate-800" 
+                  : "hover:bg-white/10 text-slate-400 hover:text-white"
+              }`}
+              title="Hide CVD"
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={onShowIndicatorsSettings}
+              className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${
+                isLight 
+                  ? "hover:bg-slate-200 text-slate-500 hover:text-slate-800" 
+                  : "hover:bg-white/10 text-slate-400 hover:text-white"
+              }`}
+              title="CVD Settings"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={() => onRemoveIndicator?.("cvd")}
+              className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${
+                isLight 
+                  ? "hover:bg-slate-300 hover:text-rose-600 text-slate-500" 
+                  : "hover:bg-rose-500/20 hover:text-rose-450 text-slate-400"
+              }`}
+              title="Remove CVD"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Drag Handles / Resizing Splitters */}
+      {activeIndicators.delta && (
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setResizingPanel("delta");
+          }}
+          className={`absolute left-0 right-0 z-40 cursor-ns-resize flex items-center justify-center group`}
+          style={{
+            top: `${deltaTopY - panelGap / 2}px`,
+            height: "14px",
+            transform: "translateY(-7px)"
+          }}
+          title="Drag to resize Delta Panel"
+        >
+          {/* Subtle colored horizontal line that lights up when hovered */}
+          <div className="w-24 h-[3px] rounded-full bg-yellow-500/0 group-hover:bg-yellow-500/85 transition-all duration-200 shadow-md shadow-yellow-500/40" />
+        </div>
+      )}
+
+      {activeIndicators.cvd && (
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setResizingPanel("cvd");
+          }}
+          className={`absolute left-0 right-0 z-40 cursor-ns-resize flex items-center justify-center group`}
+          style={{
+            top: `${cvdTopY - panelGap / 2}px`,
+            height: "14px",
+            transform: "translateY(-7px)"
+          }}
+          title="Drag to resize CVD Panel"
+        >
+          {/* Subtle colored horizontal line that lights up when hovered */}
+          <div className="w-24 h-[3px] rounded-full bg-yellow-500/0 group-hover:bg-yellow-500/85 transition-all duration-200 shadow-md shadow-yellow-500/40" />
+        </div>
+      )}
     </div>
 
       {/* Floating Detailed Cell HUD */}

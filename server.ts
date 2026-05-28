@@ -8,6 +8,8 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import fetch from "node-fetch";
+import AdmZip from "adm-zip";
 
 dotenv.config();
 
@@ -150,6 +152,286 @@ Cumulative volume in the last 5 cycles is **${(totalVolume / 1000).toFixed(2)}M*
       console.error("[PROCLUSTER Server] Gemini generation error or JSON parse failure:", err);
       // Fallback in case of call errors or bad format
       res.json(getFallbackAnalysis());
+    }
+  });
+
+  // --- BINANCE VISION TICK DOWNLOADER & AGGREGATOR ---
+  interface TradeTick {
+    p: number;
+    q: number;
+    T: number;
+    m: boolean;
+  }
+
+  const binanceVisionCache = new Map<string, any[]>();
+
+  async function fetchBinanceVisionTrades(symbol: string, isFutures: boolean): Promise<string> {
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const curDate = new Date();
+      curDate.setUTCDate(curDate.getUTCDate() - attempt);
+      
+      const yyyy = curDate.getUTCFullYear();
+      const mm = String(curDate.getUTCMonth() + 1).padStart(2, '0');
+      const dayPad = String(curDate.getUTCDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dayPad}`;
+      
+      const folder = isFutures ? 'futures/um/daily/aggTrades' : 'spot/daily/aggTrades';
+      const url = `https://data.binance.vision/data/${folder}/${symbol}/${symbol}-aggTrades-${dateStr}.zip`;
+      console.log(`[PROCLUSTER Vision] Attempting download: ${url}`);
+      
+      try {
+        const response = await fetch(url);
+        if (response.status === 200) {
+          const buffer = await response.buffer();
+          const zip = new AdmZip(buffer);
+          const zipEntries = zip.getEntries();
+          for (const entry of zipEntries) {
+            if (entry.entryName.endsWith('.csv')) {
+              console.log(`[PROCLUSTER Vision] Successfully unzipped CSV: ${entry.entryName}`);
+              return entry.getData().toString('utf8');
+            }
+          }
+        } else {
+          console.warn(`[PROCLUSTER Vision] Status ${response.status} for URL ${url}`);
+        }
+      } catch (err) {
+        console.error(`[PROCLUSTER Vision] Download error:`, err);
+      }
+    }
+    throw new Error("Could not download daily aggregate trades zip from Binance Vision.");
+  }
+
+  function parseVisionCsv(csvString: string, maxRows: number = 300000): TradeTick[] {
+    const trades: TradeTick[] = [];
+    let idx = 0;
+    let lineStart = 0;
+    
+    while (idx < csvString.length) {
+      if (csvString[idx] === '\n' || csvString[idx] === '\r') {
+        if (idx > lineStart) {
+          const line = csvString.slice(lineStart, idx);
+          const parts = line.split(',');
+          if (parts.length >= 7) {
+            const firstCol = parts[0];
+            if (firstCol !== 'agg_trade_id' && firstCol !== 'id' && !firstCol.includes('id')) {
+              const price = parseFloat(parts[1]);
+              const qty = parseFloat(parts[2]);
+              const timestamp = parseInt(parts[5]);
+              const mStr = parts[6].trim().toLowerCase();
+              const isBuyerMaker = mStr === 'true' || mStr === '1';
+              
+              if (!isNaN(price) && !isNaN(qty) && !isNaN(timestamp)) {
+                trades.push({ p: price, q: qty, T: timestamp, m: isBuyerMaker });
+                if (trades.length >= maxRows) {
+                  break;
+                }
+              }
+            }
+          }
+        }
+        if (csvString[idx] === '\r' && idx + 1 < csvString.length && csvString[idx + 1] === '\n') {
+          idx++;
+        }
+        lineStart = idx + 1;
+      }
+      idx++;
+    }
+    return trades;
+  }
+
+  async function fetchBinanceLiveTradesFallback(symbol: string, isFutures: boolean): Promise<TradeTick[]> {
+    const binanceSymbol = symbol.toUpperCase().replace("/", "");
+    const baseUrl = isFutures ? "https://fapi.binance.com" : "https://api.binance.com";
+    const apiPath = isFutures ? "/fapi/v1/aggTrades" : "/api/v3/aggTrades";
+    
+    const limit = 1000;
+    const initialUrl = `${baseUrl}${apiPath}?symbol=${binanceSymbol}&limit=${limit}`;
+
+    const res = await fetch(initialUrl);
+    if (!res.ok) {
+      throw new Error(`Binance API response status: ${res.status}`);
+    }
+    const latestTrades = await res.json();
+    if (!Array.isArray(latestTrades) || latestTrades.length === 0) {
+      return [];
+    }
+
+    let allTrades = [...latestTrades];
+    const firstId = latestTrades[0].a;
+
+    const pages = 3;
+    const fetchPromises: Promise<any[]>[] = [];
+
+    for (let i = 1; i <= pages; i++) {
+      const targetFromId = Math.max(1, firstId - i * 1000);
+      const pageUrl = `${baseUrl}${apiPath}?symbol=${binanceSymbol}&limit=1000&fromId=${targetFromId}`;
+
+      fetchPromises.push(
+        fetch(pageUrl)
+          .then(async (r) => {
+            if (!r.ok) return [];
+            const data = await r.json();
+            return Array.isArray(data) ? data : [];
+          })
+          .catch(() => [])
+      );
+    }
+
+    const results = await Promise.all(fetchPromises);
+    results.forEach(batch => {
+      allTrades = [...allTrades, ...batch];
+    });
+
+    allTrades.sort((a, b) => a.a - b.a);
+
+    return allTrades.map(t => ({
+      p: parseFloat(t.p),
+      q: parseFloat(t.q),
+      T: t.T,
+      m: !!t.m
+    }));
+  }
+
+  function aggregateTicksToClusters(trades: any[], priceStep: number, compressionTicks: number): any[] {
+    const candles: any[] = [];
+    
+    for (let i = 0; i < trades.length; i += compressionTicks) {
+      const chunk = trades.slice(i, i + compressionTicks);
+      if (chunk.length < 5) continue;
+      
+      const prices = chunk.map(t => t.p);
+      const open = prices[0];
+      const close = prices[prices.length - 1];
+      const high = Math.max(...prices);
+      const low = Math.min(...prices);
+      const timestamp = chunk[chunk.length - 1].T;
+      const totalVolume = chunk.reduce((sum, t) => sum + t.q, 0);
+      
+      const cellMap: { [price: number]: { bid: number; ask: number; volume: number } } = {};
+      
+      chunk.forEach(t => {
+        const stepPrice = Math.floor(t.p / priceStep) * priceStep;
+        const roundedPrice = parseFloat(stepPrice.toFixed(4));
+        
+        if (!cellMap[roundedPrice]) {
+          cellMap[roundedPrice] = { bid: 0, ask: 0, volume: 0 };
+        }
+        
+        if (t.m) {
+          cellMap[roundedPrice].bid += t.q;
+        } else {
+          cellMap[roundedPrice].ask += t.q;
+        }
+        cellMap[roundedPrice].volume += t.q;
+      });
+      
+      const cells: any[] = [];
+      let maxCellVol = 0;
+      let pocPrice = (open + close) / 2;
+      
+      Object.keys(cellMap).forEach(pStr => {
+        const pNum = parseFloat(pStr);
+        const data = cellMap[pNum];
+        cells.push({
+          price: pNum,
+          bid: parseFloat(data.bid.toFixed(4)),
+          ask: parseFloat(data.ask.toFixed(4)),
+          volume: parseFloat(data.volume.toFixed(4)),
+          isPoc: false,
+          isBuyImbalance: false,
+          isSellImbalance: false
+        });
+      });
+      
+      cells.forEach(c => {
+        if (c.volume > maxCellVol) {
+          maxCellVol = c.volume;
+          pocPrice = c.price;
+        }
+      });
+      
+      cells.forEach(c => {
+        if (c.price === pocPrice) {
+          c.isPoc = true;
+        }
+        c.isBuyImbalance = c.ask > c.bid * 1.8 && c.volume > (totalVolume / cells.length) * 0.4;
+        c.isSellImbalance = c.bid > c.ask * 1.8 && c.volume > (totalVolume / cells.length) * 0.4;
+      });
+      
+      cells.sort((a, b) => b.price - a.price);
+      
+      const sortedByVol = [...cells].sort((a, b) => b.volume - a.volume);
+      const targetVol = totalVolume * 0.7;
+      let runningSum = 0;
+      const vaPrices: number[] = [];
+      for (const itemC of sortedByVol) {
+        runningSum += itemC.volume;
+        vaPrices.push(itemC.price);
+        if (runningSum >= targetVol) break;
+      }
+      
+      const val = vaPrices.length > 0 ? Math.min(...vaPrices) : low;
+      const vah = vaPrices.length > 0 ? Math.max(...vaPrices) : high;
+      
+      const totalBid = cells.reduce((sum, c) => sum + c.bid, 0);
+      const totalAsk = cells.reduce((sum, c) => sum + c.ask, 0);
+      
+      candles.push({
+        timestamp,
+        open: parseFloat(open.toFixed(4)),
+        high: parseFloat(high.toFixed(4)),
+        low: parseFloat(low.toFixed(4)),
+        close: parseFloat(close.toFixed(4)),
+        volume: parseFloat(totalVolume.toFixed(4)),
+        delta: parseFloat((totalAsk - totalBid).toFixed(4)),
+        pocPrice: parseFloat(pocPrice.toFixed(4)),
+        cells,
+        vah: parseFloat(vah.toFixed(4)),
+        val: parseFloat(val.toFixed(4)),
+        tickCount: chunk.length
+      });
+    }
+    
+    return candles;
+  }
+
+  app.get("/api/binance-vision-ticks", async (req, res) => {
+    const symbol = (req.query.symbol || "BTCUSDT").toString().toUpperCase().replace("/", "");
+    const priceStep = parseFloat((req.query.priceStep || "2.5").toString());
+    const compression = parseInt((req.query.compression || "50").toString());
+    const isFutures = req.query.isFutures === "true";
+    
+    const cacheKey = `${symbol}_${priceStep}_${compression}_${isFutures}`;
+    if (binanceVisionCache.has(cacheKey)) {
+      console.log(`[PROCLUSTER Vision] Serving cached candles for key: ${cacheKey}`);
+      return res.json({ status: "ok", candles: binanceVisionCache.get(cacheKey) });
+    }
+    
+    try {
+      console.log(`[PROCLUSTER Vision] Attempting download for ${symbol} (isFutures: ${isFutures})...`);
+      let trades: TradeTick[] = [];
+      try {
+        const csvContent = await fetchBinanceVisionTrades(symbol, isFutures);
+        trades = parseVisionCsv(csvContent, 300000);
+        console.log(`[PROCLUSTER Vision] Parsed ${trades.length} trades from Binance Vision CSV`);
+      } catch (visionErr) {
+        console.warn("[PROCLUSTER Vision] Binance Vision download failed, falling back to Binance REST live trade series...", visionErr);
+        trades = await fetchBinanceLiveTradesFallback(symbol, isFutures);
+        console.log(`[PROCLUSTER Vision] Fetched ${trades.length} trades from live REST endpoint`);
+      }
+
+      if (trades.length === 0) {
+        throw new Error("Zero trades fetched from Binance.");
+      }
+      
+      const candles = aggregateTicksToClusters(trades, priceStep, compression);
+      console.log(`[PROCLUSTER Vision] Aggregated into ${candles.length} cluster candles.`);
+      
+      binanceVisionCache.set(cacheKey, candles);
+      res.json({ status: "ok", candles });
+    } catch (err: any) {
+      console.error("[PROCLUSTER Vision] Handler failed:", err);
+      res.status(500).json({ error: "Failed to load Binance ticks.", details: err.message });
     }
   });
 

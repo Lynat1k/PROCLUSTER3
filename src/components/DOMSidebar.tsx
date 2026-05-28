@@ -534,112 +534,172 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
     }`}>
       
       {/* CRYPTO FEAR & GREED INDEX WIDGET */}
-      <div className={`rounded-xl p-3 mb-3.5 border shadow-inner transition-all duration-300 ${
-        isLight ? "bg-slate-50 border-slate-200/80" : "bg-slate-950/60 border-white/5"
+      <div className={`rounded-xl p-3 mb-3.5 border transition-all duration-300 ${
+        isLight 
+          ? "bg-white border-slate-200/90 shadow-sm text-slate-800" 
+          : "bg-[#0c101b] border-white/5 shadow-inner text-slate-100"
       }`}>
-        <div className="flex justify-between items-center mb-2 font-sans">
-          <span className={`text-[10px] font-extrabold tracking-wider uppercase flex items-center gap-1.5 ${
-            isLight ? "text-slate-600" : "text-slate-400"
-          }`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
-            FEAR & GREED INDEX
-          </span>
-          <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border ${
-            isLight ? "bg-slate-100 border-slate-250 text-slate-605" : "bg-slate-950/50 border-white/5 text-slate-500"
-          }`}>
-            SENTIMENT
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between gap-4 py-1">
-          {/* Circular SVG speedo-gauge indicator */}
-          <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
-            <svg className="w-full h-full transform -rotate-90">
-              {/* Outer track background */}
-              <circle
-                cx="28"
-                cy="28"
-                r="22"
-                fill="none"
-                stroke={isLight ? "rgba(15, 23, 42, 0.05)" : "rgba(255, 255, 255, 0.04)"}
-                strokeWidth="4"
-              />
-              {/* Value arc segment colored by sentiment */}
-              <circle
-                cx="28"
-                cy="28"
-                r="22"
-                fill="none"
-                stroke={getSentimentColor(fearGreedValue)}
-                strokeWidth="4"
-                strokeDasharray={`${2 * Math.PI * 22}`}
-                strokeDashoffset={`${2 * Math.PI * 22 * (1 - fearGreedValue / 100)}`}
-                strokeLinecap="round"
-                className="transition-all duration-1000 ease-out"
-                style={{ filter: `drop-shadow(0 0 3px ${getSentimentColor(fearGreedValue)}55)` }}
-              />
-            </svg>
-            <div className="absolute text-center">
-              <span className={`text-sm font-black tracking-tighter leading-none select-none block ${
-                isLight ? "text-slate-850" : "text-slate-100"
-              }`}>
-                {Math.round(fearGreedValue)}
-              </span>
-              <span className={`text-[7.5px] font-mono font-bold select-none block leading-none mt-0.5 ${
-                isLight ? "text-slate-500" : "text-slate-400"
-              }`}>
-                MAX 100
-              </span>
-            </div>
+        {/* Header with Bitcoin logo */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-6.5 h-6.5 rounded-full bg-[#f7931a] flex items-center justify-center shadow-sm shrink-0">
+            <span className="text-white font-extrabold text-[13px] italic transform -skew-x-6 select-none">₿</span>
           </div>
-
-          {/* Detailed text sentiment info */}
           <div className="flex-1 min-w-0">
-            <div className={`text-[13px] font-black tracking-wide uppercase transition-colors ${getSentimentTextColor(fearGreedValue)}`}>
-              {getSentimentLabel(fearGreedValue)}
-            </div>
-            <p className={`text-[9.5px] leading-snug mt-0.5 font-sans font-medium line-clamp-2 ${
-              isLight ? "text-slate-550" : "text-slate-400"
+            <h3 className={`text-[15px] font-bold tracking-tight leading-none ${
+              isLight ? "text-slate-900" : "text-slate-100"
             }`}>
-              Driven by cluster buying momentum and orderbook depth imbalances.
+              Fear & Greed Index
+            </h3>
+            <p className={`text-[8.5px] font-medium leading-normal mt-0.5 truncate uppercase tracking-tight ${
+              isLight ? "text-slate-400" : "text-slate-500"
+            }`}>
+              Multifactorial Crypto Market Sentiment Analysis
             </p>
           </div>
         </div>
 
-        {/* Minimal linear multi-color sentiment range bar showing where we stand */}
-        <div className="mt-2.5 relative">
-          <div className="h-1.5 rounded-full bg-gradient-to-r from-rose-500 via-yellow-500 to-emerald-500 opacity-30 w-full" />
-          {/* Sliding glow marker thumb */}
-          <div 
-            className={`absolute -top-[5px] w-4 h-4 rounded-full border-2 border-white/80 shadow-md transition-all duration-1000 ease-out flex items-center justify-center ${
-              isLight ? "bg-[#f8fafc]" : "bg-[#1e293b]"
-            }`}
-            style={{ 
-              left: `${Math.min(95, Math.max(5, fearGreedValue))}%`,
-              transform: "translateX(-50%)",
-              boxShadow: `0 0 8px 1px ${getSentimentColor(fearGreedValue)}`
-            }}
-          >
-            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: getSentimentColor(fearGreedValue) }} />
+        {/* Header divider */}
+        <div className={`h-[1px] w-full mb-3 ${isLight ? "bg-slate-100" : "bg-white/5"}`} />
+
+        {/* Gauge and Sentiment Area */}
+        <div className="flex items-center justify-between gap-3 py-1">
+          {/* Left panel metrics */}
+          <div className="flex flex-col justify-center shrink-0">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${
+              isLight ? "text-slate-400" : "text-slate-500"
+            }`}>
+              Now:
+            </span>
+            <span 
+              className="text-[16px] font-extrabold tracking-tight mt-0.5 leading-snug drop-shadow-sm"
+              style={{ color: getSentimentColor(fearGreedValue) }}
+            >
+              {(() => {
+                if (fearGreedValue <= 25) return "Extreme Fear";
+                if (fearGreedValue <= 45) return "Fear";
+                if (fearGreedValue <= 54) return "Neutral";
+                if (fearGreedValue <= 75) return "Greed";
+                return "Extreme Greed";
+              })()}
+            </span>
+          </div>
+
+          {/* Right SVG speedometer arc */}
+          <div className="flex-1 flex justify-center items-center">
+            {(() => {
+              const angle = -180 + (fearGreedValue / 100) * 180;
+              const rad = (angle * Math.PI) / 180;
+              // Semicircle arc has center (75, 80) and radius 55
+              const badgeX = 75 + 55 * Math.cos(rad);
+              const badgeY = 80 + 55 * Math.sin(rad);
+              
+              return (
+                <svg viewBox="0 0 150 90" className="w-full max-w-[145px] overflow-visible select-none">
+                  <defs>
+                    <linearGradient id="fear-greed-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#e15241" /> {/* coral/red-orange */}
+                      <stop offset="25%" stopColor="#f0af43" /> {/* amber/orange-yellow */}
+                      <stop offset="50%" stopColor="#e3cb41" /> {/* yellow-green */}
+                      <stop offset="75%" stopColor="#69cc63" /> {/* light green */}
+                      <stop offset="100%" stopColor="#4abb50" /> {/* dark green */}
+                    </linearGradient>
+                    <filter id="badge-glow" x="-30%" y="-30%" width="160%" height="160%">
+                      <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodOpacity={isLight ? "0.2" : "0.5"} />
+                    </filter>
+                  </defs>
+
+                  {/* Underlay tracking ring */}
+                  <path
+                    d="M 20,80 A 55,55 0 0,1 130,80"
+                    fill="none"
+                    stroke={isLight ? "#f1f5f9" : "rgba(255, 255, 255, 0.05)"}
+                    strokeWidth="9.5"
+                    strokeLinecap="round"
+                  />
+
+                  {/* Beautiful coloured arc */}
+                  <path
+                    d="M 20,80 A 55,55 0 0,1 130,80"
+                    fill="none"
+                    stroke="url(#fear-greed-gradient)"
+                    strokeWidth="9"
+                    strokeLinecap="round"
+                  />
+
+                  {/* Indicator Arrow needle rotated about (75, 80) */}
+                  <g transform={`rotate(${angle}, 75, 80)`}>
+                    {/* Tapered pointer line pointing right towards (130, 80) */}
+                    <path
+                      d="M 75,76.5 L 122,80 L 75,83.5 Z"
+                      fill={isLight ? "#5b6b7c" : "#94a3b8"}
+                      stroke={isLight ? "#ffffff" : "#0d111d"}
+                      strokeWidth="0.8"
+                    />
+                    
+                    {/* Chrome center hub */}
+                    <circle
+                      cx="75"
+                      cy="80"
+                      r="10.5"
+                      fill={isLight ? "#e2e8f0" : "#1e293b"}
+                      stroke={isLight ? "#94a3b8" : "#475569"}
+                      strokeWidth="1"
+                    />
+                    {/* Tiny embedded gold logo badge inside central needle axis */}
+                    <circle
+                      cx="75"
+                      cy="80"
+                      r="7"
+                      fill="#f7931a"
+                    />
+                    <text
+                      x="75"
+                      y="80"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      className="fill-white font-extrabold text-[8px] italic"
+                      style={{ transform: "skewX(-10deg)" }}
+                    >
+                      ₿
+                    </text>
+                  </g>
+
+                  {/* Bubble showing current score floating exactly on the gauge curvature */}
+                  <g filter="url(#badge-glow)">
+                    <circle
+                      cx={badgeX}
+                      cy={badgeY}
+                      r="10.5"
+                      fill={getSentimentColor(fearGreedValue)}
+                      stroke="#ffffff"
+                      strokeWidth="1.8"
+                    />
+                    <text
+                      x={badgeX}
+                      y={badgeY}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      className="fill-white font-mono font-black text-[9px]"
+                    >
+                      {Math.round(fearGreedValue)}
+                    </text>
+                  </g>
+                </svg>
+              );
+            })()}
           </div>
         </div>
 
-        {/* Small comparative records footer */}
-        <div className={`grid grid-cols-3 gap-1 mt-3 pt-2.5 border-t text-[9px] font-mono text-center ${
-          isLight ? "border-slate-200/60" : "border-white/5"
-        }`}>
-          <div>
-            <span className="text-slate-500 block uppercase text-[7.5px] font-bold">Yesterday</span>
-            <span className={`${isLight ? "text-slate-700" : "text-slate-300"} font-bold`}>62 (Greed)</span>
-          </div>
-          <div className={`border-l border-r ${isLight ? "border-slate-200/60" : "border-white/5"}`}>
-            <span className="text-slate-500 block uppercase text-[7.5px] font-bold">Last Week</span>
-            <span className={`${isLight ? "text-slate-700" : "text-slate-300"} font-bold`}>59 (Greed)</span>
-          </div>
-          <div>
-            <span className="text-slate-500 block uppercase text-[7.5px] font-bold">Last Month</span>
-            <span className={`${isLight ? "text-slate-700" : "text-slate-300"} font-bold`}>51 (Neutral)</span>
-          </div>
+        {/* Footer divider and info */}
+        <div className={`h-[1px] w-full mt-2 mb-2 ${isLight ? "bg-slate-100" : "bg-white/5"}`} />
+
+        <div className="flex justify-between items-center text-[8.5px] font-mono select-none">
+          <span className={isLight ? "text-slate-400 font-medium" : "text-slate-600 font-semibold"}>
+            alternative.me
+          </span>
+          <span className={isLight ? "text-slate-400 font-medium" : "text-slate-600 font-semibold"}>
+            Last updated: {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          </span>
         </div>
       </div>
 
@@ -710,13 +770,16 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
           })}
 
           {/* ----- MID TICK / LAST PRICE ROW ----- */}
-          <div className={`grid grid-cols-[1fr_1.2fr] gap-3 border-y relative z-20 shrink-0 transition-all duration-300 h-6 items-center ${
-            isLight ? "bg-slate-200 border-slate-305" : "bg-[#11141e] border-white/5"
+          <div className={`flex justify-center items-center border-y relative z-20 shrink-0 transition-all duration-300 h-11 ${
+            isLight ? "bg-slate-100 border-slate-200" : "bg-[#090b11] border-white/5"
           }`}>
-            <div />
-            <div className={`text-left pl-3 font-sans font-extrabold text-[12.5px] tracking-wide leading-none ${
-              isLight ? "text-slate-900" : "text-white"
-            }`}>
+            <div 
+              id="dot-matrix-price"
+              className={`font-matrix font-normal text-[26px] tracking-wider leading-none text-center select-all text-amber-500`}
+              style={{
+                textShadow: '0 0 8px rgba(245, 158, 11, 0.95), 0 0 16px rgba(245, 158, 11, 0.5)'
+              }}
+            >
               {activePair.price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
             </div>
           </div>

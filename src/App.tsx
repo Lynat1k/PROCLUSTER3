@@ -59,6 +59,183 @@ export const getBaseTickSize = (symbol: string): number => {
   return 0.01; // default fallback
 };
 
+export async function fetchBinanceTicksAndAggregate(
+  symbol: string,
+  isFutures: boolean,
+  priceStep: number,
+  compressionTicks: number = 50
+): Promise<ClusterCandle[]> {
+  try {
+    const binanceSymbol = symbol.toUpperCase().replace("/", "");
+    const res = await fetch(`/api/binance-vision-ticks?symbol=${binanceSymbol}&priceStep=${priceStep}&compression=${compressionTicks}&isFutures=${isFutures}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === "ok" && Array.isArray(data.candles) && data.candles.length > 0) {
+        console.log(`[PROCLUSTER Vision Client] Successfully loaded ${data.candles.length} real 24h aggregated tick candles from server.`);
+        return data.candles;
+      }
+    }
+  } catch (err) {
+    console.warn("[PROCLUSTER Vision Client] Server API fetch failed, falling back to direct public REST API:", err);
+  }
+
+  const binanceSymbol = symbol.toUpperCase().replace("/", "");
+  const baseUrl = isFutures ? "https://fapi.binance.com" : "https://api.binance.com";
+  
+  // Fetch initial batch
+  const limit = 1000;
+  const initialUrl = isFutures
+    ? `${baseUrl}/fapi/v1/aggTrades?symbol=${binanceSymbol}&limit=${limit}`
+    : `${baseUrl}/api/v3/aggTrades?symbol=${binanceSymbol}&limit=${limit}`;
+
+  const res = await fetch(initialUrl);
+  if (!res.ok) {
+    throw new Error(`Binance API response status: ${res.status}`);
+  }
+  const latestTrades = await res.json();
+  if (!Array.isArray(latestTrades) || latestTrades.length === 0) {
+    return [];
+  }
+
+  let allTrades = [...latestTrades];
+  const firstId = latestTrades[0].a;
+
+  // Fetch older trade blocks to get a continuous chain of trades / ticks
+  const pages = 7;
+  const fetchPromises: Promise<any[]>[] = [];
+
+  for (let i = 1; i <= pages; i++) {
+    const targetFromId = Math.max(1, firstId - i * 1000);
+    const pageUrl = isFutures
+      ? `${baseUrl}/fapi/v1/aggTrades?symbol=${binanceSymbol}&limit=1000&fromId=${targetFromId}`
+      : `${baseUrl}/api/v3/aggTrades?symbol=${binanceSymbol}&limit=1000&fromId=${targetFromId}`;
+
+    fetchPromises.push(
+      fetch(pageUrl)
+        .then(async (r) => {
+          if (!r.ok) return [];
+          const data = await r.json();
+          return Array.isArray(data) ? data : [];
+        })
+        .catch(() => [])
+    );
+  }
+
+  const results = await Promise.all(fetchPromises);
+  results.forEach(batch => {
+    allTrades = [...allTrades, ...batch];
+  });
+
+  // Sort chronologically by trade agg ID
+  allTrades.sort((a, b) => a.a - b.a);
+
+  // Split into chunks of exactly 50 ticks and aggregate volumes
+  const candles: ClusterCandle[] = [];
+  
+  for (let i = 0; i < allTrades.length; i += compressionTicks) {
+    const chunk = allTrades.slice(i, i + compressionTicks);
+    if (chunk.length < 5) continue; // Skip trailing fragments
+
+    const prices = chunk.map(t => parseFloat(t.p));
+    const open = prices[0];
+    const close = prices[prices.length - 1];
+    const high = Math.max(...prices);
+    const low = Math.min(...prices);
+    const timestamp = chunk[chunk.length - 1].T;
+
+    const totalVolume = chunk.reduce((sum, t) => sum + parseFloat(t.q), 0);
+    const cellMap: { [price: number]: { bid: number; ask: number; volume: number } } = {};
+
+    chunk.forEach(t => {
+      const pVal = parseFloat(t.p);
+      const stepPrice = Math.floor(pVal / priceStep) * priceStep;
+      const roundedPrice = parseFloat(stepPrice.toFixed(4));
+
+      if (!cellMap[roundedPrice]) {
+        cellMap[roundedPrice] = { bid: 0, ask: 0, volume: 0 };
+      }
+
+      const qty = parseFloat(t.q);
+      // t.m represents buy/sell side logic (isBuyerMaker)
+      if (t.m) {
+        cellMap[roundedPrice].bid += qty;
+      } else {
+        cellMap[roundedPrice].ask += qty;
+      }
+      cellMap[roundedPrice].volume += qty;
+    });
+
+    const cells: ClusterCell[] = [];
+    let maxCellVol = 0;
+    let pocPrice = (open + close) / 2;
+
+    Object.keys(cellMap).forEach(pStr => {
+      const pNum = parseFloat(pStr);
+      const data = cellMap[pNum];
+
+      cells.push({
+        price: pNum,
+        bid: parseFloat(data.bid.toFixed(4)),
+        ask: parseFloat(data.ask.toFixed(4)),
+        volume: parseFloat(data.volume.toFixed(4)),
+        isPoc: false,
+        isBuyImbalance: false,
+        isSellImbalance: false
+      });
+    });
+
+    cells.forEach(c => {
+      if (c.volume > maxCellVol) {
+        maxCellVol = c.volume;
+        pocPrice = c.price;
+      }
+    });
+
+    cells.forEach(c => {
+      if (c.price === pocPrice) {
+        c.isPoc = true;
+      }
+      c.isBuyImbalance = c.ask > c.bid * 1.8 && c.volume > (totalVolume / cells.length) * 0.4;
+      c.isSellImbalance = c.bid > c.ask * 1.8 && c.volume > (totalVolume / cells.length) * 0.4;
+    });
+
+    cells.sort((a, b) => b.price - a.price);
+
+    const sortedByVol = [...cells].sort((a, b) => b.volume - a.volume);
+    const targetVol = totalVolume * 0.7;
+    let runningSum = 0;
+    const vaPrices: number[] = [];
+    for (const itemC of sortedByVol) {
+      runningSum += itemC.volume;
+      vaPrices.push(itemC.price);
+      if (runningSum >= targetVol) break;
+    }
+
+    const val = vaPrices.length > 0 ? Math.min(...vaPrices) : low;
+    const vah = vaPrices.length > 0 ? Math.max(...vaPrices) : high;
+
+    const totalBid = cells.reduce((sum, c) => sum + c.bid, 0);
+    const totalAsk = cells.reduce((sum, c) => sum + c.ask, 0);
+
+    candles.push({
+      timestamp,
+      open: parseFloat(open.toFixed(4)),
+      high: parseFloat(high.toFixed(4)),
+      low: parseFloat(low.toFixed(4)),
+      close: parseFloat(close.toFixed(4)),
+      volume: parseFloat(totalVolume.toFixed(4)),
+      delta: parseFloat((totalAsk - totalBid).toFixed(4)),
+      pocPrice: parseFloat(pocPrice.toFixed(4)),
+      cells,
+      vah: parseFloat(vah.toFixed(4)),
+      val: parseFloat(val.toFixed(4)),
+      tickCount: chunk.length
+    });
+  }
+
+  return candles;
+}
+
 export async function fetchBinanceKlines(symbol: string, interval: string, isFutures: boolean, priceStep: number): Promise<ClusterCandle[]> {
   const binanceSymbol = symbol.toUpperCase().replace("/", "");
   
@@ -547,8 +724,13 @@ export default function App() {
       try {
         const isFutures = marketType === "FUTURES";
         
-        // 1. Fetch real historical candles from Binance REST API with 25-tick compression
-        const realCandles = await fetchBinanceKlines(activePair.symbol, interval, isFutures, tickStep);
+        // 1. Fetch real historical candles or aggregate 50 ticks from Binance REST API
+        let realCandles: ClusterCandle[] = [];
+        if (interval === "50t") {
+          realCandles = await fetchBinanceTicksAndAggregate(activePair.symbol, isFutures, tickStep, 50);
+        } else {
+          realCandles = await fetchBinanceKlines(activePair.symbol, interval, isFutures, tickStep);
+        }
         if (!active) return;
         setCandles(realCandles);
 
@@ -582,6 +764,11 @@ export default function App() {
         if (!active) return;
 
         const histCandles = generateHistoricalCandles({ ...activePair, priceStep: tickStep }, 30, parseInterval(interval));
+        if (interval === "50t") {
+          histCandles.forEach(c => {
+            c.tickCount = 50;
+          });
+        }
         setCandles(histCandles);
 
         const initialBook = generateOrderBook(activePair.price, tickStep);
@@ -1149,7 +1336,7 @@ export default function App() {
               Interval
             </span>
             <div className="flex items-center gap-1">
-              {(marketType === "SPOT" ? ["15m", "30m", "1h", "4h"] : ["1m", "5m", "15m", "30m", "1h", "4h"]).map((item) => (
+              {(marketType === "SPOT" ? ["15m", "30m", "1h", "4h"] : ["1m", "5m", "15m", "30m", "1h", "4h", "50t"]).map((item) => (
                 <button
                   key={item}
                   onClick={() => setInterval(item)}
@@ -1330,6 +1517,13 @@ export default function App() {
                   theme={theme}
                   candleType={candleType}
                   candleDataType={candleDataType}
+                  onToggleIndicator={(id) => {
+                    setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: !ind.isActive } : ind));
+                  }}
+                  onRemoveIndicator={(id) => {
+                    setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: false } : ind));
+                  }}
+                  onShowIndicatorsSettings={() => setIsIndicatorsModalOpen(true)}
                 />
               </div>
 

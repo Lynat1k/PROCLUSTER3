@@ -25,6 +25,7 @@ export interface ClusterCandle {
   cells: ClusterCell[];
   vah: number;        // Value Area High (70% volume cap)
   val: number;        // Value Area Low (70% volume floor)
+  tickCount?: number; // Count of aggregated trades inside this candle if in tick mode
 }
 
 export interface OrderBookRow {
