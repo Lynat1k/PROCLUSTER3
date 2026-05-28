@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings } from "../types";
 import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2 } from "lucide-react";
 
@@ -201,27 +201,45 @@ export default function ClusterChart({
     setPriceCenterOffset(0);
   };
 
-  // Find min/max price boundaries for mapping coordinates based on VISIBLE candles!
-  const visibleCandlesList = candles.filter((_, cIdx) => {
-    const x = margin.left + cIdx * (candleWidth + candleSpacing);
-    return x + candleWidth >= visibleScrollLeft && x <= visibleScrollLeft + visibleClientWidth;
-  });
-  const candlesToScale = visibleCandlesList.length > 0 ? visibleCandlesList : candles;
+  // Find min/max price boundaries for mapping coordinates based on VISIBLE candles! (memoized)
+  const visibleCandlesList = useMemo(() => {
+    return candles.filter((_, cIdx) => {
+      const x = margin.left + cIdx * (candleWidth + candleSpacing);
+      return x + candleWidth >= visibleScrollLeft && x <= visibleScrollLeft + visibleClientWidth;
+    });
+  }, [candles, visibleScrollLeft, visibleClientWidth, candleWidth, candleSpacing]);
 
-  const prices = candlesToScale.length > 0 ? candlesToScale.flatMap(c => [c.high, c.low]) : [];
-  const maxPriceRaw = prices.length > 0 ? Math.max(...prices) : 100;
-  const minPriceRaw = prices.length > 0 ? Math.min(...prices) : 0;
-  // Add 10% padding to price bounds so candles don't touch top/bottom wicks
-  const priceRange = maxPriceRaw - minPriceRaw || 1;
-  
+  const candlesToScale = useMemo(() => {
+    return visibleCandlesList.length > 0 ? visibleCandlesList : candles;
+  }, [visibleCandlesList, candles]);
+
+  const priceBounds = useMemo(() => {
+    if (candlesToScale.length === 0) {
+      return { maxPriceRaw: 100, minPriceRaw: 0, priceRange: 100, basePriceCenter: 50 };
+    }
+    let maxPriceRaw = candlesToScale[0].high;
+    let minPriceRaw = candlesToScale[0].low;
+    for (let i = 0; i < candlesToScale.length; i++) {
+      const c = candlesToScale[i];
+      if (c.high > maxPriceRaw) maxPriceRaw = c.high;
+      if (c.low < minPriceRaw) minPriceRaw = c.low;
+    }
+    const priceRange = maxPriceRaw - minPriceRaw || 1;
+    const basePriceCenter = (maxPriceRaw + minPriceRaw) / 2;
+    return { maxPriceRaw, minPriceRaw, priceRange, basePriceCenter };
+  }, [candlesToScale]);
+
+  const { maxPriceRaw, minPriceRaw, priceRange, basePriceCenter } = priceBounds;
+
   // We apply the vertical scale to the price range projection to stretch/compress candles visually!
   // verticalScale > 1.0 means we stretch vertically (narrower visible price range = taller candles)
   // verticalScale < 1.0 means we compress vertically (wider visible price range = flatter candles)
-  const zoomedPriceRange = priceRange / Math.max(0.1, verticalScale);
-  const basePriceCenter = (maxPriceRaw + minPriceRaw) / 2;
-  const priceCenter = basePriceCenter + priceCenterOffset;
-  const maxPrice = priceCenter + zoomedPriceRange * 0.58;
-  const minPrice = Math.max(0, priceCenter - zoomedPriceRange * 0.58);
+  const zoomedPriceRange = useMemo(() => priceRange / Math.max(0.1, verticalScale), [priceRange, verticalScale]);
+  
+  const priceCenter = useMemo(() => basePriceCenter + priceCenterOffset, [basePriceCenter, priceCenterOffset]);
+  
+  const maxPrice = useMemo(() => priceCenter + zoomedPriceRange * 0.58, [priceCenter, zoomedPriceRange]);
+  const minPrice = useMemo(() => Math.max(0, priceCenter - zoomedPriceRange * 0.58), [priceCenter, zoomedPriceRange]);
 
   const priceToY = (price: number) => {
     const range = maxPrice - minPrice || 1;
@@ -284,21 +302,24 @@ export default function ClusterChart({
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    const viewportWidth = visibleClientWidth || 800;
 
-    if (y >= margin.top && y <= totalSvgHeight - margin.bottom && x >= margin.left && x <= scrollWidth) {
+    if (y >= margin.top && y <= totalSvgHeight - margin.bottom && x >= margin.left && x <= viewportWidth - margin.right) {
       const clampedYForPrice = Math.min(margin.top + chartHeight, Math.max(margin.top, y));
       const price = yToPrice(clampedYForPrice);
       setCrosshair({ x, y, price });
 
+      const scrolledX = x + visibleScrollLeft;
+
       // Identify hovered cell mathematically
-      const colIdx = Math.floor((x - margin.left) / (candleWidth + candleSpacing));
+      const colIdx = Math.floor((scrolledX - margin.left) / (candleWidth + candleSpacing));
       if (colIdx >= 0 && colIdx < candles.length) {
         const candle = candles[colIdx];
         const candleX = margin.left + colIdx * (candleWidth + candleSpacing);
         
-        if (x >= candleX && x <= candleX + candleWidth) {
+        if (scrolledX >= candleX && scrolledX <= candleX + candleWidth) {
           const step = activePair.priceStep;
-          const cell = candle.cells.find(cl => Math.abs(cl.price - price) <= step / 2);
+          const cell = (candle.cells || []).find(cl => Math.abs(cl.price - price) <= step / 2);
           if (cell) {
             setHoveredCell({ candleIndex: colIdx, cell });
           } else {
@@ -334,7 +355,7 @@ export default function ClusterChart({
 
     if (candles.length > 0) {
       candles.forEach(candle => {
-        candle.cells.forEach(cell => {
+        (candle.cells || []).forEach(cell => {
           const bucketIdx = Math.floor((cell.price - minPrice) / bucketSize);
           if (bucketIdx >= 0 && bucketIdx < bucketCount) {
             buckets[bucketIdx].volume += cell.volume;
@@ -347,29 +368,126 @@ export default function ClusterChart({
     return { buckets, maxProfileVol, bucketSize };
   };
 
-  const { buckets: profileBuckets, maxProfileVol, bucketSize: profileBucketSize } = generateSessionProfile();
+  // Memoize Session Profile
+  const { buckets: profileBuckets, maxProfileVol, bucketSize: profileBucketSize } = useMemo(() => {
+    const profileRange = maxPrice - minPrice;
+    const bucketCount = 20;
+    const bucketSize = (profileRange / bucketCount) || 1;
+    const buckets = Array.from({ length: bucketCount }, (_, i) => ({
+      price: minPrice + i * bucketSize + bucketSize / 2,
+      volume: 0,
+    }));
 
-  // Find overall maximum cell volume to properly scale cell footprint horizontal bars
-  const maxCellVolume = candles.length > 0 ? Math.max(...candles.flatMap(c => c.cells.map(cell => cell.volume)), 1) : 1;
+    if (candles.length > 0) {
+      candles.forEach(candle => {
+        (candle.cells || []).forEach(cell => {
+          const bucketIdx = Math.floor((cell.price - minPrice) / bucketSize);
+          if (bucketIdx >= 0 && bucketIdx < bucketCount) {
+            buckets[bucketIdx].volume += cell.volume;
+          }
+        });
+      });
+    }
 
-  // Compute high delta for standard delta chart scaling
-  const maxCandleDelta = candles.length > 0 ? Math.max(...candles.map(c => Math.abs(c.delta)), 1) : 1;
+    let maxProfileVol = 1;
+    for (let i = 0; i < buckets.length; i++) {
+      if (buckets[i].volume > maxProfileVol) maxProfileVol = buckets[i].volume;
+    }
+    return { buckets, maxProfileVol, bucketSize };
+  }, [candles, minPrice, maxPrice]);
 
-  // Generate Cumulative Delta Line Coordinates
-  let runningDelta = 0;
-  const cumulativeDeltaPoints = candles.map((c, i) => {
-    runningDelta += c.delta;
-    const cx = margin.left + i * (candleWidth + candleSpacing) + candleWidth / 2;
-    return { cx, value: runningDelta };
-  });
+  // Find overall maximum cell volume to properly scale cell footprint horizontal bars (memoized)
+  const maxCellVolume = useMemo(() => {
+    let max = 1;
+    for (let c = 0; c < candles.length; c++) {
+      const cells = candles[c].cells || [];
+      for (let i = 0; i < cells.length; i++) {
+        if (cells[i].volume > max) {
+          max = cells[i].volume;
+        }
+      }
+    }
+    return max;
+  }, [candles]);
 
-  const minCumDeltaVal = cumulativeDeltaPoints.length > 0 ? Math.min(...cumulativeDeltaPoints.map(p => p.value), 0) : 0;
-  const maxCumDeltaVal = cumulativeDeltaPoints.length > 0 ? Math.max(...cumulativeDeltaPoints.map(p => p.value), 1) : 1;
-  const cvdDeltaRange = Math.max(1, maxCumDeltaVal - minCumDeltaVal);
+  // Compute high delta for standard delta chart scaling (memoized)
+  const maxCandleDelta = useMemo(() => {
+    let max = 1;
+    for (let i = 0; i < candles.length; i++) {
+      const absDelta = Math.abs(candles[i].delta);
+      if (absDelta > max) max = absDelta;
+    }
+    return max;
+  }, [candles]);
+
+  // Find overall maximum cell delta to properly scale imbalance highlights (memoized)
+  const maxCellDelta = useMemo(() => {
+    let max = 1;
+    for (let c = 0; c < candles.length; c++) {
+      const cells = candles[c].cells || [];
+      for (let i = 0; i < cells.length; i++) {
+        const d = Math.abs(cells[i].ask - cells[i].bid);
+        if (d > max) max = d;
+      }
+    }
+    return max;
+  }, [candles]);
+
+  // Generate Cumulative Delta Line Coordinates (memoized)
+  const cumulativeDeltaPoints = useMemo(() => {
+    let runningDelta = 0;
+    return candles.map((c, i) => {
+      runningDelta += c.delta;
+      const cx = margin.left + i * (candleWidth + candleSpacing) + candleWidth / 2;
+      return { cx, value: runningDelta };
+    });
+  }, [candles, candleWidth, candleSpacing]);
+
+  const { minCumDeltaVal, maxCumDeltaVal, cvdDeltaRange } = useMemo(() => {
+    if (cumulativeDeltaPoints.length === 0) {
+      return { minCumDeltaVal: 0, maxCumDeltaVal: 1, cvdDeltaRange: 1 };
+    }
+    let minCumDeltaVal = 0;
+    let maxCumDeltaVal = 1;
+    for (let i = 0; i < cumulativeDeltaPoints.length; i++) {
+      const val = cumulativeDeltaPoints[i].value;
+      if (val < minCumDeltaVal) minCumDeltaVal = val;
+      if (val > maxCumDeltaVal) maxCumDeltaVal = val;
+    }
+    const cvdDeltaRange = Math.max(1, maxCumDeltaVal - minCumDeltaVal);
+    return { minCumDeltaVal, maxCumDeltaVal, cvdDeltaRange };
+  }, [cumulativeDeltaPoints]);
 
   const getCvdY = (val: number, panelH: number) => {
     return panelH - ((val - minCumDeltaVal) / cvdDeltaRange) * (panelH * 0.7) - (panelH * 0.15);
   };
+
+  // Find dynamic maximum volume on visible part of the chart (memoized)
+  const visibleMaxCellVol = useMemo(() => {
+    let max = 1;
+    for (let c = 0; c < candlesToScale.length; c++) {
+      const cells = candlesToScale[c].cells || [];
+      for (let i = 0; i < cells.length; i++) {
+        if (cells[i].volume > max) {
+          max = cells[i].volume;
+        }
+      }
+    }
+    return max;
+  }, [candlesToScale]);
+
+  const visibleMaxSingleVol = useMemo(() => {
+    let max = 1;
+    for (let c = 0; c < candlesToScale.length; c++) {
+      const cells = candlesToScale[c].cells || [];
+      for (let i = 0; i < cells.length; i++) {
+        const cell = cells[i];
+        if (cell.bid > max) max = cell.bid;
+        if (cell.ask > max) max = cell.ask;
+      }
+    }
+    return max;
+  }, [candlesToScale]);
 
   // Window-level mouse resize tracker for indicator panels
   useEffect(() => {
@@ -424,19 +542,24 @@ export default function ClusterChart({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Scale canvas for ultra-crisp Retina/High-DPI support
+    // Scale canvas for ultra-crisp Retina/High-DPI support using the visible viewport size to avoid exceeding browser canvas limits
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = scrollWidth * dpr;
+    const viewportWidth = visibleClientWidth || 800;
+    canvas.width = viewportWidth * dpr;
     canvas.height = totalSvgHeight * dpr;
-    canvas.style.width = `${scrollWidth}px`;
+    canvas.style.width = `${viewportWidth}px`;
     canvas.style.height = `${totalSvgHeight}px`;
     ctx.scale(dpr, dpr);
 
     ctx.textBaseline = "middle";
 
-    // Clear and draw background
+    // Clear and draw background (full viewport size)
     ctx.fillStyle = isLight ? "#f8fafc" : "#06080f";
-    ctx.fillRect(0, 0, scrollWidth, totalSvgHeight);
+    ctx.fillRect(0, 0, viewportWidth, totalSvgHeight);
+
+    // Save context and apply translation for scroll-relative elements
+    ctx.save();
+    ctx.translate(-visibleScrollLeft, 0);
 
     // 1. Horizontal Grid Lines
     Array.from({ length: 6 }).forEach((_, i) => {
@@ -488,7 +611,7 @@ export default function ClusterChart({
       ctx.setLineDash([]);
     }
 
-    // 3. Draw Aggregated Session Profile on the left side of the chart
+    // 3. Draw Aggregated Session Profile on the left side of the chart (fixed on screen, so translate-invariant)
     if (activeIndicators.volume) {
       profileBuckets.forEach((bucket) => {
         const bWidth = (bucket.volume / maxProfileVol) * 65;
@@ -496,38 +619,35 @@ export default function ClusterChart({
         const bHeight = Math.max(2, (profileBucketSize / (maxPrice - minPrice)) * chartHeight - 1.5);
         
         ctx.fillStyle = isLight ? "rgba(71, 85, 105, 0.1)" : "rgba(148, 163, 184, 0.08)";
-        ctx.fillRect(margin.left, bY, bWidth, bHeight);
+        ctx.fillRect(margin.left + visibleScrollLeft, bY, bWidth, bHeight);
 
         ctx.strokeStyle = isLight ? "rgba(71, 85, 105, 0.2)" : "rgba(148, 163, 184, 0.18)";
         ctx.lineWidth = 0.8;
-        ctx.strokeRect(margin.left, bY, bWidth, bHeight);
+        ctx.strokeRect(margin.left + visibleScrollLeft, bY, bWidth, bHeight);
       });
     }
 
 
 
-    // 4. Draw each candlestick
-    // Find dynamic maximum volume on visible part of the chart
-    const visibleMaxCellVol = Math.max(
-      ...candlesToScale.flatMap(c => c.cells.map(cell => cell.volume)),
-      1
-    );
-    const visibleMaxSingleVol = Math.max(
-      ...candlesToScale.flatMap(c => c.cells.flatMap(cell => [cell.bid, cell.ask])),
-      1
-    );
+    const startIdx = Math.max(0, Math.floor((visibleScrollLeft - margin.left - candleWidth) / (candleWidth + candleSpacing)));
+    const endIdx = Math.min(candles.length - 1, Math.ceil((visibleScrollLeft + viewportWidth - margin.left) / (candleWidth + candleSpacing)));
 
-    candles.forEach((candle, cIdx) => {
+    // 4. Draw each visible candlestick
+    for (let cIdx = startIdx; cIdx <= endIdx; cIdx++) {
+      const candle = candles[cIdx];
       const x = margin.left + cIdx * (candleWidth + candleSpacing);
       const bodyY1 = priceToY(Math.max(candle.open, candle.close));
       const bodyY2 = priceToY(Math.min(candle.open, candle.close));
       const isGreen = candle.close >= candle.open;
 
       // Determine the dynamic/live POC cell of the candle based on the visible vertical range [minPrice, maxPrice]
-      const visibleCellsOfCandle = candle.cells.filter(cl => cl.price >= minPrice && cl.price <= maxPrice);
+      const candleCells = candle.cells || [];
+      const visibleCellsOfCandle = candleCells.filter(cl => cl.price >= minPrice && cl.price <= maxPrice);
       const activePocCell = visibleCellsOfCandle.length > 0
         ? visibleCellsOfCandle.reduce((max, c) => c.volume > max.volume ? c : max, visibleCellsOfCandle[0])
-        : candle.cells.reduce((max, c) => c.volume > max.volume ? c : max, candle.cells[0]);
+        : (candleCells.length > 0 
+           ? candleCells.reduce((max, c) => c.volume > max.volume ? c : max, candleCells[0])
+           : null);
 
       const activePocPrice = activePocCell ? activePocCell.price : candle.pocPrice;
 
@@ -582,27 +702,33 @@ export default function ClusterChart({
       // B. Zoomed in Footprint detailed view
       if (isDetailedMode) {
         // Find maximums for normalization
-        const candleMaxTotalVol = Math.max(...candle.cells.map(c => Math.max(c.volume, 1)), 1);
+        let candleMaxTotalVol = 1;
+        for (let i = 0; i < candleCells.length; i++) {
+          const vol = candleCells[i].volume;
+          if (vol > candleMaxTotalVol) {
+            candleMaxTotalVol = vol;
+          }
+        }
         const isClustersMode = candleType === "clusters";
 
         // Place the vertical separator/spine exactly in the center for symmetrical Bid/Ask columns
         const sepX = x + Math.round(candleWidth / 2);
 
         // Draw the vertical separator line covering the entire high-low range of the cells
-        if (candle.cells.length > 0) {
+        if (candleCells.length > 0) {
           ctx.beginPath();
           ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.22)" : "rgba(255, 255, 255, 0.22)";
           ctx.lineWidth = 1.0;
-          const topPriceY = priceToY(candle.cells[0].price + activePair.priceStep / 2);
-          const bottomPriceY = priceToY(candle.cells[candle.cells.length - 1].price - activePair.priceStep / 2);
+          const topPriceY = priceToY(candleCells[0].price + activePair.priceStep / 2);
+          const bottomPriceY = priceToY(candleCells[candleCells.length - 1].price - activePair.priceStep / 2);
           ctx.moveTo(sepX, topPriceY);
           ctx.lineTo(sepX, bottomPriceY);
           ctx.stroke();
         }
 
-        candle.cells.forEach((cell, cellIdx) => {
-          const cellBelow = candle.cells[cellIdx + 1];
-          const cellAbove = candle.cells[cellIdx - 1];
+        candleCells.forEach((cell, cellIdx) => {
+          const cellBelow = candleCells[cellIdx + 1];
+          const cellAbove = candleCells[cellIdx - 1];
 
           const isDiagonalBuyImbalance = !!(cellBelow && cell.ask > cellBelow.bid * 3.0 && cell.ask > 0);
           const isDiagonalSellImbalance = !!(cellAbove && cell.bid > cellAbove.ask * 3.0 && cell.bid > 0);
@@ -639,7 +765,6 @@ export default function ClusterChart({
             let isTargetMode = false;
             if (csSettings.mode === "Delta") {
               const cellDelta = Math.abs(cell.ask - cell.bid);
-              const maxCellDelta = Math.max(...candles.flatMap(c => c.cells.map(cl => Math.abs(cl.ask - cl.bid))), 1);
               isTargetMode = cellDelta >= maxCellDelta * sensFactor;
             } else {
               isTargetMode = cell.volume >= baseVolumeThreshold;
@@ -842,9 +967,14 @@ export default function ClusterChart({
               ctx.fillText(askValStr, startX + bidW + sepW, targetY);
             };
 
+            const textToMeasure = candleDataType === "bid_ask"
+              ? `${bidValStr}x${askValStr}`
+              : (candleDataType === "delta" ? deltaDisplayStr : volStr);
+            const textLength = Math.max(1, textToMeasure.length);
+
             // Compute font sizes matching height and width perfectly, allowing vertical stretch scalability
             let idealSize = Math.max(5, Math.floor(cellHeight * 0.72));
-            const maxByWidth = Math.max(7, Math.floor(candleWidth / 5.2));
+            const maxByWidth = Math.max(7, Math.floor((candleWidth - 4) / (textLength * 0.55)));
             let finalFontSize = Math.min(idealSize, maxByWidth);
             // If the user stretched clusters vertically, allow font to upscale independently of narrow width restriction
             if (cellHeight > 24) {
@@ -853,7 +983,7 @@ export default function ClusterChart({
             if (finalFontSize < 5) finalFontSize = 5;
             if (finalFontSize > 28) finalFontSize = 28;
             const fontSizeVal = `${finalFontSize}px`;
-            ctx.font = `600 ${fontSizeVal} Fira Code, monospace`;
+            ctx.font = `bold ${fontSizeVal} 'Inter', -apple-system, system-ui, sans-serif`;
 
             // Symmetrical horizontal midpoints for Bid (left column) and Ask (right column)
             const leftMidX = x + Math.round(candleWidth * 0.25);
@@ -985,7 +1115,7 @@ export default function ClusterChart({
 
         // Delta quantity text label
         if (candleWidth >= 45) {
-          ctx.font = "bold 8px Fira Code, monospace";
+          ctx.font = "bold 8.5px 'Inter', sans-serif";
           ctx.textAlign = "center";
           ctx.fillStyle = candle.delta >= 0 ? (isLight ? "#047857" : "#10b981") : (isLight ? "#be123c" : "#f43f5e");
           const lblY = candle.delta >= 0 ? deltaMidY - barHeight - 4 : deltaMidY + barHeight + 11;
@@ -994,7 +1124,7 @@ export default function ClusterChart({
         }
         ctx.restore();
       }
-    });
+    }
 
     // 5. Drawing Cumulative Volume Delta (CVD) trend line
     if (activeIndicators.cvd && cumulativeDeltaPoints.length > 0) {
@@ -1012,14 +1142,19 @@ export default function ClusterChart({
       ctx.setLineDash([]);
 
       ctx.beginPath();
-      cumulativeDeltaPoints.forEach((p, idx) => {
+      let pathStarted = false;
+      const cvdStartIdx = Math.max(0, startIdx - 1);
+      const cvdEndIdx = Math.min(cumulativeDeltaPoints.length - 1, endIdx + 1);
+      for (let idx = cvdStartIdx; idx <= cvdEndIdx; idx++) {
+        const p = cumulativeDeltaPoints[idx];
         const cy = getCvdY(p.value, cvdPanelHeight);
-        if (idx === 0) {
+        if (!pathStarted) {
           ctx.moveTo(p.cx, cy);
+          pathStarted = true;
         } else {
           ctx.lineTo(p.cx, cy);
         }
-      });
+      }
 
       // Add purple glowing effect
       ctx.shadowColor = isLight ? "rgba(124, 58, 237, 0.4)" : "rgba(192, 132, 252, 0.8)";
@@ -1033,25 +1168,32 @@ export default function ClusterChart({
       ctx.restore();
     }
 
+    ctx.restore(); // Undoes translation of -visibleScrollLeft for viewport-wide elements
+
     // 5.5 Draw the solid timeline footer strip and time axis labels on top of everything else (to hide overlapping candles/wicks)
     ctx.save();
     ctx.fillStyle = isLight ? "#f1f5f9" : "#090b12";
     // We fill the entire bottom margin (timeline section) as a solid background to cover any overflowed elements from candles
-    ctx.fillRect(0, totalSvgHeight - margin.bottom, scrollWidth, margin.bottom);
+    ctx.fillRect(0, totalSvgHeight - margin.bottom, viewportWidth, margin.bottom);
     
     ctx.beginPath();
     ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.1)" : "rgba(255, 255, 255, 0.08)";
     ctx.lineWidth = 1.0;
     ctx.moveTo(0, totalSvgHeight - margin.bottom);
-    ctx.lineTo(scrollWidth, totalSvgHeight - margin.bottom);
+    ctx.lineTo(viewportWidth, totalSvgHeight - margin.bottom);
     ctx.stroke();
     ctx.restore();
 
-    // Now draw the horizontal time axis labels for all candles cleanly on top of this background
-    candles.forEach((candle, cIdx) => {
+    // Re-apply translation to draw the horizontal time axis labels at scrolled positions correctly
+    ctx.save();
+    ctx.translate(-visibleScrollLeft, 0);
+
+    // Now draw the horizontal time axis labels for visible candles cleanly on top of this background
+    for (let cIdx = startIdx; cIdx <= endIdx; cIdx++) {
+      const candle = candles[cIdx];
       const x = margin.left + cIdx * (candleWidth + candleSpacing);
       const hoveredCandleIdx = crosshair
-        ? Math.floor((crosshair.x - margin.left) / (candleWidth + candleSpacing))
+        ? Math.floor(((crosshair.x + visibleScrollLeft) - margin.left) / (candleWidth + candleSpacing))
         : -1;
       const isHovered = crosshair && cIdx === hoveredCandleIdx;
 
@@ -1062,7 +1204,7 @@ export default function ClusterChart({
 
       ctx.save();
       if (isHovered) {
-        ctx.font = "bold 9px Fira Code, monospace";
+        ctx.font = "bold 9px 'Inter', sans-serif";
         const textWidth = ctx.measureText(timeStr).width;
         const padX = 6;
         const padY = 3;
@@ -1088,13 +1230,15 @@ export default function ClusterChart({
         ctx.textAlign = "center";
         ctx.fillText(timeStr, x + candleWidth / 2, totalSvgHeight - margin.bottom + 16);
       } else {
-        ctx.font = "bold 9px Fira Code, monospace";
+        ctx.font = "bold 9px 'Inter', sans-serif";
         ctx.fillStyle = "#475569";
         ctx.textAlign = "center";
         ctx.fillText(timeStr, x + candleWidth / 2, totalSvgHeight - margin.bottom + 16);
       }
       ctx.restore();
-    });
+    }
+
+    ctx.restore(); // Undoes translation for the label drawing
 
     // 6. Draw Crosshair cursor lines
     if (crosshair) {
@@ -1106,7 +1250,7 @@ export default function ClusterChart({
 
       // Horizontal crosshair
       ctx.moveTo(margin.left, crosshair.y);
-      ctx.lineTo(scrollWidth, crosshair.y);
+      ctx.lineTo(viewportWidth, crosshair.y);
 
       // Vertical crosshair inside Price chart panel
       ctx.moveTo(crosshair.x, margin.top);
@@ -1270,12 +1414,18 @@ export default function ClusterChart({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
             </div>
           ) : (
-            <canvas
-              ref={canvasRef}
-              onMouseMove={handleSvgMouseMove}
-              onMouseLeave={handleSvgMouseLeave}
-              className="relative block"
-            />
+            <>
+              {/* Dummy scroll spacer to enable native scrollbar and wheel scroll dynamics */}
+              <div style={{ width: `${scrollWidth}px`, height: "1px", pointerEvents: "none" }} />
+              
+              {/* Absolutely positioned canvas that stays in view and draws only-visible content */}
+              <canvas
+                ref={canvasRef}
+                onMouseMove={handleSvgMouseMove}
+                onMouseLeave={handleSvgMouseLeave}
+                className="sticky left-0 top-0 block z-10"
+              />
+            </>
           )}
         </div>
 
@@ -1338,8 +1488,8 @@ export default function ClusterChart({
                   x={8}
                   y={gridY + 4}
                   fill={isLight ? "#1e293b" : "#cbd5e1"}
-                  fontSize="11"
-                  fontFamily="Fira Code, monospace"
+                  fontSize="10.5"
+                  fontFamily="'Inter', -apple-system, sans-serif"
                   fontWeight="600"
                   textAnchor="start"
                 >
@@ -1367,10 +1517,10 @@ export default function ClusterChart({
                   />
                   <text
                     x={8}
-                    y={activePriceY + 4.2}
+                    y={activePriceY + 4}
                     fill={isLight ? "#ffffff" : "#010409"}
                     fontSize="9.5"
-                    fontFamily="Fira Code, monospace"
+                    fontFamily="'Inter', -apple-system, sans-serif"
                     fontWeight="bold"
                     textAnchor="start"
                   >
@@ -1413,7 +1563,7 @@ export default function ClusterChart({
                 y={deltaTopY + deltaPanelHeight * 0.15 + 4}
                 fill={isLight ? "#047857" : "#10b981"}
                 fontSize="9"
-                fontFamily="Fira Code, monospace"
+                fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="bold"
               >
                 +{maxCandleDelta.toFixed(1)}K
@@ -1424,7 +1574,7 @@ export default function ClusterChart({
                 y={deltaTopY + deltaPanelHeight / 2 + 4}
                 fill={isLight ? "#475569" : "#94a3b8"}
                 fontSize="9"
-                fontFamily="Fira Code, monospace"
+                fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="bold"
               >
                 0.0K
@@ -1435,7 +1585,7 @@ export default function ClusterChart({
                 y={deltaTopY + deltaPanelHeight * 0.85 + 4}
                 fill={isLight ? "#be123c" : "#f43f5e"}
                 fontSize="9"
-                fontFamily="Fira Code, monospace"
+                fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="bold"
               >
                 -{maxCandleDelta.toFixed(1)}K
@@ -1452,7 +1602,7 @@ export default function ClusterChart({
                 y={cvdTopY + cvdPanelHeight * 0.15 + 4}
                 fill={isLight ? "#7c3aed" : "#c084fc"}
                 fontSize="9"
-                fontFamily="Fira Code, monospace"
+                fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="bold"
               >
                 +{maxCumDeltaVal.toFixed(1)}K
@@ -1463,7 +1613,7 @@ export default function ClusterChart({
                 y={cvdTopY + cvdPanelHeight / 2 + 4}
                 fill={isLight ? "#475569" : "#94a3b8"}
                 fontSize="9"
-                fontFamily="Fira Code, monospace"
+                fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="bold"
               >
                 {((maxCumDeltaVal + minCumDeltaVal)/2).toFixed(1)}K
@@ -1474,7 +1624,7 @@ export default function ClusterChart({
                 y={cvdTopY + cvdPanelHeight * 0.85 + 4}
                 fill={isLight ? "#7c3aed" : "#c084fc"}
                 fontSize="9"
-                fontFamily="Fira Code, monospace"
+                fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="bold"
               >
                 {minCumDeltaVal.toFixed(1)}K
@@ -1497,10 +1647,10 @@ export default function ClusterChart({
               />
               <text
                 x={8}
-                y={crosshair.y + 4.2}
+                y={crosshair.y + 4}
                 fill="#ffffff"
                 fontSize="9.5"
-                fontFamily="Fira Code, monospace"
+                fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="black"
                 textAnchor="start"
               >

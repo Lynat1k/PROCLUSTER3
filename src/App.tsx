@@ -101,7 +101,7 @@ export async function fetchBinanceTicksAndAggregate(
   const firstId = latestTrades[0].a;
 
   // Fetch older trade blocks to get a continuous chain of trades / ticks
-  const pages = 7;
+  const pages = 3;
   const fetchPromises: Promise<any[]>[] = [];
 
   for (let i = 1; i <= pages; i++) {
@@ -239,10 +239,24 @@ export async function fetchBinanceTicksAndAggregate(
 export async function fetchBinanceKlines(symbol: string, interval: string, isFutures: boolean, priceStep: number): Promise<ClusterCandle[]> {
   const binanceSymbol = symbol.toUpperCase().replace("/", "");
   
-  // Binance Kline intervals: 1m, 5m, 15m, 30m, 1h, 4h
+  // Try server proxy first to bypass browser CORS in iframe previews
+  try {
+    const proxyUrl = `/api/binance-klines?symbol=${binanceSymbol}&interval=${interval}&isFutures=${isFutures}&priceStep=${priceStep}`;
+    const proxyRes = await fetch(proxyUrl);
+    if (proxyRes.ok) {
+      const resultObj = await proxyRes.json();
+      if (resultObj.status === "ok" && Array.isArray(resultObj.candles) && resultObj.candles.length > 0) {
+        console.log(`[PROCLUSTER REST] Successfully fetched ${resultObj.candles.length} klines via server-side proxy.`);
+        return resultObj.candles;
+      }
+    }
+  } catch (proxyErr) {
+    console.warn("[PROCLUSTER Client] Server proxy kline fetch failed, attempting direct public API fallback:", proxyErr);
+  }
+
   const endpoint = isFutures
-    ? `https://fapi.binance.com/fapi/v1/klines?symbol=${binanceSymbol}&interval=${interval}&limit=50`
-    : `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=50`;
+    ? `https://fapi.binance.com/fapi/v1/klines?symbol=${binanceSymbol}&interval=${interval}&limit=1000`
+    : `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=1000`;
 
   try {
     const res = await fetch(endpoint);
@@ -251,7 +265,7 @@ export async function fetchBinanceKlines(symbol: string, interval: string, isFut
     }
     const data = await res.json();
     if (!Array.isArray(data)) {
-      throw new Error("Invalid format");
+      throw new Error("Invalid format from Binance");
     }
 
     const candles: ClusterCandle[] = data.map((item: any) => {
@@ -261,7 +275,7 @@ export async function fetchBinanceKlines(symbol: string, interval: string, isFut
       const low = parseFloat(item[3]);
       const close = parseFloat(item[4]);
       const volume = parseFloat(item[5]);
-      // Taker buy base asset volume is element 9 in the kline k-line array
+      // Taker buy base asset volume is element 9 in the kline array
       const takerBuyVol = parseFloat(item[9]);
       const takerSellVol = Math.max(0, volume - takerBuyVol);
 
@@ -487,7 +501,21 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
           const filtered = parsed.filter((p: any) => AVAILABLE_PAIRS.some(ap => ap.symbol === p.symbol));
-          if (filtered.length > 0) return filtered;
+          const sanitized = filtered.map(p => {
+            const original = AVAILABLE_PAIRS.find(ap => ap.symbol === p.symbol);
+            if (original) {
+              const isReasonablePrice = p.price > original.price * 0.1 && p.price < original.price * 10 && !isNaN(p.price);
+              const isReasonableStep = p.priceStep > 0 && !isNaN(p.priceStep) && typeof p.priceStep === "number";
+              if (!isReasonablePrice) {
+                p.price = original.price;
+              }
+              if (!isReasonableStep) {
+                p.priceStep = original.priceStep;
+              }
+            }
+            return p;
+          });
+          if (sanitized.length > 0) return sanitized;
         }
       } catch (e) {}
     }
@@ -503,7 +531,21 @@ export default function App() {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
             const filtered = parsed.filter((p: any) => AVAILABLE_PAIRS.some(ap => ap.symbol === p.symbol));
-            if (filtered.length > 0) return filtered;
+            const sanitized = filtered.map(p => {
+              const original = AVAILABLE_PAIRS.find(ap => ap.symbol === p.symbol);
+              if (original) {
+                const isReasonablePrice = p.price > original.price * 0.1 && p.price < original.price * 10 && !isNaN(p.price);
+                const isReasonableStep = p.priceStep > 0 && !isNaN(p.priceStep) && typeof p.priceStep === "number";
+                if (!isReasonablePrice) {
+                  p.price = original.price;
+                }
+                if (!isReasonableStep) {
+                  p.priceStep = original.priceStep;
+                }
+              }
+              return p;
+            });
+            if (sanitized.length > 0) return sanitized;
           }
         } catch (e) {}
       }
@@ -717,8 +759,17 @@ export default function App() {
     let active = true;
     setConnectionStatus("syncing");
 
-    const baseTickStep = getBaseTickSize(activePair.symbol);
-    const tickStep = baseTickStep * 25;
+    const isFutures = marketType === "FUTURES";
+    const isBtc = activePair.symbol.toUpperCase().includes("BTC");
+    const baseTickStep = isBtc 
+      ? (isFutures ? 0.1 : 0.01) 
+      : getBaseTickSize(activePair.symbol);
+    
+    const compression = isBtc 
+      ? (isFutures ? 25 : 500) 
+      : 25;
+      
+    const tickStep = baseTickStep * compression;
 
     async function loadRealBinanceData() {
       try {
@@ -736,7 +787,7 @@ export default function App() {
 
         if (realCandles.length > 0) {
           const lastCandle = realCandles[realCandles.length - 1];
-          // Re-align activePair's live price to match the close of the last kline
+          // Re-align activePair's live price to match the close of the last kline and set correct tickStep
           setActivePair(prev => {
             if (prev.symbol === activePair.symbol) {
               return {
@@ -747,6 +798,16 @@ export default function App() {
             }
             return prev;
           });
+          setPairs(prevPairs => prevPairs.map(p => {
+            if (p.symbol === activePair.symbol) {
+              return {
+                ...p,
+                price: lastCandle.close,
+                priceStep: tickStep
+              };
+            }
+            return p;
+          }));
         }
 
         // 2. Fetch real initial Order Book depth from Binance Depth API
@@ -760,10 +821,10 @@ export default function App() {
 
         setConnectionStatus("connected");
       } catch (err) {
-        console.warn("[Binance REST] Load failed, falling back to simulated data with 25-tick compression", err);
+        console.warn("[Binance REST] Load failed, falling back to simulated data with custom compression", err);
         if (!active) return;
 
-        const histCandles = generateHistoricalCandles({ ...activePair, priceStep: tickStep }, 30, parseInterval(interval));
+        const histCandles = generateHistoricalCandles({ ...activePair, priceStep: tickStep }, 120, parseInterval(interval));
         if (interval === "50t") {
           histCandles.forEach(c => {
             c.tickCount = 50;
@@ -904,7 +965,7 @@ export default function App() {
             val: parseFloat(cellPrice.toFixed(4))
           };
 
-          nextCandles = [...nextCandles, newCandle].slice(-50);
+          nextCandles = [...nextCandles, newCandle].slice(-1000);
         } else {
           // Update the current last candle
           lastCandle.close = tick.price;

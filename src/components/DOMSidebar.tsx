@@ -52,13 +52,15 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
   useEffect(() => {
     if (scrollContainerRef.current) {
       const container = scrollContainerRef.current;
-      const midPoint = (container.scrollHeight - container.clientHeight) / 2;
+      const asksCount = Math.min(200, orderBook.asks.length);
+      const midElementCenter = (asksCount * 18) + 22;
+      const midPoint = midElementCenter - (container.clientHeight / 2);
       container.scrollTop = midPoint;
       lastInteractionTimeRef.current = Date.now();
     }
   }, [activePair.symbol, orderBook.bids.length, orderBook.asks.length]);
 
-  // Track interaction and auto-center after 3 seconds of inactivity
+  // Track interaction and auto-center after 1 second of inactivity
   useEffect(() => {
     const handleScroll = () => {
       if (isAutoCenteringRef.current) {
@@ -80,11 +82,13 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
 
     const interval = setInterval(() => {
       const now = Date.now();
-      if (now - lastInteractionTimeRef.current >= 3000) {
+      if (now - lastInteractionTimeRef.current >= 1000) {
         if (scrollContainerRef.current) {
           const cont = scrollContainerRef.current;
-          const midPoint = (cont.scrollHeight - cont.clientHeight) / 2;
-          if (Math.abs(cont.scrollTop - midPoint) > 10) {
+          const asksCount = Math.min(200, orderBook.asks.length);
+          const midElementCenter = (asksCount * 18) + 22;
+          const midPoint = midElementCenter - (cont.clientHeight / 2);
+          if (Math.abs(cont.scrollTop - midPoint) > 5) {
             isAutoCenteringRef.current = true;
             cont.scrollTo({ top: midPoint, behavior: "smooth" });
             // Reset the flag after smooth scroll is complete
@@ -94,7 +98,7 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
           }
         }
       }
-    }, 1000);
+    }, 200);
 
     return () => {
       if (container) {
@@ -103,7 +107,7 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
       }
       clearInterval(interval);
     };
-  }, [activePair.symbol]);
+  }, [activePair.symbol, orderBook.asks.length]);
 
   // --- Persistent Simulator State ---
   const [balance, setBalance] = useState<number>(() => {
@@ -715,7 +719,7 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
           <div className="text-left pl-3">Price ({activePair.symbol.split("/")[1] || "USDT"})</div>
         </div>
 
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto pr-1 scrollbar-thin">
+        <div ref={scrollContainerRef} className={`flex-1 overflow-y-auto pr-1 ${isLight ? "scrollbar-thin-light" : "scrollbar-thin-dark"}`}>
           {/* ----- ASKS SIDE (HIGH TO LOW) ----- */}
           {reversedAsks.map((ask) => {
             const hasPendingLimit = limitOrders.filter(o => o.side === "sell" && Math.abs(o.price - ask.price) < 0.001);

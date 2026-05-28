@@ -155,6 +155,155 @@ Cumulative volume in the last 5 cycles is **${(totalVolume / 1000).toFixed(2)}M*
     }
   });
 
+  app.get("/api/binance-klines", async (req, res) => {
+    const symbol = (req.query.symbol || "BTCUSDT").toString().toUpperCase().replace("/", "");
+    const interval = (req.query.interval || "15m").toString();
+    const isFutures = req.query.isFutures === "true";
+    let priceStep = parseFloat((req.query.priceStep || "2.5").toString());
+    if (isNaN(priceStep) || priceStep <= 0) {
+      priceStep = 2.5;
+    }
+
+    const cacheKey = `klines_${symbol}_${interval}_${isFutures}_${priceStep}`;
+    if (binanceVisionCache.has(cacheKey)) {
+      return res.json({ status: "ok", candles: binanceVisionCache.get(cacheKey) });
+    }
+
+    const endpoint = isFutures
+      ? `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=1000`
+      : `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=1000`;
+
+    try {
+      console.log(`[PROCLUSTER Server] Proxying klines for ${symbol} via endpoint: ${endpoint}`);
+      const response = await fetch(endpoint);
+      if (!response.ok) {
+        throw new Error(`Binance API response status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error("Invalid klines format from Binance");
+      }
+
+      const candles = data.map((item: any) => {
+        const timestamp = Number(item[0]);
+        const open = parseFloat(item[1]);
+        const high = parseFloat(item[2]);
+        const low = parseFloat(item[3]);
+        const close = parseFloat(item[4]);
+        const volume = parseFloat(item[5]);
+        const takerBuyVol = parseFloat(item[9]);
+
+        const cells: any[] = [];
+        const startPrice = Math.floor(low / priceStep) * priceStep;
+        const endPrice = Math.ceil(high / priceStep) * priceStep;
+
+        const centerPrice = (open + close) / 2;
+        const maxPriceDistance = Math.max(endPrice - startPrice, priceStep);
+
+        let cellCount = 0;
+        for (let price = startPrice; price <= endPrice; price += priceStep) {
+          cellCount++;
+          if (cellCount > 250) break;
+        }
+
+        let currentPriceLevel = startPrice;
+        const parsedLevels: number[] = [];
+        for (let i = 0; i < cellCount; i++) {
+          parsedLevels.push(parseFloat(currentPriceLevel.toFixed(4)));
+          currentPriceLevel += priceStep;
+        }
+
+        const weights = parsedLevels.map(p => {
+          const dist = Math.abs(p - centerPrice);
+          return Math.max(0.01, Math.exp(-Math.pow(dist / (maxPriceDistance * 0.45), 2)));
+        });
+        const sumWeights = weights.reduce((s, w) => s + w, 0) || 1;
+
+        const tempCells: any[] = [];
+        parsedLevels.forEach((priceLevel, idx) => {
+          const weight = weights[idx] / sumWeights;
+          const levelVol = volume * weight;
+          const takerRatio = volume > 0 ? takerBuyVol / volume : 0.5;
+          const ask = levelVol * takerRatio;
+          const bid = levelVol * (1 - takerRatio);
+
+          tempCells.push({
+            price: priceLevel,
+            bid: parseFloat(bid.toFixed(4)),
+            ask: parseFloat(ask.toFixed(4)),
+            volume: parseFloat(levelVol.toFixed(4)),
+            isPoc: false,
+            isBuyImbalance: false,
+            isSellImbalance: false
+          });
+        });
+
+        let maxCellVol = 0;
+        let pocIndex = -1;
+        tempCells.forEach((c, idx) => {
+          if (c.volume > maxCellVol) {
+            maxCellVol = c.volume;
+            pocIndex = idx;
+          }
+        });
+
+        if (pocIndex !== -1) {
+          tempCells[pocIndex].isPoc = true;
+        }
+
+        // Calculate delta
+        const bidTotal = tempCells.reduce((sum, c) => sum + c.bid, 0);
+        const askTotal = tempCells.reduce((sum, c) => sum + c.ask, 0);
+        const delta = askTotal - bidTotal;
+
+        // Imbalances & POC lines
+        tempCells.forEach(c => {
+          c.isBuyImbalance = c.ask > c.bid * 1.8 && c.volume > (volume / tempCells.length) * 0.4;
+          c.isSellImbalance = c.bid > c.ask * 1.8 && c.volume > (volume / tempCells.length) * 0.4;
+        });
+
+        // Value Area (VAH, VAL) Calculation - approx as top 70% volume surrounding POC
+        const sortedByVol = [...tempCells].sort((a, b) => b.volume - a.volume);
+        const targetVolume = volume * 0.7;
+        let accumulatedVolume = 0;
+        const vaCells: number[] = [];
+
+        for (const cell of sortedByVol) {
+          accumulatedVolume += cell.volume;
+          vaCells.push(cell.price);
+          if (accumulatedVolume >= targetVolume) break;
+        }
+
+        const val = vaCells.length > 0 ? Math.min(...vaCells) : low;
+        const vah = vaCells.length > 0 ? Math.max(...vaCells) : high;
+
+        // Sort descending by price
+        tempCells.sort((a, b) => b.price - a.price);
+
+        return {
+          timestamp,
+          open: parseFloat(open.toFixed(4)),
+          high: parseFloat(high.toFixed(4)),
+          low: parseFloat(low.toFixed(4)),
+          close: parseFloat(close.toFixed(4)),
+          volume: parseFloat(volume.toFixed(4)),
+          delta: parseFloat(delta.toFixed(4)),
+          pocPrice: pocIndex !== -1 ? tempCells.find(x => x.isPoc)?.price || close : close,
+          cells: tempCells,
+          vah: parseFloat(vah.toFixed(4)),
+          val: parseFloat(val.toFixed(4))
+        };
+      });
+
+      console.log(`[PROCLUSTER Server] Succeeded proxying ${candles.length} klines for ${symbol}`);
+      binanceVisionCache.set(cacheKey, candles);
+      res.json({ status: "ok", candles });
+    } catch (err: any) {
+      console.error("[PROCLUSTER Server] Proxy klines error:", err);
+      res.status(500).json({ error: "Failed to fetch klines from Binance API.", details: err.message });
+    }
+  });
+
   // --- BINANCE VISION TICK DOWNLOADER & AGGREGATOR ---
   interface TradeTick {
     p: number;
