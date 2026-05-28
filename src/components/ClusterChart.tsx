@@ -99,6 +99,22 @@ export default function ClusterChart({
   const [priceCenterOffset, setPriceCenterOffset] = useState<number>(0);
   const [startPriceOffset, setStartPriceOffset] = useState<number>(0);
 
+  // States and refs for interactive vertical scroll/zoom dragging on the price scale
+  const [isDraggingPriceScale, setIsDraggingPriceScale] = useState(false);
+  const startPriceScaleYRef = useRef<number>(0);
+  const startVerticalScaleRef = useRef<number>(1.0);
+
+  const [deltaScale, setDeltaScale] = useState<number>(1.0);
+  const [cvdScale, setCvdScale] = useState<number>(1.0);
+
+  const [isDraggingDeltaScale, setIsDraggingDeltaScale] = useState(false);
+  const startDeltaScaleYRef = useRef<number>(0);
+  const startDeltaScaleRef = useRef<number>(1.0);
+
+  const [isDraggingCvdScale, setIsDraggingCvdScale] = useState(false);
+  const startCvdScaleYRef = useRef<number>(0);
+  const startCvdScaleRef = useRef<number>(1.0);
+
   // Dynamically measure container dimensions with ResizeObserver so CVD/delta are pinned perfectly to the bottom
   useEffect(() => {
     if (!containerRef.current) return;
@@ -420,6 +436,11 @@ export default function ClusterChart({
     return max;
   }, [candles]);
 
+  // Zoomed version of maxCandleDelta based on user vertical dragging/zooming
+  const zoomedMaxCandleDelta = useMemo(() => {
+    return maxCandleDelta / Math.max(0.01, deltaScale);
+  }, [maxCandleDelta, deltaScale]);
+
   // Find overall maximum cell delta to properly scale imbalance highlights (memoized)
   const maxCellDelta = useMemo(() => {
     let max = 1;
@@ -458,8 +479,13 @@ export default function ClusterChart({
     return { minCumDeltaVal, maxCumDeltaVal, cvdDeltaRange };
   }, [cumulativeDeltaPoints]);
 
+  const zoomedCvdDeltaRange = useMemo(() => cvdDeltaRange / Math.max(0.01, cvdScale), [cvdDeltaRange, cvdScale]);
+  const cvdCenterVal = useMemo(() => (maxCumDeltaVal + minCumDeltaVal) / 2, [maxCumDeltaVal, minCumDeltaVal]);
+  const zoomedCvdMax = useMemo(() => cvdCenterVal + zoomedCvdDeltaRange * 0.5, [cvdCenterVal, zoomedCvdDeltaRange]);
+  const zoomedCvdMin = useMemo(() => cvdCenterVal - zoomedCvdDeltaRange * 0.5, [cvdCenterVal, zoomedCvdDeltaRange]);
+
   const getCvdY = (val: number, panelH: number) => {
-    return panelH - ((val - minCumDeltaVal) / cvdDeltaRange) * (panelH * 0.7) - (panelH * 0.15);
+    return panelH - ((val - zoomedCvdMin) / zoomedCvdDeltaRange) * (panelH * 0.7) - (panelH * 0.15);
   };
 
   // Find dynamic maximum volume on visible part of the chart (memoized)
@@ -520,6 +546,79 @@ export default function ClusterChart({
       window.removeEventListener("mouseup", handleWindowMouseUp);
     };
   }, [resizingPanel, deltaTopY, deltaPanelHeight, cvdTopY, cvdPanelHeight]);
+
+  // Window-level mouse drag-zoom tracker for vertical price scale dragging
+  useEffect(() => {
+    if (!isDraggingPriceScale) return;
+
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      const deltaY = startPriceScaleYRef.current - e.clientY;
+      // Exponential zoom feel: dragging up zooms in, dragging down zooms out
+      const multiplier = Math.exp(deltaY / 200);
+      const nextScale = startVerticalScaleRef.current * multiplier;
+      const clampedScale = Math.min(2000.0, Math.max(0.1, nextScale));
+      setVerticalScale(clampedScale);
+    };
+
+    const handleWindowMouseUp = () => {
+      setIsDraggingPriceScale(false);
+    };
+
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleWindowMouseMove);
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+    };
+  }, [isDraggingPriceScale]);
+
+  // Window-level mouse drag-zoom tracker for vertical Delta scale dragging
+  useEffect(() => {
+    if (!isDraggingDeltaScale) return;
+
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      const deltaY = startDeltaScaleYRef.current - e.clientY;
+      const multiplier = Math.exp(deltaY / 200);
+      const nextScale = startDeltaScaleRef.current * multiplier;
+      const clampedScale = Math.min(200.0, Math.max(0.01, nextScale));
+      setDeltaScale(clampedScale);
+    };
+
+    const handleWindowMouseUp = () => {
+      setIsDraggingDeltaScale(false);
+    };
+
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleWindowMouseMove);
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+    };
+  }, [isDraggingDeltaScale]);
+
+  // Window-level mouse drag-zoom tracker for vertical CVD scale dragging
+  useEffect(() => {
+    if (!isDraggingCvdScale) return;
+
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      const deltaY = startCvdScaleYRef.current - e.clientY;
+      const multiplier = Math.exp(deltaY / 200);
+      const nextScale = startCvdScaleRef.current * multiplier;
+      const clampedScale = Math.min(200.0, Math.max(0.01, nextScale));
+      setCvdScale(clampedScale);
+    };
+
+    const handleWindowMouseUp = () => {
+      setIsDraggingCvdScale(false);
+    };
+
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleWindowMouseMove);
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+    };
+  }, [isDraggingCvdScale]);
 
   // Find hovered candle's values in components main render scope so overlays can display them dynamically
   const hoveredCandleIdx = crosshair
@@ -613,6 +712,11 @@ export default function ClusterChart({
 
     // 3. Draw Aggregated Session Profile on the left side of the chart (fixed on screen, so translate-invariant)
     if (activeIndicators.volume) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(margin.left + visibleScrollLeft, margin.top, viewportWidth, chartHeight);
+      ctx.clip();
+
       profileBuckets.forEach((bucket) => {
         const bWidth = (bucket.volume / maxProfileVol) * 65;
         const bY = priceToY(bucket.price) - (profileBucketSize / (maxPrice - minPrice)) * chartHeight / 2;
@@ -625,6 +729,7 @@ export default function ClusterChart({
         ctx.lineWidth = 0.8;
         ctx.strokeRect(margin.left + visibleScrollLeft, bY, bWidth, bHeight);
       });
+      ctx.restore();
     }
 
 
@@ -665,6 +770,12 @@ export default function ClusterChart({
       ctx.lineTo(x + candleWidth / 2, margin.top + chartHeight);
       ctx.stroke();
       ctx.setLineDash([]);
+
+      // Clip candlesticks, footprints and any extra overflow elements to the main chart region [margin.top, margin.top + chartHeight]
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(margin.left, margin.top, scrollWidth - margin.left + 50, chartHeight);
+      ctx.clip();
 
       // Draw vertical wick lines
       ctx.beginPath();
@@ -1087,6 +1198,8 @@ export default function ClusterChart({
         ctx.stroke();
       }
 
+      ctx.restore(); // Restore context from candlestick main chart area clipping
+
       // C. Bottom Delta Sub-panel drawing
       if (activeIndicators.delta) {
         ctx.save();
@@ -1103,7 +1216,7 @@ export default function ClusterChart({
         ctx.lineTo(x + candleWidth, deltaMidY);
         ctx.stroke();
 
-        const barHeight = Math.max(2, (Math.abs(candle.delta) / maxCandleDelta) * maxBarScaledHeight);
+        const barHeight = Math.max(2, (Math.abs(candle.delta) / zoomedMaxCandleDelta) * maxBarScaledHeight);
         const barY = candle.delta >= 0 ? deltaMidY - barHeight : deltaMidY;
 
         // Draw Delta volume bar
@@ -1129,6 +1242,9 @@ export default function ClusterChart({
     // 5. Drawing Cumulative Volume Delta (CVD) trend line
     if (activeIndicators.cvd && cumulativeDeltaPoints.length > 0) {
       ctx.save();
+      ctx.beginPath();
+      ctx.rect(margin.left, cvdTopY, scrollWidth - margin.left + 50, cvdPanelHeight);
+      ctx.clip();
       ctx.translate(0, cvdTopY);
 
       // CVD subchart horizontal reference axis (mid-line)
@@ -1276,8 +1392,15 @@ export default function ClusterChart({
     totalSvgHeight,
     maxCellVolume,
     maxCandleDelta,
+    zoomedMaxCandleDelta,
     maxCumDeltaVal,
     minCumDeltaVal,
+    zoomedCvdMax,
+    zoomedCvdMin,
+    zoomedCvdDeltaRange,
+    cvdCenterVal,
+    deltaScale,
+    cvdScale,
     profileBuckets,
     maxProfileVol,
     profileBucketSize,
@@ -1442,7 +1565,27 @@ export default function ClusterChart({
             return Math.min(2000.0, Math.max(0.1, next));
           });
         }}
-        className={`w-[90px] flex-none border-l select-none transition-all duration-300 relative flex flex-col justify-between ${
+        onMouseDown={(e) => {
+          if (e.button !== 0) return; // Only left-click
+          e.preventDefault();
+          const rect = e.currentTarget.getBoundingClientRect();
+          const clickY = e.clientY - rect.top;
+
+          if (activeIndicators.delta && clickY >= deltaTopY && clickY < cvdTopY) {
+            setIsDraggingDeltaScale(true);
+            startDeltaScaleYRef.current = e.clientY;
+            startDeltaScaleRef.current = deltaScale;
+          } else if (activeIndicators.cvd && clickY >= cvdTopY) {
+            setIsDraggingCvdScale(true);
+            startCvdScaleYRef.current = e.clientY;
+            startCvdScaleRef.current = cvdScale;
+          } else {
+            setIsDraggingPriceScale(true);
+            startPriceScaleYRef.current = e.clientY;
+            startVerticalScaleRef.current = verticalScale;
+          }
+        }}
+        className={`w-[90px] flex-none border-l select-none transition-all duration-300 relative flex flex-col justify-between cursor-ns-resize ${
           isLight ? "bg-[#f8fafc] border-slate-200" : "bg-[#06080f] border-white/5"
         }`}
         style={{ height: totalSvgHeight }}
@@ -1566,7 +1709,7 @@ export default function ClusterChart({
                 fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="bold"
               >
-                +{maxCandleDelta.toFixed(1)}K
+                +{zoomedMaxCandleDelta.toFixed(1)}K
               </text>
               {/* Mid Tick */}
               <text
@@ -1588,7 +1731,7 @@ export default function ClusterChart({
                 fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="bold"
               >
-                -{maxCandleDelta.toFixed(1)}K
+                -{zoomedMaxCandleDelta.toFixed(1)}K
               </text>
             </g>
           )}
@@ -1605,7 +1748,7 @@ export default function ClusterChart({
                 fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="bold"
               >
-                +{maxCumDeltaVal.toFixed(1)}K
+                +{zoomedCvdMax.toFixed(1)}K
               </text>
               {/* Mid Tick */}
               <text
@@ -1616,7 +1759,7 @@ export default function ClusterChart({
                 fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="bold"
               >
-                {((maxCumDeltaVal + minCumDeltaVal)/2).toFixed(1)}K
+                {cvdCenterVal.toFixed(1)}K
               </text>
               {/* Bottom Tick */}
               <text
@@ -1627,7 +1770,7 @@ export default function ClusterChart({
                 fontFamily="'Inter', -apple-system, sans-serif"
                 fontWeight="bold"
               >
-                {minCumDeltaVal.toFixed(1)}K
+                {zoomedCvdMin.toFixed(1)}K
               </text>
             </g>
           )}
