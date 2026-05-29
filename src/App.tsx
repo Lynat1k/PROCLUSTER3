@@ -574,6 +574,15 @@ export default function App() {
     return (localStorage.getItem("procluster_candle_data_type") as any) || "bid_ask";
   });
 
+  const [compressionMultiplier, setCompressionMultiplier] = useState<number>(() => {
+    const saved = localStorage.getItem("procluster_compression_multiplier");
+    return saved ? parseInt(saved, 10) || 1 : 1;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("procluster_compression_multiplier", compressionMultiplier.toString());
+  }, [compressionMultiplier]);
+
   // Persists states when they change
   useEffect(() => {
     localStorage.setItem("procluster_pairs", JSON.stringify(pairs));
@@ -765,9 +774,11 @@ export default function App() {
       ? (isFutures ? 0.1 : 0.01) 
       : getBaseTickSize(activePair.symbol);
     
-    const compression = isBtc 
+    const baseCompression = isBtc 
       ? (isFutures ? 25 : 500) 
       : 25;
+    
+    const compression = baseCompression * compressionMultiplier;
       
     const tickStep = baseTickStep * compression;
 
@@ -851,7 +862,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [activePair.symbol, interval, marketType]);
+  }, [activePair.symbol, interval, marketType, compressionMultiplier]);
 
   // Batch process incoming trades to keep the chart performant and buttery-smooth
   const processTicks = (newTicks: { id: string; timestamp: number; price: number; amount: number; side: "buy" | "sell" }[]) => {
@@ -1236,7 +1247,7 @@ export default function App() {
 
   return (
     <div className={`h-screen max-h-screen flex flex-col font-sans select-none antialiased relative overflow-hidden transition-all duration-300 ${
-      theme === "light" ? "bg-[#f1f5f9] text-slate-900" : "bg-[#030712]/92 text-slate-100"
+      theme === "light" ? "bg-[#e2e8f0] text-slate-900" : "bg-[#030712]/92 text-slate-100"
     }`}>
       {/* Dynamic Drifting Liquid Background Blobs (Lava-lamp style glass ambient glow) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -1282,7 +1293,7 @@ export default function App() {
           {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
       <section className={`backdrop-blur-md border-b px-5 py-2 flex flex-wrap items-center justify-between gap-y-3 gap-x-5 relative z-30 transition-shadow duration-300 ${
         theme === "light"
-          ? "bg-white/80 border-slate-200/80 shadow-sm"
+          ? "bg-white/95 border-slate-300 shadow-md"
           : "bg-slate-950/40 border-slate-900/60 shadow-md"
       }`}>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -1298,7 +1309,7 @@ export default function App() {
                 onClick={() => setShowTickerMenu(!showTickerMenu)}
                 className={`flex items-center justify-between gap-3 px-3 py-1 rounded-lg text-sm cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all min-w-[130px] h-[30px] select-none border ${
                   theme === "light"
-                    ? "bg-white hover:bg-slate-50 border-slate-200 text-slate-800 shadow-sm"
+                    ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-900 font-black shadow-sm"
                     : "liquid-glass-button border-white/5 text-yellow-400 font-extrabold"
                 }`}
               >
@@ -1319,7 +1330,7 @@ export default function App() {
                     exit={{ opacity: 0, y: 6, scale: 0.95 }}
                     className={`absolute left-0 mt-1.5 w-48 rounded-xl p-2 z-50 text-left select-none shadow-2xl backdrop-blur-md border transition-all duration-300 ${
                       theme === "light"
-                        ? "bg-white border-slate-200 text-slate-800"
+                        ? "bg-white border-slate-300 text-slate-900 shadow-2xl"
                         : "bg-[#090d16]/98 border border-white/10 text-slate-100"
                     }`}
                   >
@@ -1362,12 +1373,12 @@ export default function App() {
           {/* Market Type (SPOT / FUTURES) Segment Control */}
           <div>
             <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-500" : "text-slate-400/80"
+              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
             }`}>
               Market Type
             </span>
             <div className={`grid grid-cols-2 gap-0.5 p-[2px] rounded-lg h-[30px] items-center min-w-[130px] select-none transition-all duration-300 border ${
-              theme === "light" ? "bg-slate-100 border-slate-200" : "bg-slate-950/60 border-white/5"
+              theme === "light" ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
             }`}>
               {(["SPOT", "FUTURES"] as const).map((type) => (
                 <button
@@ -1379,8 +1390,8 @@ export default function App() {
                         ? "bg-white text-slate-900 font-extrabold border border-slate-300 shadow-sm"
                         : "bg-yellow-500/10 border border-yellow-500/25 text-yellow-500 font-extrabold shadow-inner"
                       : theme === "light"
-                        ? "text-slate-500 hover:text-slate-900 hover:bg-white/40"
-                        : "text-slate-450 hover:text-slate-200"
+                        ? "text-slate-600 hover:text-slate-900 hover:bg-white/40"
+                        : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
                   {type}
@@ -1392,7 +1403,7 @@ export default function App() {
           {/* 2. Interval */}
           <div>
             <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-500" : "text-slate-400/80"
+              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
             }`}>
               Interval
             </span>
@@ -1404,10 +1415,10 @@ export default function App() {
                   className={`px-2 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer transition-all duration-200 h-[30px] ${
                     interval === item
                       ? theme === "light"
-                        ? "bg-amber-100 text-amber-800 border border-amber-300 font-extrabold shadow-sm"
+                        ? "bg-amber-100 text-amber-900 border border-amber-400 font-black shadow-sm"
                         : "liquid-glass-active text-yellow-400 font-black"
                       : theme === "light"
-                        ? "bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800"
+                        ? "bg-slate-200 hover:bg-slate-300 hover:text-slate-900 text-slate-700 font-bold border border-slate-300 shadow-sm"
                         : "liquid-glass-button text-slate-400 hover:text-slate-100"
                   }`}
                 >
@@ -1420,7 +1431,7 @@ export default function App() {
           {/* Candle Type Switcher */}
           <div>
             <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-500" : "text-slate-400/80"
+              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
             }`}>
               {language === "EN" ? "Candle Type" : language === "KZ" ? "Шамдар түрі" : "Тип свечей"}
             </span>
@@ -1457,10 +1468,10 @@ export default function App() {
                     <span className={`relative z-10 flex items-center justify-center transition-colors duration-200 ${
                       isSelected
                         ? theme === "light"
-                          ? "text-blue-700 font-extrabold"
+                          ? "text-blue-800 font-black"
                           : "text-blue-400 font-extrabold"
                         : theme === "light"
-                          ? "text-slate-550 hover:text-slate-900"
+                          ? "text-slate-600 hover:text-slate-900 font-bold"
                           : "text-slate-400 hover:text-slate-200"
                     }`}>
                       <IconComponent className="w-3.5 h-3.5" />
@@ -1474,12 +1485,12 @@ export default function App() {
           {/* Candle Data Type Switcher */}
           <div>
             <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-500" : "text-slate-400/80"
+              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
             }`}>
               {language === "EN" ? "Candle Data" : language === "KZ" ? "Шамдағы деректер" : "Данные в свечах"}
             </span>
             <div className={`flex items-center p-[2px] rounded-lg h-[30px] select-none transition-all duration-300 border ${
-              theme === "light" ? "bg-slate-100 border-slate-200" : "bg-slate-950/60 border-white/5"
+              theme === "light" ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
             }`}>
               {[
                 { id: "bid_ask", label: "Bid Ask" },
@@ -1508,10 +1519,10 @@ export default function App() {
                     <span className={`relative z-10 font-mono text-[10px] sm:text-[11px] whitespace-nowrap transition-colors duration-200 ${
                       isSelected
                         ? theme === "light"
-                          ? "text-blue-700 font-black"
+                          ? "text-blue-800 font-black"
                           : "text-blue-400 font-extrabold"
                         : theme === "light"
-                          ? "text-slate-550 hover:text-slate-900"
+                          ? "text-slate-600 hover:text-slate-900 font-bold"
                           : "text-slate-400 hover:text-slate-200"
                     }`}>
                       {item.label}
@@ -1522,18 +1533,53 @@ export default function App() {
             </div>
           </div>
 
+          {/* Chart Compression Select */}
+          <div>
+            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
+            }`}>
+              {language === "EN" ? "Compression" : language === "KZ" ? "Сығылу деңгейі" : "Сжатие графика"}
+            </span>
+            <select
+              value={compressionMultiplier}
+              onChange={(e) => setCompressionMultiplier(parseInt(e.target.value))}
+              className={`px-3 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                theme === "light"
+                  ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-800 shadow-sm"
+                  : "bg-slate-950/60 border-white/5 text-slate-300 hover:text-slate-100 liquid-glass-button"
+              }`}
+            >
+              {[1, 2, 3, 4, 5, 6].map((multiplier) => {
+                const isBtc = activePair.symbol.toUpperCase().includes("BTC");
+                const baseComp = isBtc 
+                  ? (marketType === "FUTURES" ? 25 : 500) 
+                  : 25;
+                const actualValue = baseComp * multiplier;
+                return (
+                  <option 
+                    key={multiplier} 
+                    value={multiplier} 
+                    className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-350 font-sans"}
+                  >
+                    {multiplier}x ({actualValue})
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
           {/* 3. Indicators Trigger Button */}
           <div>
             <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-500" : "text-slate-400/80"
+              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
             }`}>
               Active Controls
             </span>
             <button
               onClick={() => setIsIndicatorsModalOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-extrabold text-xs cursor-pointer h-[30px] hover:scale-[1.01] active:scale-[0.99] transition-all border ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-black text-xs cursor-pointer h-[30px] hover:scale-[1.01] active:scale-[0.99] transition-all border ${
                 theme === "light"
-                  ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700 shadow-sm"
+                  ? "bg-slate-200 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
                   : "liquid-glass-button text-slate-300 hover:text-slate-100"
               }`}
             >

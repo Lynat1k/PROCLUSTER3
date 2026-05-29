@@ -201,11 +201,11 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
   };
 
   const getSentimentTextColor = (val: number) => {
-    if (val <= 25) return "text-rose-450";
-    if (val <= 45) return "text-orange-455";
-    if (val <= 54) return "text-yellow-450";
-    if (val <= 75) return "text-emerald-450";
-    return "text-cyan-400";
+    if (val <= 25) return "text-rose-500 font-extrabold";
+    if (val <= 45) return "text-orange-500 font-extrabold";
+    if (val <= 54) return "text-amber-500 font-extrabold";
+    if (val <= 75) return "text-emerald-500 font-extrabold";
+    return "text-cyan-500 font-extrabold";
   };
 
   // --- Real-time Order Matching Engine ---
