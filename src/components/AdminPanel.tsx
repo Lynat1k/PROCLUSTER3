@@ -92,6 +92,36 @@ export default function AdminPanel({
   const [whaleAmountInput, setWhaleAmountInput] = useState<string>("500");
   const [customTickerLogs, setCustomTickerLogs] = useState<string[]>([]);
   
+  // Default Chart Compression levels map: { [ticker]: { [timeframe]: multiplier } }
+  const [defaultCompressions, setDefaultCompressions] = useState<Record<string, Record<string, number>>>(() => {
+    const saved = localStorage.getItem("procluster_default_compressions");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse default compressions", e);
+      }
+    }
+    return {};
+  });
+
+  const [activeCompTicker, setActiveCompTicker] = useState<string>(activePair.symbol);
+
+  // Auto-save default compressions to localStorage
+  const updateDefaultCompression = (ticker: string, intervalVal: string, value: number) => {
+    setDefaultCompressions(prev => {
+      const updated = {
+        ...prev,
+        [ticker]: {
+          ...(prev[ticker] || {}),
+          [intervalVal]: value
+        }
+      };
+      localStorage.setItem("procluster_default_compressions", JSON.stringify(updated));
+      return updated;
+    });
+  };
+  
   // Real-time server resource simulator values
   const [cpuUsage, setCpuUsage] = useState<number>(31.4);
   const [ramUsageGB, setRamUsageGB] = useState<number>(6.42);
@@ -286,20 +316,15 @@ export default function AdminPanel({
   // Add Dynamic Ticker Form
   const handleAddNewTicker = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSymbol || !newName || !newPrice) {
+    if (!newSymbol || !newName) {
       alert("Заполните базовые поля!");
       return;
     }
 
-    const priceNum = parseFloat(newPrice);
+    const priceNum = 100.0;
     const stepNum = parseFloat(newPriceStep);
     const compSpot = parseInt(compressionSpotVal) || 2;
     const compFut = parseInt(compressionFuturesVal) || 5;
-
-    if (isNaN(priceNum) || priceNum <= 0) {
-      alert("Некорректная цена!");
-      return;
-    }
 
     const addedPair: CryptoPair = {
       symbol: newSymbol.toUpperCase().trim(),
@@ -324,8 +349,7 @@ export default function AdminPanel({
       // Reset form
       setNewSymbol("");
       setNewName("");
-      setNewPrice("");
-      setTimeout(() => setTickerSuccessMsg(""), 5000);
+      setTimeout(() => setTickerSuccessMsg(""), 505);
     } else {
       alert("Система динамических тикеров не подключена!");
     }
@@ -628,25 +652,6 @@ export default function AdminPanel({
                     <div>
                       <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
                         isLight ? "text-slate-700" : "text-slate-400"
-                      }`}>Стартовая Цена в USDT</label>
-                      <input
-                        type="number"
-                        step="any"
-                        required
-                        placeholder="142.50"
-                        value={newPrice}
-                        onChange={(e) => setNewPrice(e.target.value)}
-                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
-                          isLight 
-                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
-                            : "bg-slate-900 border-white/5 text-white focus:border-emerald-500"
-                        }`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
-                        isLight ? "text-slate-700" : "text-slate-400"
                       }`}>Базовый Шаг Стакана (Price Step)</label>
                       <select
                         value={newPriceStep}
@@ -728,65 +733,83 @@ export default function AdminPanel({
                   </form>
                 </div>
 
-                {/* MANUAL MANIPULATION & FLASH */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
-                  <div className={`p-4 rounded-xl border flex flex-col justify-between ${
-                    isLight ? "bg-white border-slate-200/80 shadow" : "bg-slate-950/40 border-white/5"
+                {/* DEFAULT CHART COMPRESSIONS BY TICKER AND TIMEFRAME */}
+                <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
+                  isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
+                      isLight ? "text-blue-700" : "text-blue-500"
+                    }`}>
+                      <BarChart2 className="w-4 h-4" />
+                      Сжатие графика по умолчанию (по тикерам и таймфреймам)
+                    </h3>
+                  </div>
+                  <p className={`text-xs leading-relaxed ${
+                    isLight ? "text-slate-600 font-medium" : "text-slate-400"
                   }`}>
-                    <div>
-                      <span className="text-[10px] font-mono font-black text-slate-400 block tracking-wider uppercase mb-1">Коррекция Цен Монет Online</span>
-                      <p className="text-[11px] text-slate-400 mb-4 h-12 overflow-hidden">Установите принудительные курсы, которые мгновенно обновят свечной массив.</p>
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      <div className="flex gap-2">
-                        <select
-                          value={activeTokenParam}
-                          onChange={(e) => setActiveTokenParam(e.target.value)}
-                          className={`flex-1 text-xs font-mono font-bold rounded-lg px-2.5 py-2 border focus:outline-none focus:border-red-500/50 ${
-                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
-                          }`}
-                        >
-                          {pairs.map(p => (
-                            <option key={p.symbol} value={p.symbol}>{p.symbol}</option>
-                          ))}
-                        </select>
+                    Настройте множитель сжатия по умолчанию для любой комбинации торговой пары и таймфрейма. Эти значения автоматически применятся при переключении графиков на терминале.
+                  </p>
 
-                        <input
-                          type="number"
-                          value={customPriceInput}
-                          onChange={(e) => setCustomPriceInput(e.target.value)}
-                          className={`w-36 text-xs font-mono font-bold rounded-lg px-2.5 py-2 border focus:outline-none focus:border-red-500/50 ${
-                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
-                          }`}
-                        />
+                  <div className="flex flex-col gap-4 font-sans text-xs">
+                    <div>
+                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
+                        isLight ? "text-slate-700" : "text-slate-400"
+                      }`}>Выберите Торговую Пару для настройки</label>
+                      <select
+                        value={activeCompTicker}
+                        onChange={(e) => setActiveCompTicker(e.target.value)}
+                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                          isLight 
+                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white" 
+                            : "bg-slate-900 border-white/10 text-white focus:border-blue-500/50"
+                        }`}
+                      >
+                        {pairs.map(p => (
+                          <option key={p.symbol} value={p.symbol}>{p.symbol}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className={`rounded-xl border p-4 ${
+                      isLight ? "bg-slate-50/50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                    }`}>
+                      <span className={`text-[10px] font-mono font-black uppercase block tracking-wider mb-3 ${
+                        isLight ? "text-slate-750" : "text-slate-300"
+                      }`}>
+                        Таймфреймы для {activeCompTicker}
+                      </span>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {["1m", "5m", "15m", "30m", "1h", "4h", "50t"].map((intervalVal) => {
+                          const currentVal = defaultCompressions[activeCompTicker]?.[intervalVal] || 1;
+                          
+                          return (
+                            <div key={intervalVal} className={`flex items-center justify-between p-2 rounded-lg border ${
+                              isLight ? "bg-white border-slate-200/60" : "bg-slate-900/60 border-white/5"
+                            }`}>
+                              <span className="font-mono font-black text-xs text-sky-450 uppercase">{intervalVal}</span>
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={currentVal}
+                                  onChange={(e) => updateDefaultCompression(activeCompTicker, intervalVal, parseInt(e.target.value))}
+                                  className={`text-xs font-mono font-bold rounded px-2 py-1 border transition-colors focus:outline-none ${
+                                    isLight 
+                                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-blue-500" 
+                                      : "bg-slate-950 border-white/10 text-white focus:border-blue-505"
+                                  }`}
+                                >
+                                  {[1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50].map((m) => (
+                                    <option key={m} value={m}>{m}x</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <button
-                        onClick={handleApplyPriceChange}
-                        className="w-full py-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 text-orange-400 font-bold text-xs cursor-pointer transition-colors"
-                      >
-                        Мгновенно Обновить Курс
-                      </button>
                     </div>
                   </div>
-
-                  <div className={`p-4 rounded-xl border flex flex-col justify-between ${
-                    isLight ? "bg-white border-slate-200/80 shadow" : "bg-slate-950/40 border-white/5"
-                  }`}>
-                    <div>
-                      <span className="text-[10px] font-mono font-black text-slate-450 block tracking-wider uppercase mb-1">ФОРМАТИРОВАНИЕ ОЗУ</span>
-                      <p className="text-[11px] text-slate-400 mb-4 h-12 overflow-hidden">Удаление истории свечей и полная очистка матрицы футпринта из оперативной памяти.</p>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={handleClear}
-                        className="w-full py-2.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 font-bold text-xs cursor-pointer transition-colors"
-                      >
-                        Стереть ОЗУ Свечей
-                      </button>
-                    </div>
-                  </div>
-
                 </div>
 
               </div>

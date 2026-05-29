@@ -117,3 +117,12 @@ export interface Indicator {
   isActive: boolean;
   settings: IndicatorSettings;
 }
+
+export interface ProfileUser {
+  name: string;
+  email: string;
+  avatar: string;
+  regDate: string;
+  tier: "Free" | "Pro" | "VIP";
+}
+

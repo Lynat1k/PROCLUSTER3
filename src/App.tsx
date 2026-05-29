@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { CryptoPair, ClusterCandle, ClusterCell, OrderBookRow, OrderBook as OrderBookType, LiveTrade, Indicator } from "./types";
+import { CryptoPair, ClusterCandle, ClusterCell, OrderBookRow, OrderBook as OrderBookType, LiveTrade, Indicator, ProfileUser } from "./types";
 import {
   AVAILABLE_PAIRS,
   generateHistoricalCandles,
@@ -16,6 +16,7 @@ import ClusterChart from "./components/ClusterChart";
 import DOMSidebar from "./components/DOMSidebar";
 import IndicatorsModal from "./components/IndicatorsModal";
 import AdminPanel from "./components/AdminPanel";
+import UserProfile from "./components/UserProfile";
 import { TrendingUp, TrendingDown, Layers, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -583,6 +584,22 @@ export default function App() {
     localStorage.setItem("procluster_compression_multiplier", compressionMultiplier.toString());
   }, [compressionMultiplier]);
 
+  // Load default compression for current pair + interval
+  useEffect(() => {
+    try {
+      const savedMap = localStorage.getItem("procluster_default_compressions");
+      if (savedMap) {
+        const parsed = JSON.parse(savedMap);
+        const tickerData = parsed[activePair.symbol];
+        if (tickerData && typeof tickerData[interval] === "number") {
+          setCompressionMultiplier(tickerData[interval]);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load default compression override", e);
+    }
+  }, [activePair.symbol, interval]);
+
   // Persists states when they change
   useEffect(() => {
     localStorage.setItem("procluster_pairs", JSON.stringify(pairs));
@@ -765,9 +782,49 @@ export default function App() {
   ]);
 
   const [isIndicatorsModalOpen, setIsIndicatorsModalOpen] = useState<boolean>(false);
-  const [currentView, setCurrentView] = useState<"terminal" | "admin">("terminal");
+  const [currentView, setCurrentView] = useState<"terminal" | "admin" | "profile">("terminal");
   const [showTickerMenu, setShowTickerMenu] = useState<boolean>(false);
   const tickerMenuRef = useRef<HTMLDivElement>(null);
+
+  const [profileUser, setProfileUser] = useState<ProfileUser | null>(() => {
+    const saved = localStorage.getItem("procluster_user");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    return {
+      name: "Guest",
+      email: "guest@procluster.io",
+      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+      regDate: "2026-05-29",
+      tier: "Free"
+    };
+  });
+
+  // Listen for the local storage changes or custom updates to sync profileUser inside App as well
+  useEffect(() => {
+    const handleUpdate = () => {
+      const saved = localStorage.getItem("procluster_user");
+      if (saved) {
+        try {
+          setProfileUser(JSON.parse(saved));
+        } catch (e) {
+          // ignore
+        }
+      } else {
+        setProfileUser(null);
+      }
+    };
+    window.addEventListener("procluster_user_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("procluster_user_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, []);
 
   // Click outside to close the ticker custom menu
   useEffect(() => {
@@ -1425,6 +1482,8 @@ export default function App() {
         onLanguageChange={handleLanguageChange}
         userRole={userRole}
         onChangeUserRole={handleUserRoleChange}
+        onOpenProfile={() => setCurrentView("profile")}
+        onOpenHome={() => setCurrentView("terminal")}
       />
 
       {currentView === "admin" ? (
@@ -1445,6 +1504,14 @@ export default function App() {
           marketType={marketType}
           onSetMarketType={setMarketType}
           onAddPair={handleAddPair}
+        />
+      ) : currentView === "profile" ? (
+        <UserProfile
+          user={profileUser}
+          onUpdateUser={setProfileUser}
+          onClose={() => setCurrentView("terminal")}
+          theme={theme}
+          language={language}
         />
       ) : (
         <>

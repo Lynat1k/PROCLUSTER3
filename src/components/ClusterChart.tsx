@@ -6,6 +6,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings } from "../types";
 import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2 } from "lucide-react";
+import logo from "../assets/images/procluster_logo_1779485281399.png";
 
 interface ClusterChartProps {
   candles: ClusterCandle[];
@@ -2145,6 +2146,14 @@ export default function ClusterChart({
           <div className="w-24 h-[3px] rounded-full bg-yellow-500/0 group-hover:bg-yellow-500/85 transition-all duration-200 shadow-md shadow-yellow-500/40" />
         </div>
       )}
+
+      {/* Watermark in the bottom right corner of the chart, dynamically positioned above indicator panels and timeline */}
+      <div 
+        className="absolute right-[105px] pointer-events-none select-none z-10 opacity-20 transition-all duration-300"
+        style={{ bottom: `${margin.bottom + deltaHeightTotal + cvdHeightTotal + 12}px` }}
+      >
+        <img src={logo} alt="ProCluster Watermark" className="h-8 object-contain" referrerPolicy="no-referrer" />
+      </div>
     </div>
 
       {/* Floating Detailed Cell HUD */}

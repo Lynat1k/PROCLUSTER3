@@ -20,6 +20,8 @@ interface HeaderProps {
   onLanguageChange: (lang: "RU" | "EN" | "KZ") => void;
   userRole: "Guest" | "VIP" | "Admin";
   onChangeUserRole: (role: "Guest" | "VIP" | "Admin") => void;
+  onOpenProfile?: () => void;
+  onOpenHome?: () => void;
 }
 
 export default function Header({
@@ -32,7 +34,9 @@ export default function Header({
   language,
   onLanguageChange,
   userRole,
-  onChangeUserRole
+  onChangeUserRole,
+  onOpenProfile,
+  onOpenHome
 }: HeaderProps) {
   
   const isLight = theme === "light";
@@ -48,6 +52,28 @@ export default function Header({
     }
     return null;
   });
+
+  // Listen for external profile updates from local storage or profile page
+  useEffect(() => {
+    const handleUpdate = () => {
+      const saved = localStorage.getItem("procluster_user");
+      if (saved) {
+        try {
+          setUser(JSON.parse(saved));
+        } catch (e) {
+          // ignore
+        }
+      } else {
+        setUser(null);
+      }
+    };
+    window.addEventListener("procluster_user_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("procluster_user_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, []);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -167,6 +193,7 @@ export default function Header({
     setUser(null);
     localStorage.removeItem("procluster_user");
     setDropdownOpen(false);
+    window.dispatchEvent(new Event("procluster_user_updated"));
   };
 
   const handleAuthSubmit = (e: React.FormEvent) => {
@@ -214,6 +241,7 @@ export default function Header({
         setUser(loggedUser);
         localStorage.setItem("procluster_user", JSON.stringify(loggedUser));
         setShowLoginModal(false);
+        window.dispatchEvent(new Event("procluster_user_updated"));
         // Clear fields
         setLoginName("");
         setLoginPassword("");
@@ -256,6 +284,7 @@ export default function Header({
       setUser(loggedUser);
       localStorage.setItem("procluster_user", JSON.stringify(loggedUser));
       setShowLoginModal(false);
+      window.dispatchEvent(new Event("procluster_user_updated"));
       
       // Clear fields
       setLoginName("");
@@ -275,6 +304,7 @@ export default function Header({
     setUser(gAccount);
     localStorage.setItem("procluster_user", JSON.stringify(gAccount));
     setShowLoginModal(false);
+    window.dispatchEvent(new Event("procluster_user_updated"));
   };
 
   // Custom stenciled PROCLUSTER Logo - imported PNG image with responsive height
@@ -419,14 +449,24 @@ export default function Header({
 
                   {/* Options List */}
                   <div className="flex flex-col gap-1">
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[12px] font-bold cursor-pointer transition text-left ${
+                    <button 
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        if (onOpenProfile) onOpenProfile();
+                      }}
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[12px] font-bold cursor-pointer transition text-left ${
                       isLight ? "text-slate-700 hover:text-slate-900 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-white/5"
                     }`}>
                       <User className="w-4 h-4 text-slate-500" />
                       <span>{language === "EN" ? "Profile & avatar" : language === "KZ" ? "Профиль және аватар" : "Профиль и аватар"}</span>
                     </button>
 
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[12px] font-bold cursor-pointer transition text-left ${
+                    <button 
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        if (onOpenHome) onOpenHome();
+                      }}
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[12px] font-bold cursor-pointer transition text-left ${
                       isLight ? "text-slate-700 hover:text-slate-900 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-white/5"
                     }`}>
                       <Home className="w-4 h-4 text-slate-500" />
@@ -855,6 +895,7 @@ export default function Header({
                       avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
                     }));
                     setShowLoginModal(false);
+                    window.dispatchEvent(new Event("procluster_user_updated"));
                   }}
                   className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold cursor-pointer transition-all border ${
                     isLight 
