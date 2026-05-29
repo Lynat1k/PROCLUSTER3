@@ -725,21 +725,29 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
             const hasPendingLimit = limitOrders.filter(o => o.side === "sell" && Math.abs(o.price - ask.price) < 0.001);
             const totalLimitSize = hasPendingLimit.reduce((s, o) => s + o.size, 0);
             const depthPercentage = (ask.amount / maxAmountInBook) * 100;
+            const volumeRatio = ask.amount / maxAmountInBook;
+            
+            // Non-linear brightness curve: raises opacity up to 0.75 for heavy blocks
+            const bgOpacity = 0.03 + Math.pow(volumeRatio, 1.3) * 0.72; 
+            const isAbundantWall = volumeRatio > 0.45;
 
             return (
               <div 
                 key={`dom-ask-${ask.price}`} 
                 onClick={() => handleRowPriceClick(ask.price)}
-                className={`grid grid-cols-[1fr_1.2fr] gap-3 font-mono font-bold group cursor-pointer border-y border-transparent transition-colors text-[10px] relative h-[18px] items-center ${
+                className={`grid grid-cols-[1fr_1.2fr] gap-3 font-mono group cursor-pointer border-y border-transparent transition-colors text-[10.5px] relative h-[18px] items-center ${
                   Math.abs(limitPrice - ask.price) < 0.01 
                     ? (isLight ? "bg-slate-300/40" : "bg-white/[0.04]") 
                     : (isLight ? "hover:bg-slate-200/50" : "hover:bg-white/[0.02]")
                 }`}
               >
-                {/* Horizontal Depth Volume bar starting from left edge */}
+                {/* Horizontal Depth Volume bar starting from left edge with dynamic opacity */}
                 <div 
-                  className="absolute left-0 top-0 bottom-0 bg-rose-500/[0.12] transition-all duration-300 pointer-events-none"
-                  style={{ width: `${Math.min(100, depthPercentage)}%` }}
+                  className="absolute left-0 top-0 bottom-0 transition-all duration-300 pointer-events-none"
+                  style={{ 
+                    width: `${Math.min(100, depthPercentage)}%`,
+                    backgroundColor: `rgba(244, 63, 94, ${bgOpacity})`
+                  }}
                 />
 
                 {/* Floating pending limit indicators */}
@@ -759,13 +767,19 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
                 )}
 
                 {/* Size (Ask) Red */}
-                <div className="text-right pr-4 z-10 text-rose-500 font-bold tracking-tight">
+                <div className={`text-right pr-4 z-10 font-bold tracking-tight transition-all duration-200 ${
+                  isAbundantWall 
+                    ? "text-rose-400 font-extrabold text-[11px] drop-shadow-[0_0_3px_rgba(244,63,94,0.4)]" 
+                    : "text-rose-500/90"
+                }`}>
                   {ask.amount.toFixed(2)}
                 </div>
 
                 {/* Price (Ask) standard Gray/White */}
-                <div className={`text-left pl-3 z-10 font-bold transition-colors ${
-                  isLight ? "text-slate-600 group-hover:text-slate-900" : "text-slate-400 group-hover:text-slate-100"
+                <div className={`text-left pl-3 z-10 font-bold transition-all duration-200 ${
+                  isAbundantWall
+                    ? "font-extrabold text-slate-200"
+                    : (isLight ? "text-slate-600 group-hover:text-slate-900" : "text-slate-400 group-hover:text-slate-100")
                 }`}>
                   {ask.price.toLocaleString(undefined, { minimumFractionDigits: ask.price < 50 ? 2 : 1 })}
                 </div>
@@ -774,14 +788,15 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
           })}
 
           {/* ----- MID TICK / LAST PRICE ROW ----- */}
-          <div className={`flex justify-center items-center border-y relative z-20 shrink-0 transition-all duration-300 h-11 ${
-            isLight ? "bg-slate-100 border-slate-200" : "bg-[#090b11] border-white/5"
+          <div className={`flex justify-center items-center border-y relative z-20 shrink-0 transition-all duration-300 h-14 ${
+            isLight ? "bg-slate-200/60 border-amber-300/40" : "bg-[#090b11] border-amber-500/25"
           }`}>
             <div 
               id="dot-matrix-price"
-              className={`font-matrix font-normal text-[26px] tracking-wider leading-none text-center select-all text-amber-500`}
+              className="font-mono text-[30px] font-black tracking-widest leading-none text-center select-all text-amber-500"
               style={{
-                textShadow: '0 0 8px rgba(245, 158, 11, 0.95), 0 0 16px rgba(245, 158, 11, 0.5)'
+                textShadow: '0 0 10px rgba(245, 158, 11, 0.95), 0 0 22px rgba(245, 158, 11, 0.65)',
+                fontWeight: 900
               }}
             >
               {activePair.price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
@@ -793,21 +808,29 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
             const hasPendingLimit = limitOrders.filter(o => o.side === "buy" && Math.abs(o.price - bid.price) < 0.001);
             const totalLimitSize = hasPendingLimit.reduce((s, o) => s + o.size, 0);
             const depthPercentage = (bid.amount / maxAmountInBook) * 100;
+            const volumeRatio = bid.amount / maxAmountInBook;
+            
+            // Non-linear brightness curve: raises opacity up to 0.75 for heavy blocks
+            const bgOpacity = 0.03 + Math.pow(volumeRatio, 1.3) * 0.72; 
+            const isAbundantWall = volumeRatio > 0.45;
 
             return (
               <div 
                 key={`dom-bid-${bid.price}`} 
                 onClick={() => handleRowPriceClick(bid.price)}
-                className={`grid grid-cols-[1fr_1.2fr] gap-3 font-mono font-bold group cursor-pointer border-y border-transparent transition-colors text-[10px] relative h-[18px] items-center ${
+                className={`grid grid-cols-[1fr_1.2fr] gap-3 font-mono group cursor-pointer border-y border-transparent transition-colors text-[10.5px] relative h-[18px] items-center ${
                   Math.abs(limitPrice - bid.price) < 0.01 
                     ? (isLight ? "bg-slate-300/40" : "bg-white/[0.04]") 
                     : (isLight ? "hover:bg-slate-200/50" : "hover:bg-white/[0.02]")
                 }`}
               >
-                {/* Horizontal Depth Volume bar starting from left edge */}
+                {/* Horizontal Depth Volume bar starting from left edge with dynamic opacity */}
                 <div 
-                  className="absolute left-0 top-0 bottom-0 bg-emerald-500/[0.12] transition-all duration-300 pointer-events-none"
-                  style={{ width: `${Math.min(100, depthPercentage)}%` }}
+                  className="absolute left-0 top-0 bottom-0 transition-all duration-300 pointer-events-none"
+                  style={{ 
+                    width: `${Math.min(100, depthPercentage)}%`,
+                    backgroundColor: `rgba(16, 185, 129, ${bgOpacity})`
+                  }}
                 />
 
                 {/* Floating pending limit indicators */}
@@ -827,13 +850,19 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
                 )}
 
                 {/* Size (Bid) Green */}
-                <div className="text-right pr-4 z-10 text-emerald-500 font-bold tracking-tight">
+                <div className={`text-right pr-4 z-10 font-bold tracking-tight transition-all duration-200 ${
+                  isAbundantWall 
+                    ? "text-emerald-400 font-extrabold text-[11px] drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]" 
+                    : "text-emerald-500/90"
+                }`}>
                   {bid.amount.toFixed(2)}
                 </div>
 
                 {/* Price (Bid) standard Gray/White */}
-                <div className={`text-left pl-3 z-10 font-bold transition-colors ${
-                  isLight ? "text-slate-600 group-hover:text-slate-900" : "text-slate-400 group-hover:text-slate-100"
+                <div className={`text-left pl-3 z-10 font-bold transition-all duration-200 ${
+                  isAbundantWall
+                    ? "font-extrabold text-slate-200"
+                    : (isLight ? "text-slate-600 group-hover:text-slate-900" : "text-slate-400 group-hover:text-slate-100")
                 }`}>
                   {bid.price.toLocaleString(undefined, { minimumFractionDigits: bid.price < 50 ? 2 : 1 })}
                 </div>

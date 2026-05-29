@@ -505,97 +505,326 @@ export default function IndicatorsModal({
                   {/* Option 1: Mode, location, sensitivity (Specific to Cluster Search) */}
                   {selectedIndicator.id === "clusterSearch" && (
                     <>
-                      <div className="flex flex-col gap-2">
-                        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
-                          СИГНАЛ
+                      {/* СРЕДНИЙ ФИЛЬТР (MEDIUM FILTER) */}
+                      <div className={`flex flex-col gap-3 rounded-2xl p-4 border transition-all duration-300 ${
+                        isLight ? "bg-slate-100/50 border-slate-200" : "bg-white/5 border-white/5"
+                      }`}>
+                        <span className={`text-[11px] uppercase tracking-wider font-extrabold font-mono flex items-center gap-2 ${
+                          isLight ? "text-slate-600" : "text-slate-400"
+                        }`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                          Средний фильтр объема
                         </span>
                         
-                        <div className="grid grid-cols-2 gap-3 font-sans text-xs">
-                          <label className="flex flex-col gap-1.5">
-                            <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Mode</span>
-                            <select
-                              value={selectedIndicator.settings.mode || "Volume"}
-                              onChange={(e) => updateSettings({ mode: e.target.value })}
-                              className={`rounded-xl px-3 py-2 text-xs outline-none cursor-pointer transition-all duration-300 border ${
+                        <div className="grid grid-cols-2 gap-3.5">
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Мин. объем</span>
+                            <input
+                              type="number"
+                              value={selectedIndicator.settings.csMedMinVolume ?? 100}
+                              onChange={(e) => updateSettings({ csMedMinVolume: parseFloat(e.target.value) || 0 })}
+                              className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
                                 isLight
                                   ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
-                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40 hover:border-white/20"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
                               }`}
-                            >
-                              <option value="Volume">Volume</option>
-                              <option value="Delta">Delta</option>
-                            </select>
+                            />
                           </label>
-
-                          <label className="flex flex-col gap-1.5">
-                            <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Направление</span>
-                            <select
-                              value={selectedIndicator.settings.direction || "Both"}
-                              onChange={(e) => updateSettings({ direction: e.target.value })}
-                              className={`rounded-xl px-3 py-2 text-xs outline-none cursor-pointer transition-all duration-300 border ${
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Макс. объем</span>
+                            <input
+                              type="number"
+                              value={selectedIndicator.settings.csMedMaxVolume ?? 500}
+                              onChange={(e) => updateSettings({ csMedMaxVolume: parseFloat(e.target.value) || 0 })}
+                              className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
                                 isLight
                                   ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
-                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40 hover:border-white/20"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
                               }`}
-                            >
-                              <option value="Both">Both directions</option>
-                              <option value="Buy">Only Buy / Ask</option>
-                              <option value="Sell">Only Sell / Bid</option>
-                            </select>
+                            />
                           </label>
                         </div>
 
-                        <label className="flex flex-col gap-1.5 font-sans text-xs mt-1.5">
-                          <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Price Location</span>
-                          <select
-                            value={selectedIndicator.settings.location || "Any"}
-                            onChange={(e) => updateSettings({ location: e.target.value })}
-                            className={`rounded-xl px-3 py-2 text-xs outline-none cursor-pointer transition-all duration-300 border ${
-                              isLight
-                                ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
-                                : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40 hover:border-white/20"
-                            }`}
-                          >
-                            <option value="Any">Anywhere inside candle</option>
-                            <option value="Body">Inside Candle Body</option>
-                            <option value="Wick">Inside Candle Wicks</option>
-                          </select>
+                        <div className="grid grid-cols-2 gap-3.5">
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Мин. размер фигуры (px)</span>
+                            <input
+                              type="number"
+                              value={selectedIndicator.settings.csMedMinSize ?? 4}
+                              onChange={(e) => updateSettings({ csMedMinSize: parseInt(e.target.value) || 0 })}
+                              className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                                isLight
+                                  ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
+                              }`}
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Макс. размер фигуры (px)</span>
+                            <input
+                              type="number"
+                              value={selectedIndicator.settings.csMedMaxSize ?? 12}
+                              onChange={(e) => updateSettings({ csMedMaxSize: parseInt(e.target.value) || 0 })}
+                              className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                                isLight
+                                  ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
+                              }`}
+                            />
+                          </label>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Форма</span>
+                            <select
+                              value={selectedIndicator.settings.csMedShape ?? "circle"}
+                              onChange={(e) => updateSettings({ csMedShape: e.target.value as any })}
+                              className={`rounded-xl px-2 py-2 text-xs outline-none cursor-pointer transition-all border ${
+                                isLight
+                                  ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
+                              }`}
+                            >
+                              <option value="circle">Круг (Circle)</option>
+                              <option value="square">Квадрат (Square)</option>
+                              <option value="rhombus">Ромб (Rhombus)</option>
+                            </select>
+                          </label>
+                          
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Цвет Ask</span>
+                            <div className="flex items-center gap-1 mt-1">
+                              <input
+                                type="color"
+                                value={selectedIndicator.settings.csMedColorAsk ?? "#10b981"}
+                                onChange={(e) => updateSettings({ csMedColorAsk: e.target.value })}
+                                className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0"
+                              />
+                              <span className="text-[9px] font-mono text-slate-400 truncate">{selectedIndicator.settings.csMedColorAsk ?? "#10b981"}</span>
+                            </div>
+                          </label>
+
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Цвет Bid</span>
+                            <div className="flex items-center gap-1 mt-1">
+                              <input
+                                type="color"
+                                value={selectedIndicator.settings.csMedColorBid ?? "#ef4444"}
+                                onChange={(e) => updateSettings({ csMedColorBid: e.target.value })}
+                                className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0"
+                              />
+                              <span className="text-[9px] font-mono text-slate-400 truncate">{selectedIndicator.settings.csMedColorBid ?? "#ef4444"}</span>
+                            </div>
+                          </label>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 mt-1.5">
+                          <div className={`flex justify-between font-bold text-xs ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                            <span>Прозрачность выделения</span>
+                            <span className="font-mono text-yellow-500">{Math.round((selectedIndicator.settings.csMedOpacity ?? 0.70) * 100)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.1"
+                            max="1.0"
+                            step="0.05"
+                            value={selectedIndicator.settings.csMedOpacity ?? 0.7}
+                            onChange={(e) => updateSettings({ csMedOpacity: parseFloat(e.target.value) })}
+                            className="w-full accent-blue-600 rounded-lg h-1 bg-slate-800"
+                          />
+                        </div>
+
+                        {/* Telegram Alert for Medium Filter */}
+                        <label className={`flex items-center gap-2.5 p-2 rounded-xl cursor-pointer mt-1 ${isLight ? "hover:bg-slate-150 bg-slate-200/50 text-slate-700 border-slate-300" : "hover:bg-white/5 bg-slate-950/45 text-slate-200 border-white/5"} border`}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIndicator.settings.csMedTgAlert ?? false}
+                            onChange={(e) => updateSettings({ csMedTgAlert: e.target.checked })}
+                            className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-bold text-[11px]">Уведомление в Телеграм канал / чат</span>
+                            <span className={`text-[9.5px] font-medium ${isLight ? "text-slate-500" : "text-slate-400"}`}>Только для VIP & Admin</span>
+                          </div>
                         </label>
                       </div>
 
-                      <div className="flex flex-col gap-2 mt-2">
-                        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
-                          ФИЛЬТРЫ
+                      {/* КРУПНЫЙ ФИЛЬТР (LARGE FILTER) */}
+                      <div className={`flex flex-col gap-3 rounded-2xl p-4 border transition-all duration-300 ${
+                        isLight ? "bg-slate-100/50 border-slate-200" : "bg-white/5 border-white/5"
+                      }`}>
+                        <span className={`text-[11px] uppercase tracking-wider font-extrabold font-mono flex items-center gap-2 ${
+                          isLight ? "text-slate-600" : "text-slate-400"
+                        }`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                          Крупный фильтр объема
                         </span>
 
-                        <div className="flex flex-col gap-3 font-sans text-xs">
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex justify-between font-bold">
-                              <span className={isLight ? "text-slate-700" : "text-slate-300"}>Sensitivity (Чувствительность)</span>
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition-all duration-300 border ${
-                                isLight ? "bg-slate-200 text-blue-700 border-slate-300" : "bg-slate-900 text-yellow-500 border-transparent"
-                              }`}>
-                                {selectedIndicator.settings.sensitivity || 4}
-                              </span>
-                            </div>
-                            <input
-                              type="range"
-                              min="1"
-                              max="10"
-                              value={selectedIndicator.settings.sensitivity || 4}
-                              onChange={(e) => updateSettings({ sensitivity: parseInt(e.target.value) })}
-                              className={`w-full accent-blue-600 rounded-lg cursor-pointer h-1 ${isLight ? "bg-slate-200" : "bg-slate-800"}`}
-                            />
-                          </div>
+                        <label className="flex flex-col gap-1.5 text-xs">
+                          <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Минимальный объем (мин объем)</span>
+                          <input
+                            type="number"
+                            value={selectedIndicator.settings.csLargeMinVolume ?? 500}
+                            onChange={(e) => updateSettings({ csLargeMinVolume: parseFloat(e.target.value) || 0 })}
+                            className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                              isLight
+                                ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
+                            }`}
+                          />
+                        </label>
 
-                          <label className={`flex items-center gap-2.5 p-1 rounded cursor-pointer mt-1 ${isLight ? "hover:bg-slate-100" : "hover:bg-white/5"}`}>
+                        <div className="grid grid-cols-2 gap-3.5">
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Мин. размер фигуры (px)</span>
                             <input
-                              type="checkbox"
-                              checked={selectedIndicator.settings.useMinMax || false}
-                              onChange={(e) => updateSettings({ useMinMax: e.target.checked })}
-                              className={`rounded text-blue-600 focus:ring-blue-500 w-4 h-4 ${isLight ? "border-slate-350 bg-white" : "border-white/10 bg-slate-900"}`}
+                              type="number"
+                              value={selectedIndicator.settings.csLargeMinSize ?? 10}
+                              onChange={(e) => updateSettings({ csLargeMinSize: parseInt(e.target.value) || 0 })}
+                              className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                                isLight
+                                  ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
+                              }`}
                             />
-                            <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>Use Min/Max (Использовать границы мин/макс)</span>
+                          </label>
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Макс. размер фигуры (px)</span>
+                            <input
+                              type="number"
+                              value={selectedIndicator.settings.csLargeMaxSize ?? 20}
+                              onChange={(e) => updateSettings({ csLargeMaxSize: parseInt(e.target.value) || 0 })}
+                              className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                                isLight
+                                  ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
+                              }`}
+                            />
+                          </label>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Форма</span>
+                            <select
+                              value={selectedIndicator.settings.csLargeShape ?? "rhombus"}
+                              onChange={(e) => updateSettings({ csLargeShape: e.target.value as any })}
+                              className={`rounded-xl px-2 py-2 text-xs outline-none cursor-pointer transition-all border ${
+                                isLight
+                                  ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
+                              }`}
+                            >
+                              <option value="circle">Круг (Circle)</option>
+                              <option value="square">Квадрат (Square)</option>
+                              <option value="rhombus">Ромб (Rhombus)</option>
+                            </select>
+                          </label>
+
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Цвет Ask</span>
+                            <div className="flex items-center gap-1 mt-1">
+                              <input
+                                type="color"
+                                value={selectedIndicator.settings.csLargeColorAsk ?? "#34d399"}
+                                onChange={(e) => updateSettings({ csLargeColorAsk: e.target.value })}
+                                className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0"
+                              />
+                              <span className="text-[9px] font-mono text-slate-400 truncate">{selectedIndicator.settings.csLargeColorAsk ?? "#34d399"}</span>
+                            </div>
+                          </label>
+
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Цвет Bid</span>
+                            <div className="flex items-center gap-1 mt-1">
+                              <input
+                                type="color"
+                                value={selectedIndicator.settings.csLargeColorBid ?? "#f43f5e"}
+                                onChange={(e) => updateSettings({ csLargeColorBid: e.target.value })}
+                                className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0"
+                              />
+                              <span className="text-[9px] font-mono text-slate-400 truncate">{selectedIndicator.settings.csLargeColorBid ?? "#f43f5e"}</span>
+                            </div>
+                          </label>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 mt-1.5">
+                          <div className={`flex justify-between font-bold text-xs ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                            <span>Прозрачность выделения</span>
+                            <span className="font-mono text-yellow-500">{Math.round((selectedIndicator.settings.csLargeOpacity ?? 0.90) * 100)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.1"
+                            max="1.0"
+                            step="0.05"
+                            value={selectedIndicator.settings.csLargeOpacity ?? 0.9}
+                            onChange={(e) => updateSettings({ csLargeOpacity: parseFloat(e.target.value) })}
+                            className="w-full accent-blue-600 rounded-lg h-1 bg-slate-800"
+                          />
+                        </div>
+
+                        {/* Telegram Alert for Large Filter */}
+                        <label className={`flex items-center gap-2.5 p-2 rounded-xl cursor-pointer mt-1 ${isLight ? "hover:bg-slate-150 bg-slate-200/50 text-slate-700 border-slate-300" : "hover:bg-white/5 bg-slate-950/45 text-slate-200 border-white/5"} border`}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIndicator.settings.csLargeTgAlert ?? false}
+                            onChange={(e) => updateSettings({ csLargeTgAlert: e.target.checked })}
+                            className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-bold text-[11px]">Уведомление в Телеграм канал / чат</span>
+                            <span className={`text-[9.5px] font-medium ${isLight ? "text-slate-500" : "text-slate-405"}`}>Только для VIP & Admin</span>
+                          </div>
+                        </label>
+                      </div>
+
+                      {/* ОБЩИЕ НАСТРОЙКИ (COMMON SETTINGS) */}
+                      <div className={`flex flex-col gap-3 rounded-2xl p-4 border transition-all duration-300 ${
+                        isLight ? "bg-slate-100/50 border-slate-200" : "bg-white/5 border-white/5"
+                      }`}>
+                        <span className={`text-[11px] uppercase tracking-wider font-extrabold font-mono flex items-center gap-2 ${
+                          isLight ? "text-slate-600" : "text-slate-400"
+                        }`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                          Общие настройки фильтрации
+                        </span>
+
+                        <div className="grid grid-cols-2 gap-3.5">
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Объединение уровней цены</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="20"
+                              value={selectedIndicator.settings.csMergeLevels ?? 1}
+                              onChange={(e) => updateSettings({ csMergeLevels: Math.max(1, parseInt(e.target.value) || 1) })}
+                              className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                                isLight
+                                  ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
+                              }`}
+                            />
+                          </label>
+
+                          <label className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-medium" : "text-slate-350"}>Перевес по bid/ask (%)</span>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="50"
+                                max="100"
+                                value={selectedIndicator.settings.csImbalancePercent ?? 60}
+                                onChange={(e) => updateSettings({ csImbalancePercent: Math.max(50, Math.min(100, parseInt(e.target.value) || 50)) })}
+                                className={`w-full rounded-xl px-3 py-2 pr-8 text-xs outline-none transition-all duration-350 border ${
+                                  isLight
+                                    ? "bg-white border-slate-200 text-slate-800"
+                                    : "bg-[#0b0f19] border border-white/10 text-slate-200"
+                                } focus:ring-1 focus:ring-yellow-500/45`}
+                              />
+                              <span className="absolute right-3 top-2.5 text-slate-500 font-mono text-xs font-bold">%</span>
+                            </div>
                           </label>
                         </div>
                       </div>

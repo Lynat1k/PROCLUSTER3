@@ -598,10 +598,13 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem("procluster_market_type", marketType);
-    if (marketType === "SPOT" && (interval === "1m" || interval === "5m")) {
-      setInterval("15m");
+    if (marketType === "SPOT") {
+      setCompressionMultiplier(1);
+      if (interval === "1m" || interval === "5m") {
+        setInterval("15m");
+      }
     }
-  }, [marketType, interval]);
+  }, [marketType]);
 
   useEffect(() => {
     localStorage.setItem("procluster_candle_type", candleType);
@@ -610,6 +613,25 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("procluster_candle_data_type", candleDataType);
   }, [candleDataType]);
+
+  // Active User Role state (Guest, VIP, or Admin) for Telegram notification gating
+  const [userRole, setUserRole] = useState<"Guest" | "VIP" | "Admin">(() => {
+    const saved = localStorage.getItem("procluster_role");
+    if (saved === "Guest" || saved === "VIP" || saved === "Admin") return saved;
+    return "Admin"; // Standard default has high permissions
+  });
+
+  // Keep saved role synchronous with local storage
+  const handleUserRoleChange = (role: "Guest" | "VIP" | "Admin") => {
+    setUserRole(role);
+    localStorage.setItem("procluster_role", role);
+  };
+
+  // Telegram Notifications alerts state
+  const [telegramAlerts, setTelegramAlerts] = useState<any[]>([]);
+  
+  // Track triggered price level clusters to avoid notification spamming in session
+  const csSentAlertsRef = useRef<Set<string>>(new Set());
 
   // Indicators Configuration State
   const [indicators, setIndicators] = useState<Indicator[]>([
@@ -688,7 +710,29 @@ export default function App() {
         direction: "Both",
         location: "Any",
         sensitivity: 4,
-        useMinMax: false
+        useMinMax: false,
+        // Common Settings
+        csMergeLevels: 1,
+        csImbalancePercent: 60,
+        // Medium Filter
+        csMedMinVolume: 100,
+        csMedMaxVolume: 500,
+        csMedMinSize: 4,
+        csMedMaxSize: 12,
+        csMedShape: "circle",
+        csMedColorBid: "#ef4444",
+        csMedColorAsk: "#10b981",
+        csMedOpacity: 0.70,
+        csMedTgAlert: false,
+        // Large Filter
+        csLargeMinVolume: 500,
+        csLargeMinSize: 10,
+        csLargeMaxSize: 20,
+        csLargeShape: "rhombus",
+        csLargeColorBid: "#f43f5e",
+        csLargeColorAsk: "#34d399",
+        csLargeOpacity: 0.90,
+        csLargeTgAlert: false
       }
     },
     {
@@ -746,6 +790,7 @@ export default function App() {
   const lastTickTimeRef = useRef<number>(Date.now());
   const activePairRef = useRef<CryptoPair>(activePair);
   const intervalRef = useRef<string>(interval);
+  const orderBookTickStepRef = useRef<number>(0.01);
   
   useEffect(() => {
     activePairRef.current = activePair;
@@ -774,13 +819,21 @@ export default function App() {
       ? (isFutures ? 0.1 : 0.01) 
       : getBaseTickSize(activePair.symbol);
     
-    const baseCompression = isBtc 
-      ? (isFutures ? 25 : 500) 
+    // Graph/Cluster compression (Returned back to original)
+    const baseCompression = isBtc
+      ? (isFutures ? 25 : 500)
       : 25;
     
     const compression = baseCompression * compressionMultiplier;
       
     const tickStep = baseTickStep * compression;
+
+    // Orderbook compression (Decoupled: Spot is 5000, Futures remains tickStep)
+    const orderBookTickStep = isFutures
+      ? tickStep
+      : (baseTickStep * 5000);
+      
+    orderBookTickStepRef.current = orderBookTickStep;
 
     async function loadRealBinanceData() {
       try {
@@ -821,13 +874,13 @@ export default function App() {
           }));
         }
 
-        // 2. Fetch real initial Order Book depth from Binance Depth API
-        const realBook = await fetchBinanceDepth(activePair.symbol, isFutures, tickStep);
+        // 2. Fetch real initial Order Book depth from Binance Depth API (Using orderBookTickStep)
+        const realBook = await fetchBinanceDepth(activePair.symbol, isFutures, orderBookTickStep);
         if (!active) return;
         if (realBook) {
           setOrderBook(realBook);
         } else {
-          setOrderBook(generateOrderBook(activePair.price, tickStep));
+          setOrderBook(generateOrderBook(activePair.price, orderBookTickStep));
         }
 
         setConnectionStatus("connected");
@@ -843,7 +896,7 @@ export default function App() {
         }
         setCandles(histCandles);
 
-        const initialBook = generateOrderBook(activePair.price, tickStep);
+        const initialBook = generateOrderBook(activePair.price, orderBookTickStep);
         setOrderBook(initialBook);
 
         setConnectionStatus("connected");
@@ -925,7 +978,7 @@ export default function App() {
     );
 
     // 3. Update Order Book Depth once per batch
-    setOrderBook(generateOrderBook(lastTick.price, activePairRef.current.priceStep));
+    setOrderBook(generateOrderBook(lastTick.price, orderBookTickStepRef.current));
 
     // 4. Update candle clusters in real-time
     setCandles((prevCandles) => {
@@ -1035,6 +1088,109 @@ export default function App() {
           }
 
           lastCandle.cells = cells.sort((a, b) => b.price - a.price);
+
+          // --- REAL-TIME TELEGRAM ALERT CHECKER ---
+          const csSettingsObj = indicators.find((i) => i.id === "clusterSearch")?.settings || {};
+          const isClusterSearchActive = indicators.find((i) => i.id === "clusterSearch")?.isActive ?? false;
+
+          if (isClusterSearchActive && lastCandle.cells && lastCandle.cells.length > 0) {
+            const csMergeLevels = typeof csSettingsObj.csMergeLevels === "number" ? csSettingsObj.csMergeLevels : 1;
+            const csImbalancePercent = typeof csSettingsObj.csImbalancePercent === "number" ? csSettingsObj.csImbalancePercent : 60;
+            
+            // Filters
+            const csMedMinVolume = typeof csSettingsObj.csMedMinVolume === "number" ? csSettingsObj.csMedMinVolume : 100;
+            const csMedMaxVolume = typeof csSettingsObj.csMedMaxVolume === "number" ? csSettingsObj.csMedMaxVolume : 500;
+            const csMedTgAlert = csSettingsObj.csMedTgAlert ?? false;
+            
+            const csLargeMinVolume = typeof csSettingsObj.csLargeMinVolume === "number" ? csSettingsObj.csLargeMinVolume : 500;
+            const csLargeTgAlert = csSettingsObj.csLargeTgAlert ?? false;
+
+            const sortedList = [...lastCandle.cells].sort((a, b) => b.price - a.price);
+            const K = Math.max(1, Math.min(csMergeLevels, sortedList.length));
+
+            for (let i = 0; i <= sortedList.length - K; i++) {
+              let sumVolume = 0;
+              let sumBid = 0;
+              let sumAsk = 0;
+              
+              for (let j = 0; j < K; j++) {
+                const cell = sortedList[i + j];
+                if (cell) {
+                  sumVolume += cell.volume;
+                  sumBid += cell.bid;
+                  sumAsk += cell.ask;
+                }
+              }
+
+              if (sumVolume <= 0) continue;
+
+              const bidImbalance = (sumBid / sumVolume) * 100;
+              const askImbalance = (sumAsk / sumVolume) * 100;
+
+              const isBidDominant = bidImbalance >= csImbalancePercent;
+              const isAskDominant = askImbalance >= csImbalancePercent;
+
+              if (!isBidDominant && !isAskDominant) {
+                continue;
+              }
+
+              const imbalanceSide = isBidDominant ? "bid" : "ask";
+              const imbalancePercent = Math.round(isBidDominant ? bidImbalance : askImbalance);
+
+              // Classify filter match
+              let matchedFilterType: "medium" | "large" | null = null;
+              let alertEnabled = false;
+
+              if (sumVolume >= csLargeMinVolume) {
+                matchedFilterType = "large";
+                alertEnabled = csLargeTgAlert;
+              } else if (sumVolume >= csMedMinVolume && sumVolume <= csMedMaxVolume) {
+                matchedFilterType = "medium";
+                alertEnabled = csMedTgAlert;
+              }
+
+              if (matchedFilterType && alertEnabled) {
+                const startPrice = sortedList[i].price;
+                const uniqueAlertId = `${lastCandle.timestamp}_${startPrice}_${matchedFilterType}`;
+
+                if (!csSentAlertsRef.current.has(uniqueAlertId)) {
+                  csSentAlertsRef.current.add(uniqueAlertId);
+
+                  const formattedPrice = startPrice.toLocaleString();
+                  const sideStr = imbalanceSide === "bid" 
+                    ? (language === "RU" ? "преобладание бидов (продавцы)" : "Bid Dominance (Sellers)")
+                    : (language === "RU" ? "преобладание асков (покупатели)" : "Ask Dominance (Buyers)");
+                  
+                  const filterLabel = matchedFilterType === "large" 
+                    ? (language === "RU" ? "🚨 КРУПНЫЙ ФИЛЬТР СТАКАНА" : "🚨 LARGE CLUSTER FILTER")
+                    : (language === "RU" ? "🐳 СРЕДНИЙ ФИЛЬТР СТАКАНА" : "🐳 MEDIUM CLUSTER FILTER");
+
+                  let msg = "";
+                  if (language === "RU") {
+                    msg = `${filterLabel}: Объем в ${Math.round(sumVolume)} контрактов замечен на BTC/USD уровне цены $${formattedPrice}! Перевес по Bid/Ask: ${imbalancePercent}% (${sideStr}). Объединено уровней: ${csMergeLevels}.`;
+                  } else {
+                    msg = `${filterLabel}: Volume of ${Math.round(sumVolume)} detected at BTC/USD level of $${formattedPrice}! Bid/Ask Imbalance: ${imbalancePercent}% (${sideStr}). Levels merged: ${csMergeLevels}.`;
+                  }
+
+                  const newAlert = {
+                    id: "tg-alert-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+                    timestamp: Date.now(),
+                    message: msg,
+                    type: matchedFilterType,
+                    pair: activePairRef.current.symbol,
+                    price: startPrice,
+                    volume: sumVolume,
+                    imbalanceSide,
+                    imbalancePercent,
+                    dismissed: false
+                  };
+
+                  setTelegramAlerts(prev => [newAlert, ...prev].slice(0, 100));
+                  console.log("[Telegram Router Core]: Dispatched notification alert: " + uniqueAlertId);
+                }
+              }
+            }
+          }
 
           // Value Area (VAH/VAL) Estimation
           const sortedByVol = [...cells].sort((a, b) => b.volume - a.volume);
@@ -1267,6 +1423,8 @@ export default function App() {
         onOpenAdmin={() => setCurrentView(prev => prev === "admin" ? "terminal" : "admin")}
         language={language}
         onLanguageChange={handleLanguageChange}
+        userRole={userRole}
+        onChangeUserRole={handleUserRoleChange}
       />
 
       {currentView === "admin" ? (
@@ -1656,6 +1814,91 @@ export default function App() {
         onApply={(updatedIndicators) => setIndicators(updatedIndicators)}
         theme={theme}
       />
+
+      {/* ✈️ REAL-TIME TELEGRAM ALERT BANNER BOX */}
+      {indicators.find(i => i.id === "clusterSearch")?.isActive && (
+        <div className="fixed bottom-6 right-6 z-[999] max-w-sm w-full flex flex-col gap-3 pointer-events-none">
+          <AnimatePresence>
+            {telegramAlerts.filter(a => !a.dismissed).slice(0, 3).map((alert) => {
+              const isAllowed = userRole === "VIP" || userRole === "Admin";
+              
+              return (
+                <motion.div
+                  key={alert.id}
+                  initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 50, scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  className={`pointer-events-auto rounded-[24px] p-4.5 shadow-2xl border transition-all ${
+                    theme === "light"
+                      ? "bg-white border-slate-205 text-slate-800 shadow-slate-200/50"
+                      : "bg-[#090d16]/95 border-sky-500/20 text-slate-100 shadow-black/80"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[12px] animate-bounce">✈️</span>
+                      <span className={`text-[10px] font-mono font-black uppercase tracking-wider ${
+                        theme === "light" ? "text-sky-700" : "text-sky-400"
+                      }`}>
+                        {language === "RU" ? "ТГ Увед-Бот" : "Telegram Alert Bot"}
+                      </span>
+                      {isAllowed ? (
+                        <span className="text-[8px] font-extrabold uppercase bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded border border-emerald-500/25">
+                          {userRole}
+                        </span>
+                      ) : (
+                        <span className="text-[8px] font-extrabold uppercase bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/25">
+                          {language === "RU" ? "ЗАБЛОКИРОВАНО (GUEST)" : "LOCKED (GUEST)"}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setTelegramAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, dismissed: true } : a));
+                      }}
+                      className={`text-[11px] font-bold cursor-pointer hover:bg-slate-200/50 hover:text-red-500 p-1 rounded-lg ${
+                        theme === "light" ? "text-slate-400" : "text-slate-500 hover:bg-white/5"
+                      }`}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {!isAllowed ? (
+                    <div className="relative">
+                      {/* Blurred teaser message */}
+                      <div className="filter blur-[4.5px] select-none opacity-40 text-[10.5px] font-mono leading-relaxed pointer-events-none">
+                        🚨 LARGE CLUSTER FILTER: BTC/USD Volume of 1840K detected at price level $67,930! Imbalance: 75% Bid Dominance.
+                      </div>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-1">
+                        <span className="text-[11.5px] font-bold text-amber-500 flex items-center gap-1 mb-0.5">
+                          🔒 {language === "RU" ? "Только для VIP & Admin" : "Exclusive VIP & Admin Feature"}
+                        </span>
+                        <p className={`text-[9.5px] leading-snug max-w-[280px] font-medium ${theme === "light" ? "text-slate-500" : "text-slate-405"}`}>
+                          {language === "RU" 
+                            ? "Выберите роль VIP или Admin в меню профиля сверху справа, чтобы мгновенно включить поток уведомлений в Телеграм."
+                            : "Select VIP or Admin as your role in the profile dropdown at the top-right to instantly unlock Telegram alerts streams."}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-[10.5px] font-mono font-bold leading-relaxed whitespace-pre-wrap">
+                        {alert.message}
+                      </p>
+                      <div className="mt-2.5 flex items-center justify-between text-[8px] font-mono font-bold text-slate-550">
+                        <span>{language === "RU" ? "ОТПРАВЛЕНО В @PROCLUSTER_BOT" : "SENT TO @PROCLUSTER_BOT"}</span>
+                        <span>{new Date(alert.timestamp).toLocaleTimeString()}</span>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }

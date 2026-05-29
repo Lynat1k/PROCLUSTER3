@@ -7,6 +7,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { CryptoPair } from "../types";
 import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import logo from "../assets/images/procluster_logo_1779485281399.png";
 
 interface HeaderProps {
   isTickingAll: boolean;
@@ -17,6 +18,8 @@ interface HeaderProps {
   onOpenAdmin?: () => void;
   language: "RU" | "EN" | "KZ";
   onLanguageChange: (lang: "RU" | "EN" | "KZ") => void;
+  userRole: "Guest" | "VIP" | "Admin";
+  onChangeUserRole: (role: "Guest" | "VIP" | "Admin") => void;
 }
 
 export default function Header({
@@ -27,7 +30,9 @@ export default function Header({
   onToggleTheme,
   onOpenAdmin,
   language,
-  onLanguageChange
+  onLanguageChange,
+  userRole,
+  onChangeUserRole
 }: HeaderProps) {
   
   const isLight = theme === "light";
@@ -272,89 +277,14 @@ export default function Header({
     setShowLoginModal(false);
   };
 
-  // Custom stenciled PROCLUSTER SVG Logo - pure vector, razor-sharp, perfectly transparent
+  // Custom stenciled PROCLUSTER Logo - imported PNG image with responsive height
   const Logo = () => (
     <div className="flex items-center select-none">
-      <svg
-        viewBox="0 0 210 38"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-[44px] sm:h-[48px] w-auto drop-shadow-[0_2px_12px_rgba(234,179,8,0.2)] hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
-      >
-        <defs>
-          {/* Pro orange/yellow solid color */}
-          <linearGradient id="proGradient" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#FBBF24" />
-            <stop offset="100%" stopColor="#F59E0B" />
-          </linearGradient>
-          
-          {/* Custom Mask to introduce horizontal stencil gaps exactly matching the logo design */}
-          <mask id="stencilMask">
-            <rect x="0" y="0" width="210" height="38" fill="#FFFFFF" />
-            {/* Horizontal gaps for the authentic stencil font slits */}
-            <rect x="35" y="15" width="175" height="1.75" fill="#000000" />
-            <rect x="35" y="24" width="175" height="1.0" fill="#000000" />
-          </mask>
-        </defs>
-
-        {/* 1. Icon Section: 4 Trading Bars (Green, Red, Green, Green) */}
-        {/* Bar 1: Green */}
-        <rect x="4" y="25" width="4.5" height="9" rx="1.2" fill="#10B981" />
-        {/* Bar 2: Red */}
-        <rect x="11" y="19" width="4.5" height="15" rx="1.2" fill="#EF4444" />
-        {/* Bar 3: Green */}
-        <rect x="18" y="13" width="4.5" height="21" rx="1.2" fill="#10B981" />
-        {/* Bar 4: Green */}
-        <rect x="25" y="7" width="4.5" height="27" rx="1.2" fill="#10B981" />
-
-        {/* Curve overlays the bars */}
-        <path
-          d="M 1 27 Q 13 19 29 10"
-          stroke={isLight ? "#0f172a" : "#FFFFFF"}
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          fill="none"
-        />
-        {/* Arrow pointer head matching image */}
-        <path
-          d="M 23 9 L 31 8 L 28 16 Z"
-          fill={isLight ? "#0f172a" : "#FFFFFF"}
-        />
-
-        {/* 2. Text Section with mask for stencil cut gaps */}
-        <g mask="url(#stencilMask)">
-          {/* PRO text in bold golden/orange */}
-          <text
-            x="38"
-            y="28"
-            fill="url(#proGradient)"
-            fontFamily="'Space Grotesk', 'Inter', system-ui, sans-serif"
-            fontWeight="900"
-            fontSize="23"
-            letterSpacing="0.04em"
-            className="select-none"
-          >
-            PRO
-          </text>
-          
-          {/* CLUSTER text in white stenciled outline */}
-          <text
-            x="92"
-            y="28"
-            fill="none"
-            stroke={isLight ? "#0f172a" : "#FFFFFF"}
-            strokeWidth="1.25"
-            fontFamily="'Space Grotesk', 'Inter', system-ui, sans-serif"
-            fontWeight="300"
-            fontSize="23"
-            letterSpacing="0.04em"
-            className="select-none"
-            strokeOpacity="0.95"
-          >
-            CLUSTER
-          </text>
-        </g>
-      </svg>
+      <img
+        src={logo}
+        alt="PROCLUSTER Logo"
+        className="h-[46px] sm:h-[56px] w-auto transition-all duration-200 select-none cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
+      />
     </div>
   );
 
@@ -573,6 +503,58 @@ export default function Header({
                                 : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
                             }`}>
                               {lang}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* VIP & Admin Role Selector (Simulating subscription tier overrides) */}
+                  <div className={`mt-4 pt-3.5 border-t ${isLight ? "border-slate-100" : "border-white/5"}`}>
+                    <span className={`text-[9px] font-mono font-extrabold tracking-widest uppercase block mb-2 px-1 ${
+                      isLight ? "text-slate-500" : "text-slate-400"
+                    }`}>
+                      {language === "EN" ? "SUBSCRIPTION ROLE" : language === "KZ" ? "ТІРКЕЛГІ ДӘРЕЖЕСІ" : "РОЛЬ И ДОСТУП"}
+                    </span>
+                    <div className={`grid grid-cols-3 gap-1 p-[3px] rounded-2xl border shadow-inner ${
+                      isLight ? "bg-slate-100/80 border-slate-200/50" : "bg-slate-950/60 border-white/5"
+                    }`}>
+                      {["Guest", "VIP", "Admin"].map((roleOption) => {
+                        const isSelected = userRole === roleOption;
+                        let roleLabel = roleOption;
+                        if (roleOption === "Guest") roleLabel = language === "RU" ? "Гость" : language === "KZ" ? "Қонақ" : "Guest";
+                        
+                        return (
+                          <button
+                            key={roleOption}
+                            onClick={() => onChangeUserRole(roleOption as any)}
+                            className="py-1.5 rounded-xl text-[9.5px] font-bold cursor-pointer text-center relative border-0 outline-none"
+                          >
+                            {isSelected && (
+                              <motion.div
+                                layoutId="activeRole"
+                                className={`absolute inset-0 rounded-xl ${
+                                  roleOption === "Admin"
+                                    ? "bg-rose-500/25 border border-rose-500/35"
+                                    : roleOption === "VIP"
+                                      ? "bg-amber-500/25 border border-amber-500/35"
+                                      : "bg-slate-500/25 border border-slate-500/35"
+                                }`}
+                                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                                style={{ zIndex: 0 }}
+                              />
+                            )}
+                            <span className={`relative z-10 transition-colors duration-200 ${
+                              isSelected
+                                ? roleOption === "Admin"
+                                  ? "text-rose-500 font-extrabold"
+                                  : roleOption === "VIP"
+                                    ? "text-amber-500 font-extrabold"
+                                    : isLight ? "text-slate-900 font-extrabold" : "text-white font-extrabold"
+                                : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-205"
+                            }`}>
+                              {roleLabel}
                             </span>
                           </button>
                         );

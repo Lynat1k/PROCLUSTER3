@@ -81,6 +81,31 @@ export interface IndicatorSettings {
   showLabels?: boolean;  // toggle text values
   smoothing?: number;    // period logic
   ratio?: number;        // stacked imbalance ratio
+  
+  // Cluster Search Medium Filter Settings
+  csMedMinVolume?: number;
+  csMedMaxVolume?: number;
+  csMedMinSize?: number;
+  csMedMaxSize?: number;
+  csMedShape?: "circle" | "square" | "rhombus";
+  csMedColorBid?: string;
+  csMedColorAsk?: string;
+  csMedOpacity?: number;
+  csMedTgAlert?: boolean;
+
+  // Cluster Search Large Filter Settings
+  csLargeMinVolume?: number;
+  csLargeMinSize?: number;
+  csLargeMaxSize?: number;
+  csLargeShape?: "circle" | "square" | "rhombus";
+  csLargeColorBid?: string;
+  csLargeColorAsk?: string;
+  csLargeOpacity?: number;
+  csLargeTgAlert?: boolean;
+
+  // Cluster Search Common Settings
+  csMergeLevels?: number;
+  csImbalancePercent?: number;
 }
 
 export interface Indicator {
