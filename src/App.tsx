@@ -631,17 +631,64 @@ export default function App() {
     localStorage.setItem("procluster_candle_data_type", candleDataType);
   }, [candleDataType]);
 
-  // Active User Role state (Guest, VIP, or Admin) for Telegram notification gating
-  const [userRole, setUserRole] = useState<"Guest" | "VIP" | "Admin">(() => {
-    const saved = localStorage.getItem("procluster_role");
-    if (saved === "Guest" || saved === "VIP" || saved === "Admin") return saved;
+  // Active User Role state (Guest, Free, Pro, VIP, or Admin) for Telegram notification gating
+  const [userRole, setUserRole] = useState<"Guest" | "Free" | "Pro" | "VIP" | "Admin">(() => {
+    const savedRole = localStorage.getItem("procluster_role");
+    if (savedRole === "Guest" || savedRole === "Free" || savedRole === "Pro" || savedRole === "VIP" || savedRole === "Admin") return savedRole as any;
+    
+    // Fallback to procluster_user tier if it exists!
+    const savedUser = localStorage.getItem("procluster_user");
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        const tier = (parsed.tier || "Free").toLowerCase();
+        if (tier === "admin" || parsed.role === "Admin" || parsed.subscriptionLevel === "Admin") return "Admin";
+        if (tier === "vip" || parsed.subscriptionLevel === "VIP") return "VIP";
+        if (tier === "pro" || parsed.subscriptionLevel === "Pro") return "Pro";
+        if (tier === "free" || parsed.subscriptionLevel === "Free") return "Free";
+        return "Guest";
+      } catch (e) {}
+    }
     return "Admin"; // Standard default has high permissions
   });
 
   // Keep saved role synchronous with local storage
-  const handleUserRoleChange = (role: "Guest" | "VIP" | "Admin") => {
+  const handleUserRoleChange = (role: "Guest" | "Free" | "Pro" | "VIP" | "Admin") => {
     setUserRole(role);
     localStorage.setItem("procluster_role", role);
+
+    // Keep profileUser and localStorage "procluster_user" synchronized
+    setProfileUser((prev) => {
+      const tierMap: Record<string, string> = {
+        Guest: "Guest",
+        Free: "Free",
+        Pro: "Pro",
+        VIP: "VIP",
+        Admin: "Admin"
+      };
+      const newTier = tierMap[role] || "Free";
+      const updated = prev
+        ? {
+            ...prev,
+            tier: newTier,
+            role: role,
+            subscriptionLevel: role
+          }
+        : {
+            name: role === "Guest" ? "Guest" : role,
+            email: role === "Guest" ? "guest@procluster.io" : `${role.toLowerCase()}@procluster.io`,
+            avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+            regDate: "2026-05-29",
+            tier: newTier,
+            role: role,
+            subscriptionLevel: role
+          };
+      localStorage.setItem("procluster_user", JSON.stringify(updated));
+      return updated;
+    });
+
+    // Notify other components of profile user updates
+    window.dispatchEvent(new Event("procluster_user_updated"));
   };
 
   // Telegram Notifications alerts state
@@ -795,12 +842,20 @@ export default function App() {
         return null;
       }
     }
+    const savedRole = localStorage.getItem("procluster_role") || "Admin";
+    const tierMap: Record<string, string> = {
+      Guest: "Guest",
+      Free: "Free",
+      Pro: "Pro",
+      VIP: "VIP",
+      Admin: "Admin"
+    };
     return {
-      name: "Guest",
-      email: "guest@procluster.io",
+      name: savedRole === "Guest" ? "Guest" : savedRole,
+      email: savedRole === "Guest" ? "guest@procluster.io" : `${savedRole.toLowerCase()}@procluster.io`,
       avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
       regDate: "2026-05-29",
-      tier: "Free"
+      tier: tierMap[savedRole] || "Admin"
     };
   });
 
@@ -810,7 +865,26 @@ export default function App() {
       const saved = localStorage.getItem("procluster_user");
       if (saved) {
         try {
-          setProfileUser(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          setProfileUser(parsed);
+          
+          // Align userRole state and storage perfectly with the parsed profile user tier!
+          const tier = (parsed.tier || "Free").toLowerCase();
+          let nextRole: "Guest" | "Free" | "Pro" | "VIP" | "Admin" = "Guest";
+          if (tier === "admin" || parsed.role === "Admin" || parsed.subscriptionLevel === "Admin") {
+            nextRole = "Admin";
+          } else if (tier === "vip" || parsed.subscriptionLevel === "VIP") {
+            nextRole = "VIP";
+          } else if (tier === "pro" || parsed.subscriptionLevel === "Pro") {
+            nextRole = "Pro";
+          } else if (tier === "free" || parsed.subscriptionLevel === "Free") {
+            nextRole = "Free";
+          } else {
+            nextRole = "Guest";
+          }
+          
+          setUserRole(nextRole);
+          localStorage.setItem("procluster_role", nextRole);
         } catch (e) {
           // ignore
         }
@@ -825,6 +899,71 @@ export default function App() {
       window.removeEventListener("storage", handleUpdate);
     };
   }, []);
+
+  const getActiveGroupLimits = () => {
+    let group: "guest" | "free" | "pro" | "vip" | "admin" = "guest";
+    
+    // First priorities: userRole from header
+    if (userRole === "Admin") {
+      group = "admin";
+    } else if (userRole === "VIP") {
+      group = "vip";
+    } else if (userRole === "Pro") {
+      group = "pro";
+    } else if (userRole === "Free") {
+      group = "free";
+    } else if (userRole === "Guest") {
+      group = "guest";
+    } else if (profileUser) {
+      const tier = (profileUser.tier || "Free").toLowerCase();
+      if (tier === "admin" || (profileUser as any).role === "Admin" || (profileUser as any).subscriptionLevel === "Admin") {
+        group = "admin";
+      } else if (tier === "vip" || (profileUser as any).subscriptionLevel === "VIP") {
+        group = "vip";
+      } else if (tier === "pro" || tier === "rpo" || (profileUser as any).subscriptionLevel === "RPO") {
+        group = "pro";
+      } else if (tier === "free") {
+        group = "free";
+      } else {
+        group = "guest";
+      }
+    }
+
+    let settings: Record<"guest" | "free" | "pro" | "vip" | "admin", {
+      maxHistory: number;
+      compressionLevels: number;
+      maxIndicators: number;
+      customIndicatorSettings: boolean;
+      telegramNotifications: boolean;
+    }> = {
+      guest: { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false },
+      free: { maxHistory: 200, compressionLevels: 2, maxIndicators: 2, customIndicatorSettings: false, telegramNotifications: false },
+      pro: { maxHistory: 1000, compressionLevels: 4, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
+      vip: { maxHistory: 5000, compressionLevels: 5, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
+      admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true }
+    };
+    const savedSettings = localStorage.getItem("procluster_tier_settings");
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed) {
+          if (!parsed.guest) {
+            parsed.guest = { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false };
+          }
+          for (const k of Object.keys(parsed)) {
+            const s = parsed[k];
+            if (s && typeof s.compressionLevels === "number") {
+              s.compressionLevels = Math.min(6, Math.max(1, s.compressionLevels));
+            }
+          }
+          settings = parsed;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    return settings[group] || settings.free;
+  };
 
   // Click outside to close the ticker custom menu
   useEffect(() => {
@@ -904,7 +1043,8 @@ export default function App() {
           realCandles = await fetchBinanceKlines(activePair.symbol, interval, isFutures, tickStep);
         }
         if (!active) return;
-        setCandles(realCandles);
+        const limits = getActiveGroupLimits();
+        setCandles(realCandles.slice(-limits.maxHistory));
 
         if (realCandles.length > 0) {
           const lastCandle = realCandles[realCandles.length - 1];
@@ -945,7 +1085,8 @@ export default function App() {
         console.warn("[Binance REST] Load failed, falling back to simulated data with custom compression", err);
         if (!active) return;
 
-        const histCandles = generateHistoricalCandles({ ...activePair, priceStep: tickStep }, 120, parseInterval(interval));
+        const limits = getActiveGroupLimits();
+        const histCandles = generateHistoricalCandles({ ...activePair, priceStep: tickStep }, Math.min(120, limits.maxHistory), parseInterval(interval));
         if (interval === "50t") {
           histCandles.forEach(c => {
             c.tickCount = 50;
@@ -1086,7 +1227,8 @@ export default function App() {
             val: parseFloat(cellPrice.toFixed(4))
           };
 
-          nextCandles = [...nextCandles, newCandle].slice(-1000);
+          const limits = getActiveGroupLimits();
+          nextCandles = [...nextCandles, newCandle].slice(-limits.maxHistory);
         } else {
           // Update the current last candle
           lastCandle.close = tick.price;
@@ -1222,11 +1364,20 @@ export default function App() {
                     ? (language === "RU" ? "🚨 КРУПНЫЙ ФИЛЬТР СТАКАНА" : "🚨 LARGE CLUSTER FILTER")
                     : (language === "RU" ? "🐳 СРЕДНИЙ ФИЛЬТР СТАКАНА" : "🐳 MEDIUM CLUSTER FILTER");
 
+                  const limits = getActiveGroupLimits();
                   let msg = "";
-                  if (language === "RU") {
-                    msg = `${filterLabel}: Объем в ${Math.round(sumVolume)} контрактов замечен на BTC/USD уровне цены $${formattedPrice}! Перевес по Bid/Ask: ${imbalancePercent}% (${sideStr}). Объединено уровней: ${csMergeLevels}.`;
+                  if (!limits.telegramNotifications) {
+                    if (language === "RU") {
+                      msg = `[Блокировка: тариф не поддерживает ТГ-оповещения] ${filterLabel}: Объем в ${Math.round(sumVolume)} контрактов замечен на BTC/USD уровне цены $${formattedPrice}!`;
+                    } else {
+                      msg = `[Blocked: tariff doesn't support TG notification triggers] ${filterLabel}: Volume of ${Math.round(sumVolume)} detected at BTC/USD level of $${formattedPrice}!`;
+                    }
                   } else {
-                    msg = `${filterLabel}: Volume of ${Math.round(sumVolume)} detected at BTC/USD level of $${formattedPrice}! Bid/Ask Imbalance: ${imbalancePercent}% (${sideStr}). Levels merged: ${csMergeLevels}.`;
+                    if (language === "RU") {
+                      msg = `${filterLabel}: Объем в ${Math.round(sumVolume)} контрактов замечен на BTC/USD уровне цены $${formattedPrice}! Перевес по Bid/Ask: ${imbalancePercent}% (${sideStr}). Объединено уровней: ${csMergeLevels}.`;
+                    } else {
+                      msg = `${filterLabel}: Volume of ${Math.round(sumVolume)} detected at BTC/USD level of $${formattedPrice}! Bid/Ask Imbalance: ${imbalancePercent}% (${sideStr}). Levels merged: ${csMergeLevels}.`;
+                    }
                   }
 
                   const newAlert = {
@@ -1234,6 +1385,7 @@ export default function App() {
                     timestamp: Date.now(),
                     message: msg,
                     type: matchedFilterType,
+                    isBlocked: !limits.telegramNotifications,
                     pair: activePairRef.current.symbol,
                     price: startPrice,
                     volume: sumVolume,
@@ -1243,7 +1395,7 @@ export default function App() {
                   };
 
                   setTelegramAlerts(prev => [newAlert, ...prev].slice(0, 100));
-                  console.log("[Telegram Router Core]: Dispatched notification alert: " + uniqueAlertId);
+                  console.log("[Telegram Router Core]: Dispatched notification alert. Active TG permission: " + limits.telegramNotifications);
                 }
               }
             }
@@ -1775,6 +1927,8 @@ export default function App() {
               }`}
             >
               {[1, 2, 3, 4, 5, 6].map((multiplier) => {
+                const limits = getActiveGroupLimits();
+                const isLocked = multiplier > limits.compressionLevels;
                 const isBtc = activePair.symbol.toUpperCase().includes("BTC");
                 const baseComp = isBtc 
                   ? (marketType === "FUTURES" ? 25 : 500) 
@@ -1784,9 +1938,10 @@ export default function App() {
                   <option 
                     key={multiplier} 
                     value={multiplier} 
+                    disabled={isLocked}
                     className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-350 font-sans"}
                   >
-                    {multiplier}x ({actualValue})
+                    {multiplier}x ({actualValue}){isLocked ? " 🔒 (Уровень закрыт)" : ""}
                   </option>
                 );
               })}

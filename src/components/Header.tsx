@@ -7,7 +7,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { CryptoPair } from "../types";
 import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import logo from "../assets/images/procluster_logo_1779485281399.png";
 
 interface HeaderProps {
   isTickingAll: boolean;
@@ -18,8 +17,8 @@ interface HeaderProps {
   onOpenAdmin?: () => void;
   language: "RU" | "EN" | "KZ";
   onLanguageChange: (lang: "RU" | "EN" | "KZ") => void;
-  userRole: "Guest" | "VIP" | "Admin";
-  onChangeUserRole: (role: "Guest" | "VIP" | "Admin") => void;
+  userRole: "Guest" | "Free" | "Pro" | "VIP" | "Admin";
+  onChangeUserRole: (role: "Guest" | "Free" | "Pro" | "VIP" | "Admin") => void;
   onOpenProfile?: () => void;
   onOpenHome?: () => void;
 }
@@ -307,14 +306,26 @@ export default function Header({
     window.dispatchEvent(new Event("procluster_user_updated"));
   };
 
-  // Custom stenciled PROCLUSTER Logo - imported PNG image with responsive height
+  // Custom stenciled PROCLUSTER Logo - responsive Vector SVG / Typography design
   const Logo = () => (
-    <div className="flex items-center select-none">
-      <img
-        src={logo}
-        alt="PROCLUSTER Logo"
-        className="h-[46px] sm:h-[56px] w-auto transition-all duration-200 select-none cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
-      />
+    <div className="flex items-center gap-3 select-none cursor-pointer group hover:opacity-95 transition-all duration-200">
+      {/* Visual Identity Icon Frame */}
+      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 via-amber-500 to-amber-600 flex items-center justify-center shadow-md scale-100 group-hover:scale-105 active:scale-95 transition-all duration-200 ${
+        isLight ? "shadow-amber-600/10" : "shadow-amber-500/15"
+      }`}>
+        <Layers className="w-5.5 h-5.5 text-slate-950 stroke-[2.5]" />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-lg font-black tracking-tight leading-none font-sans">
+          <span className={isLight ? "text-slate-900" : "text-white"}>PRO</span>
+          <span className={isLight ? "text-amber-600" : "text-amber-400"}>CLUSTER</span>
+        </span>
+        <span className={`text-[9px] font-mono tracking-widest font-bold uppercase leading-none mt-1.5 ${
+          isLight ? "text-slate-500" : "text-slate-400"
+        }`}>
+          Cluster Analytics
+        </span>
+      </div>
     </div>
   );
 
@@ -557,19 +568,25 @@ export default function Header({
                     }`}>
                       {language === "EN" ? "SUBSCRIPTION ROLE" : language === "KZ" ? "ТІРКЕЛГІ ДӘРЕЖЕСІ" : "РОЛЬ И ДОСТУП"}
                     </span>
-                    <div className={`grid grid-cols-3 gap-1 p-[3px] rounded-2xl border shadow-inner ${
+                    <div className={`grid ${
+                      user && (user.name === "Admin" || user.email === "admin@procluster.io") ? "grid-cols-5" : "grid-cols-3"
+                    } gap-1 p-[3px] rounded-2xl border shadow-inner ${
                       isLight ? "bg-slate-100/80 border-slate-200/50" : "bg-slate-950/60 border-white/5"
                     }`}>
-                      {["Guest", "VIP", "Admin"].map((roleOption) => {
+                      {(user && (user.name === "Admin" || user.email === "admin@procluster.io") 
+                        ? ["Guest", "Free", "Pro", "VIP", "Admin"] 
+                        : ["Guest", "VIP", "Admin"]
+                      ).map((roleOption) => {
                         const isSelected = userRole === roleOption;
                         let roleLabel = roleOption;
                         if (roleOption === "Guest") roleLabel = language === "RU" ? "Гость" : language === "KZ" ? "Қонақ" : "Guest";
+                        if (roleOption === "Admin") roleLabel = language === "RU" ? "Админ" : language === "KZ" ? "Админ" : "Admin";
                         
                         return (
                           <button
                             key={roleOption}
                             onClick={() => onChangeUserRole(roleOption as any)}
-                            className="py-1.5 rounded-xl text-[9.5px] font-bold cursor-pointer text-center relative border-0 outline-none"
+                            className="py-1.5 rounded-xl text-[9px] font-black cursor-pointer text-center relative border-0 outline-none"
                           >
                             {isSelected && (
                               <motion.div
@@ -579,7 +596,11 @@ export default function Header({
                                     ? "bg-rose-500/25 border border-rose-500/35"
                                     : roleOption === "VIP"
                                       ? "bg-amber-500/25 border border-amber-500/35"
-                                      : "bg-slate-500/25 border border-slate-500/35"
+                                      : roleOption === "Pro"
+                                        ? "bg-blue-500/25 border border-blue-500/35"
+                                        : roleOption === "Free"
+                                          ? "bg-slate-400/20 border border-slate-400/30"
+                                          : "bg-purple-500/25 border border-purple-500/35"
                                 }`}
                                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
                                 style={{ zIndex: 0 }}
@@ -591,8 +612,12 @@ export default function Header({
                                   ? "text-rose-500 font-extrabold"
                                   : roleOption === "VIP"
                                     ? "text-amber-500 font-extrabold"
-                                    : isLight ? "text-slate-900 font-extrabold" : "text-white font-extrabold"
-                                : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-205"
+                                    : roleOption === "Pro"
+                                      ? "text-blue-500 font-extrabold"
+                                      : roleOption === "Free"
+                                        ? "text-slate-500 font-extrabold"
+                                        : isLight ? "text-purple-650 font-extrabold" : "text-purple-400 font-extrabold"
+                                : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
                             }`}>
                               {roleLabel}
                             </span>

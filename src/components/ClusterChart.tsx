@@ -6,7 +6,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings } from "../types";
 import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2 } from "lucide-react";
-import logo from "../assets/images/procluster_logo_1779485281399.png";
 
 interface ClusterChartProps {
   candles: ClusterCandle[];
@@ -754,6 +753,32 @@ export default function ClusterChart({
     // Clear and draw background (full viewport size)
     ctx.fillStyle = isLight ? "#f8fafc" : "#06080f";
     ctx.fillRect(0, 0, viewportWidth, totalSvgHeight);
+
+    // -------------------------------------------------------------------------
+    // RENDER TRADINGVIEW-STYLE INTEGRATED CHART WATERMARK
+    // -------------------------------------------------------------------------
+    ctx.save();
+    // Center it horizontally across the active visible candle plot area (excluding margins)
+    const watermarkX = margin.left + (viewportWidth - margin.left - margin.right) / 2;
+    // Center it vertically in the main candles chart height
+    const watermarkY = margin.top + chartHeight / 2;
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Primary watermark string "PROCLUSTER"
+    ctx.font = `bold 64px 'Space Grotesk', 'Inter', -apple-system, sans-serif`;
+    ctx.fillStyle = isLight ? "rgba(15, 23, 42, 0.03)" : "rgba(255, 255, 255, 0.025)";
+    ctx.fillText("PROCLUSTER", watermarkX, watermarkY - 14);
+
+    // Secondary sub-line with active instrument details
+    ctx.font = `600 12px 'JetBrains Mono', 'Fira Code', monospace`;
+    ctx.fillStyle = isLight ? "rgba(15, 23, 42, 0.05)" : "rgba(255, 255, 255, 0.05)";
+    const currentSymbol = activePair.symbol.toUpperCase();
+    const currentMarket = marketType || "SPOT";
+    ctx.fillText(`${currentSymbol} • ${currentMarket} • 1M`, watermarkX, watermarkY + 28);
+    ctx.restore();
+    // -------------------------------------------------------------------------
 
     // Save context and apply translation for scroll-relative elements
     ctx.save();
@@ -1733,6 +1758,19 @@ export default function ClusterChart({
           )}
         </div>
 
+        {/* Dynamic Vector floating Watermark Overlay */}
+        <div 
+          className="absolute right-[106px] pointer-events-none select-none z-20 opacity-30 sm:opacity-40 transition-all duration-300 flex items-center gap-1.5"
+          style={{ bottom: `${margin.bottom + deltaHeightTotal + cvdHeightTotal + 16}px` }}
+        >
+          <div className="w-5 h-5 rounded bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow">
+            <Layers className="w-3 h-3 text-slate-955" strokeWidth={2.5} />
+          </div>
+          <span className={`text-[10px] font-black tracking-wider uppercase font-sans ${isLight ? "text-slate-800" : "text-slate-100"}`}>
+            PRO<span className={isLight ? "text-amber-600" : "text-amber-400"}>CLUSTER</span>
+          </span>
+        </div>
+
       {/* Fixed Price Scale Panel on the Right */}
       <div
         onWheel={(e) => {
@@ -2147,13 +2185,6 @@ export default function ClusterChart({
         </div>
       )}
 
-      {/* Watermark in the bottom right corner of the chart, dynamically positioned above indicator panels and timeline */}
-      <div 
-        className="absolute right-[105px] pointer-events-none select-none z-10 opacity-20 transition-all duration-300"
-        style={{ bottom: `${margin.bottom + deltaHeightTotal + cvdHeightTotal + 12}px` }}
-      >
-        <img src={logo} alt="ProCluster Watermark" className="h-8 object-contain" referrerPolicy="no-referrer" />
-      </div>
     </div>
 
       {/* Floating Detailed Cell HUD */}

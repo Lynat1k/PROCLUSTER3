@@ -107,6 +107,73 @@ export default function AdminPanel({
 
   const [activeCompTicker, setActiveCompTicker] = useState<string>(activePair.symbol);
 
+  // State for user groups / tier settings
+  const [selectedGroup, setSelectedGroup] = useState<"guest" | "free" | "pro" | "vip" | "admin" >("guest");
+  
+  const [tierSettings, setTierSettings] = useState<Record<"guest" | "free" | "pro" | "vip" | "admin", {
+    maxHistory: number;
+    compressionLevels: number;
+    maxIndicators: number;
+    customIndicatorSettings: boolean;
+    telegramNotifications: boolean;
+  }>>(() => {
+    const saved = localStorage.getItem("procluster_tier_settings");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed) {
+          if (!parsed.guest) {
+            parsed.guest = { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false };
+          }
+          for (const k of Object.keys(parsed)) {
+            const s = parsed[k];
+            if (s && typeof s.compressionLevels === "number") {
+              s.compressionLevels = Math.min(6, Math.max(1, s.compressionLevels));
+            }
+          }
+          return parsed;
+        }
+      } catch (e) {
+        console.error("Failed to parse tier settings", e);
+      }
+    }
+    return {
+      guest: { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false },
+      free: { maxHistory: 200, compressionLevels: 2, maxIndicators: 2, customIndicatorSettings: false, telegramNotifications: false },
+      pro: { maxHistory: 1000, compressionLevels: 4, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
+      vip: { maxHistory: 5000, compressionLevels: 5, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
+      admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true }
+    };
+  });
+
+  const [policySuccessMsg, setPolicySuccessMsg] = useState("");
+
+  const updateTierSetting = (group: "guest" | "free" | "pro" | "vip" | "admin", key: string, value: any) => {
+    let sanitizedValue = value;
+    if (key === "compressionLevels") {
+      sanitizedValue = Math.min(6, Math.max(1, parseInt(value) || 1));
+    }
+    setTierSettings(prev => {
+      const updated = {
+        ...prev,
+        [group]: {
+          ...prev[group],
+          [key]: sanitizedValue
+        }
+      };
+      localStorage.setItem("procluster_tier_settings", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleSavePolicies = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem("procluster_tier_settings", JSON.stringify(tierSettings));
+    window.dispatchEvent(new Event("procluster_tier_settings_updated"));
+    setPolicySuccessMsg("Политики ограничений успешно сохранены!");
+    setTimeout(() => setPolicySuccessMsg(""), 3000);
+  };
+
   // Auto-save default compressions to localStorage
   const updateDefaultCompression = (ticker: string, intervalVal: string, value: number) => {
     setDefaultCompressions(prev => {
@@ -1003,6 +1070,285 @@ export default function AdminPanel({
                     <span className="text-[9.5px] text-slate-450 font-mono">Биржа: Binance Futures/Spot</span>
                   </div>
                 </div>
+              </div>
+
+              {/* CONFIGURATION OF SUBSCRIPTION TIERS / POLICY POLICIES */}
+              <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
+                isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+              }`}>
+                <div className="flex flex-wrap justify-between items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-indigo-505 animate-spin-slow animate-spin" />
+                    <div>
+                      <h3 className={`text-sm font-black uppercase tracking-wider ${isLight ? "text-slate-800" : "text-white"}`}>
+                        Настройки Лимитов & Политик Групп (Guest, Free, Pro, VIP, Admin)
+                      </h3>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Управление правами доступа, лимитами истории, рендером и оповещениями для учетных записей
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {policySuccessMsg && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="text-[10px] font-mono font-black uppercase bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1 rounded-full flex items-center gap-1.5 shadow"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>{policySuccessMsg}</span>
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* TABS FOR EVERY TIER */}
+                <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-slate-950/20 border border-white/5">
+                  {(["guest", "free", "pro", "vip", "admin"] as const).map((g) => {
+                    const isActive = selectedGroup === g;
+
+                    return (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => setSelectedGroup(g)}
+                        className={`flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase tracking-wider cursor-pointer transition border ${
+                          isActive 
+                            ? g === "guest" ? "bg-purple-550/15 border-purple-500 text-purple-300" :
+                              g === "free" ? "bg-slate-500/15 border-slate-400 text-slate-300" :
+                              g === "pro" ? "bg-blue-500/15 border-blue-500 text-blue-300" :
+                              g === "vip" ? "bg-amber-500/15 border-amber-500 text-amber-400" :
+                              "bg-rose-500/15 border-rose-500 text-rose-300"
+                            : isLight ? "bg-white border-transparent text-slate-500 hover:bg-slate-50 shadow-sm" : "bg-transparent border-transparent text-slate-400 hover:bg-white/[0.02]"
+                        }`}
+                      >
+                        {g === "guest" && "GUEST ГОСТЬ"}
+                        {g === "free" && "FREE тариф"}
+                        {g === "pro" && "PRO тариф"}
+                        {g === "vip" && "VIP тариф"}
+                        {g === "admin" && "ADMIN права"}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* FORM CONTROLS FOR THE CHOSEN TIER */}
+                <form onSubmit={handleSavePolicies} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 font-sans mt-2">
+                  
+                  {/* METRIC 1: MAX CHART HISTORY */}
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between gap-3 ${
+                    isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                  }`}>
+                    <div>
+                      <span className={`text-[10px] font-mono font-black uppercase block tracking-wider ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+                        1. Максимальная история графика
+                      </span>
+                      <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
+                        Лимит отображаемых исторических свечей/тиков в сессии трейдера.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2 mt-2">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="number"
+                          min="50"
+                          max="50000"
+                          value={tierSettings[selectedGroup].maxHistory}
+                          onChange={(e) => updateTierSetting(selectedGroup, "maxHistory", parseInt(e.target.value) || 200)}
+                          className={`w-full max-w-[120px] rounded-lg px-3 py-1.5 font-mono font-black text-xs border ${
+                            isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/10 text-white"
+                          }`}
+                        />
+                        <span className="text-[11px] font-mono font-bold text-sky-400">свечей</span>
+                      </div>
+                      
+                      <div className="flex gap-1 flex-wrap">
+                        {[100, 500, 1000, 5000, 10000].map(val => (
+                          <button
+                            type="button"
+                            key={val}
+                            onClick={() => updateTierSetting(selectedGroup, "maxHistory", val)}
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border transition ${
+                              tierSettings[selectedGroup].maxHistory === val
+                                ? "bg-blue-500/15 border-blue-500 text-blue-400"
+                                : isLight ? "bg-white hover:bg-slate-100 border-slate-200 text-slate-600 shadow-sm" : "bg-slate-900 hover:bg-slate-800 border-white/5 text-slate-400"
+                            }`}
+                          >
+                            {val}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* METRIC 2: COMPRESSION LEVELS */}
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between gap-3 ${
+                    isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                  }`}>
+                    <div>
+                      <span className={`text-[10px] font-mono font-black uppercase block tracking-wider ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+                        2. Уровней сжатия графика
+                      </span>
+                      <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
+                        Допустимое количество шагов кластеризации стакана/свечей.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2 mt-2">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min="1"
+                          max="6"
+                          value={tierSettings[selectedGroup].compressionLevels}
+                          onChange={(e) => updateTierSetting(selectedGroup, "compressionLevels", parseInt(e.target.value) || 1)}
+                          className={`w-full h-1.5 rounded-full appearance-none cursor-pointer ${
+                            isLight ? "bg-slate-300 accent-blue-600" : "bg-slate-800 accent-blue-500"
+                          }`}
+                        />
+                        <span className="text-xs font-mono font-black text-amber-500 shrink-0 select-none min-w-[32px] text-center">
+                          {tierSettings[selectedGroup].compressionLevels}x
+                        </span>
+                      </div>
+                      
+                      <div className="flex gap-1 flex-wrap">
+                        {[1, 2, 3, 4, 5, 6].map(val => (
+                          <button
+                            type="button"
+                            key={val}
+                            onClick={() => updateTierSetting(selectedGroup, "compressionLevels", val)}
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border transition ${
+                              tierSettings[selectedGroup].compressionLevels === val
+                                ? "bg-blue-500/15 border-blue-500 text-blue-400"
+                                : isLight ? "bg-white hover:bg-slate-100 border-slate-200 text-slate-600 shadow-sm" : "bg-slate-900 hover:bg-slate-800 border-white/5 text-slate-400"
+                            }`}
+                          >
+                            {val}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* METRIC 3: MAX INDICATORS */}
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between gap-3 ${
+                    isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                  }`}>
+                    <div>
+                      <span className={`text-[10px] font-mono font-black uppercase block tracking-wider ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+                        3. Индикаторов на графике
+                      </span>
+                      <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
+                        Максимальный лимит оверлейных индикаторов в терминале.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2 mt-2">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={tierSettings[selectedGroup].maxIndicators}
+                          onChange={(e) => updateTierSetting(selectedGroup, "maxIndicators", parseInt(e.target.value) || 2)}
+                          className={`w-full max-w-[90px] rounded-lg px-3 py-1.5 font-mono font-black text-xs border ${
+                            isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/10 text-white"
+                          }`}
+                        />
+                        <span className="text-[11px] font-mono font-bold text-teal-400">активных</span>
+                      </div>
+                      
+                      <div className="flex gap-1 flex-wrap">
+                        {[2, 3, 5, 10, 20].map(val => (
+                          <button
+                            type="button"
+                            key={val}
+                            onClick={() => updateTierSetting(selectedGroup, "maxIndicators", val)}
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border transition ${
+                              tierSettings[selectedGroup].maxIndicators === val
+                                ? "bg-blue-500/15 border-blue-500 text-blue-400"
+                                : isLight ? "bg-white hover:bg-slate-100 border-slate-200 text-slate-600 shadow-sm" : "bg-slate-900 hover:bg-slate-800 border-white/5 text-slate-400"
+                            }`}
+                          >
+                            {val}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CHECKBOX 1: USE CUSTOM INDICATOR SETTINGS */}
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between gap-3 ${
+                    isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                  }`}>
+                    <div>
+                      <span className={`text-[10px] font-mono font-black uppercase block tracking-wider ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+                        4. Кастомные настройки индикаторов
+                      </span>
+                      <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
+                        Использование своих уникальных настроек и конфигурационных пресетов для индикаторов.
+                      </p>
+                    </div>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer mt-2 select-none">
+                      <input
+                        type="checkbox"
+                        checked={tierSettings[selectedGroup].customIndicatorSettings}
+                        onChange={(e) => updateTierSetting(selectedGroup, "customIndicatorSettings", e.target.checked)}
+                        className={`w-4 h-4 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer ${
+                          isLight ? "bg-white border-slate-300 text-blue-600" : "bg-slate-900 border-white/10 text-blue-500"
+                        }`}
+                      />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+                        {tierSettings[selectedGroup].customIndicatorSettings ? "РАЗРЕШЕНО (ACTIVE)" : "ЗАБЛОКИРОВАНО"}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* CHECKBOX 2: TG NOTIFICATIONS */}
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between gap-3 ${
+                    isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                  }`}>
+                    <div>
+                      <span className={`text-[10px] font-mono font-black uppercase block tracking-wider ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+                        5. Телеграм-уведомления (Cluster Search)
+                      </span>
+                      <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
+                        Уведомления в Telegram о фильтрациях в реальном времени в инструменте Cluster Search.
+                      </p>
+                    </div>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer mt-2 select-none">
+                      <input
+                        type="checkbox"
+                        checked={tierSettings[selectedGroup].telegramNotifications}
+                        onChange={(e) => updateTierSetting(selectedGroup, "telegramNotifications", e.target.checked)}
+                        className={`w-4 h-4 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer ${
+                          isLight ? "bg-white border-slate-300 text-blue-600" : "bg-slate-900 border-white/10 text-blue-500"
+                        }`}
+                      />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+                        {tierSettings[selectedGroup].telegramNotifications ? "ВКЛЮЧЕНО (TELEGRAM)" : "ОТКЛЮЧЕНО"}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* SAVE BUTTON FOR ALL POLICIES */}
+                  <div className="flex items-end justify-start">
+                    <button
+                      type="submit"
+                      className={`w-full py-3 px-4 rounded-xl font-black uppercase tracking-wider text-xs flex items-center justify-center gap-2 cursor-pointer border transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99] ${
+                        isLight 
+                          ? "bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-700 shadow-md shadow-indigo-600/10" 
+                          : "bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30 text-indigo-400"
+                      }`}
+                    >
+                      <Check className="w-4 h-4" />
+                      Сохранить все лимиты
+                    </button>
+                  </div>
+
+                </form>
               </div>
 
               {/* REGISTERED USERS MANAGEMENT PANEL */}

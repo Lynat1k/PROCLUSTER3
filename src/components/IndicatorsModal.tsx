@@ -22,6 +22,94 @@ export default function IndicatorsModal({
 }: IndicatorsModalProps) {
   const isLight = theme === "light";
 
+  const getActiveGroupLimits = () => {
+    let group: "guest" | "free" | "pro" | "vip" | "admin" = "guest";
+    
+    // Check direct role override first
+    const savedRole = localStorage.getItem("procluster_role");
+    if (savedRole) {
+      if (savedRole === "Admin") group = "admin";
+      else if (savedRole === "VIP") group = "vip";
+      else if (savedRole === "Pro") group = "pro";
+      else if (savedRole === "Free") group = "free";
+      else if (savedRole === "Guest") group = "guest";
+    } else {
+      const savedUser = localStorage.getItem("procluster_user");
+      if (savedUser) {
+        try {
+          const u = JSON.parse(savedUser);
+          const tier = (u.tier || "Free").toLowerCase();
+          if (tier === "admin" || u.role === "Admin" || u.subscriptionLevel === "Admin") {
+            group = "admin";
+          } else if (tier === "vip" || u.subscriptionLevel === "VIP") {
+            group = "vip";
+          } else if (tier === "pro" || tier === "rpo" || u.subscriptionLevel === "RPO") {
+            group = "pro";
+          } else if (tier === "free") {
+            group = "free";
+          } else {
+            group = "guest";
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
+    let settings: Record<"guest" | "free" | "pro" | "vip" | "admin", {
+      maxHistory: number;
+      compressionLevels: number;
+      maxIndicators: number;
+      customIndicatorSettings: boolean;
+      telegramNotifications: boolean;
+    }> = {
+      guest: { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false },
+      free: { maxHistory: 200, compressionLevels: 2, maxIndicators: 2, customIndicatorSettings: false, telegramNotifications: false },
+      pro: { maxHistory: 1000, compressionLevels: 4, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
+      vip: { maxHistory: 5000, compressionLevels: 5, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
+      admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true }
+    };
+    const savedSettings = localStorage.getItem("procluster_tier_settings");
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed) {
+          if (!parsed.guest) {
+            parsed.guest = { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false };
+          }
+          for (const k of Object.keys(parsed)) {
+            const s = parsed[k];
+            if (s && typeof s.compressionLevels === "number") {
+              s.compressionLevels = Math.min(6, Math.max(1, s.compressionLevels));
+            }
+          }
+          settings = parsed;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    return { group, limits: settings[group] || settings.guest };
+  };
+
+  const [profileVersion, setProfileVersion] = useState(0);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setProfileVersion((v) => v + 1);
+    };
+    window.addEventListener("procluster_user_updated", handleUpdate);
+    window.addEventListener("procluster_tier_settings_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("procluster_user_updated", handleUpdate);
+      window.removeEventListener("procluster_tier_settings_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, []);
+
+  const { limits, group } = getActiveGroupLimits();
+
   // We use draft state for edit-and-commit pattern
   const [draft, setDraft] = useState<Indicator[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -195,6 +283,17 @@ export default function IndicatorsModal({
   // Toggle active visibility of indicator
   const toggleActive = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+
+    // Check if activating would exceed indicator limit
+    const target = draft.find(ind => ind.id === id);
+    if (target && !target.isActive) {
+      const activeCount = draft.filter(ind => ind.isActive).length;
+      if (activeCount >= limits.maxIndicators) {
+        alert(`Превышен лимит активных индикаторов для тарифа ${group.toUpperCase()}!\nРазрешено максимально: ${limits.maxIndicators}.\nИзмените тариф в профиле или настройте лимиты в Админке.`);
+        return;
+      }
+    }
+
     setDraft((prev) =>
       prev.map((ind) => (ind.id === id ? { ...ind, isActive: !ind.isActive } : ind))
     );
@@ -502,6 +601,18 @@ export default function IndicatorsModal({
 
                 {/* SETTINGS PARAMETERS */}
                 <div className="flex flex-col gap-4">
+                  {!limits.customIndicatorSettings && (
+                    <div className={`p-3.5 border rounded-xl text-center text-xs font-bold mb-1 flex flex-col md:flex-row items-center justify-center gap-2 leading-relaxed ${
+                      isLight 
+                        ? "bg-rose-50 border-rose-200 text-rose-800 shadow-sm" 
+                        : "bg-rose-500/10 border-rose-505/15 text-rose-450"
+                    }`}>
+                      <X className="w-4 h-4 shrink-0 text-red-500 animate-pulse" />
+                      <span>Настройки индикаторов заблокированы для вашего тарифа ({group.toUpperCase()})! Настройте политики в Админке.</span>
+                    </div>
+                  )}
+
+                  <div className={!limits.customIndicatorSettings ? "pointer-events-none opacity-30 select-none cursor-not-allowed" : ""}>
                   {/* Option 1: Mode, location, sensitivity (Specific to Cluster Search) */}
                   {selectedIndicator.id === "clusterSearch" && (
                     <>
@@ -974,6 +1085,7 @@ export default function IndicatorsModal({
                         Дополнительные параметры конфигурирования будут добавлены в следующих обновлениях.
                       </div>
                     )}
+                  </div>
                 </div>
               </div>
             ) : (
