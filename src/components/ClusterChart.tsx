@@ -1139,7 +1139,7 @@ export default function ClusterChart({
             const bidValStr = fmt(cell.bid);
             const askValStr = fmt(cell.ask);
             const cellDeltaVal = cell.ask - cell.bid;
-            const deltaDisplayStr = (cellDeltaVal > 0 ? "+" : "") + fmt(Math.abs(cellDeltaVal));
+            const deltaDisplayStr = (cellDeltaVal > 0 ? "+" : cellDeltaVal < 0 ? "-" : "") + fmt(Math.abs(cellDeltaVal));
             const volStr = fmt(cell.volume);
 
             const bidCol = isDiagonalSellImbalance
@@ -1156,7 +1156,9 @@ export default function ClusterChart({
               const bidW = ctx.measureText(bidValStr).width;
               const sepW = ctx.measureText(separator).width;
               const askW = ctx.measureText(askValStr).width;
-              const totalW = bidW + sepW + askW;
+              // Dynamic gap to make the distance between bid & ask slightly larger as requested by the user
+              const gap = Math.max(3, Math.floor(finalFontSize * 0.25));
+              const totalW = bidW + sepW + askW + gap * 2;
 
               const startX = targetX - totalW / 2;
 
@@ -1165,10 +1167,10 @@ export default function ClusterChart({
               ctx.fillText(bidValStr, startX, targetY);
 
               ctx.fillStyle = isLight ? "rgba(15, 23, 42, 0.45)" : "rgba(255, 255, 255, 0.55)";
-              ctx.fillText(separator, startX + bidW, targetY);
+              ctx.fillText(separator, startX + bidW + gap, targetY);
 
               ctx.fillStyle = askCol;
-              ctx.fillText(askValStr, startX + bidW + sepW, targetY);
+              ctx.fillText(askValStr, startX + bidW + sepW + gap * 2, targetY);
             };
 
             const textToMeasure = candleDataType === "bid_ask"
@@ -1190,8 +1192,8 @@ export default function ClusterChart({
             ctx.font = `${isCellPoc ? "bold" : "normal"} ${fontSizeVal} 'Inter', -apple-system, system-ui, sans-serif`;
 
             // Symmetrical horizontal midpoints for Bid (left column) and Ask (right column)
-            const leftMidX = x + Math.round(candleWidth * 0.25);
-            const rightMidX = x + Math.round(candleWidth * 0.75);
+            const leftMidX = x + Math.round(candleWidth * 0.22);
+            const rightMidX = x + Math.round(candleWidth * 0.78);
             const centerTextX = x + candleWidth / 2;
 
             if (isCellPoc) {
