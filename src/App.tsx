@@ -481,6 +481,9 @@ export default function App() {
     return (localStorage.getItem("procluster_lang") as "RU" | "EN" | "KZ") || "RU";
   });
 
+  // Responsive mobile view tab selection
+  const [activeMobileTab, setActiveMobileTab] = useState<"chart" | "dom">("chart");
+
   const handleLanguageChange = (lang: "RU" | "EN" | "KZ") => {
     setLanguage(lang);
     localStorage.setItem("procluster_lang", lang);
@@ -1726,12 +1729,12 @@ export default function App() {
       ) : (
         <>
           {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
-      <section className={`backdrop-blur-md border-b px-5 py-2 flex flex-wrap items-center justify-between gap-y-3 gap-x-5 relative z-30 transition-shadow duration-300 ${
+      <section className={`backdrop-blur-md border-b px-4 py-1.5 flex items-center relative z-30 transition-shadow duration-300 overflow-x-auto scrollbar-none ${
         theme === "light"
           ? "bg-white/95 border-slate-300 shadow-md"
           : "bg-slate-950/40 border-slate-900/60 shadow-md"
       }`}>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="flex items-center gap-x-4 sm:gap-x-6 shrink-0 select-none pr-4">
           {/* 1. Ticker Dropdown Select */}
           <div>
             <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
@@ -2048,10 +2051,48 @@ export default function App() {
         };
 
         return (
-          <main className="flex-1 flex flex-col min-h-0 bg-transparent select-none relative z-10 p-5 gap-5">
-            <div className="flex-1 flex flex-col lg:flex-row gap-5 min-h-0 min-w-0 items-stretch font-sans">
+          <main className="flex-1 flex flex-col min-h-0 bg-transparent select-none relative z-10 p-3 sm:p-5 gap-3 sm:gap-5">
+            {/* Mobile/Tablet Adaptive View Switcher */}
+            <div className={`flex lg:hidden justify-center items-center p-1 rounded-xl w-full max-w-sm mx-auto border transition-all duration-300 shadow-sm shrink-0 select-none ${
+              theme === "light"
+                ? "bg-slate-200/90 border-slate-300"
+                : "bg-slate-950/60 border-white/5"
+            }`}>
+              <button
+                onClick={() => setActiveMobileTab("chart")}
+                className={`flex-1 py-1.5 px-4 text-center rounded-lg text-xs font-bold font-sans transition-all duration-200 cursor-pointer ${
+                  activeMobileTab === "chart"
+                    ? theme === "light"
+                      ? "bg-white text-slate-900 border border-slate-300 shadow-sm font-black"
+                      : "bg-yellow-500/10 border border-yellow-500/25 text-yellow-500 font-extrabold"
+                    : theme === "light"
+                      ? "text-slate-600 hover:text-slate-900"
+                      : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                📊 {language === "RU" ? "График" : language === "KZ" ? "График" : "Chart"}
+              </button>
+              <button
+                onClick={() => setActiveMobileTab("dom")}
+                className={`flex-1 py-1.5 px-4 text-center rounded-lg text-xs font-bold font-sans transition-all duration-200 cursor-pointer ${
+                  activeMobileTab === "dom"
+                    ? theme === "light"
+                      ? "bg-white text-slate-900 border border-slate-300 shadow-sm font-black"
+                      : "bg-yellow-500/10 border border-yellow-500/25 text-yellow-500 font-extrabold"
+                    : theme === "light"
+                      ? "text-slate-600 hover:text-slate-900"
+                      : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                🧱 {language === "RU" ? "Стакан" : language === "KZ" ? "Стакан" : "DOM Ladder"}
+              </button>
+            </div>
+
+            <div className="flex-1 flex flex-col lg:flex-row gap-3 lg:gap-5 min-h-0 min-w-0 items-stretch font-sans">
               {/* Left/Middle Column: Footprint Chart Section */}
-              <div className="flex-1 flex flex-col min-h-0 min-w-0 justify-stretch">
+              <div className={`flex-1 flex flex-col min-h-0 min-w-0 justify-stretch ${
+                activeMobileTab === "chart" ? "flex" : "hidden lg:flex"
+              }`}>
                 <ClusterChart
                   candles={candles}
                   activePair={activePair}
@@ -2074,12 +2115,12 @@ export default function App() {
               </div>
 
               {/* Right Sidebar Column: DOM Sidebar with Interactive Trading */}
-              <aside className="w-full lg:w-[380px] flex flex-col shrink-0 min-h-0">
+              <aside className={`w-full lg:w-[380px] flex flex-col shrink-0 min-h-0 ${
+                activeMobileTab === "dom" ? "flex" : "hidden lg:flex"
+              }`}>
                 <DOMSidebar orderBook={orderBook} activePair={activePair} theme={theme} />
               </aside>
             </div>
-
-
           </main>
         );
       })()}

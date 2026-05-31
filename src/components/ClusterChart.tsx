@@ -2324,34 +2324,7 @@ export default function ClusterChart({
 
     </div>
 
-      {/* Floating Detailed Cell HUD */}
-      {hoveredCell && (
-        <div className={`absolute top-16 left-5 border rounded-xl p-3 text-xs shadow-2xl z-30 flex flex-col gap-1 backdrop-blur-md transition-all ${
-          isLight
-            ? "bg-white/95 border-slate-200 text-slate-800 shadow-xl"
-            : "bg-slate-950/90 border-white/10 text-slate-100"
-        }`}>
-          <span className="font-bold text-yellow-500 font-display flex items-center gap-1.5 uppercase tracking-wider border-b pb-1 mb-1 border-white/5">
-            <Layers className="w-3.5 h-3.5 text-yellow-500" /> Cell Profiler
-          </span>
-          <div className={`grid grid-cols-2 gap-x-5 gap-y-1 font-mono text-[11px] ${
-            isLight ? "text-slate-650" : "text-slate-400"
-          }`}>
-            <span>Price Bracket:</span>
-            <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>${hoveredCell.cell.price.toLocaleString()}</span>
-            <span>Market Sells/Bids:</span>
-            <span className="text-rose-500 font-semibold">{hoveredCell.cell.bid.toFixed(2)}K</span>
-            <span>Market Buys/Asks:</span>
-            <span className="text-emerald-500 font-semibold">{hoveredCell.cell.ask.toFixed(2)}K</span>
-            <span>Total Volume:</span>
-            <span className="text-yellow-500 font-bold">{(hoveredCell.cell.bid + hoveredCell.cell.ask).toFixed(2)}K</span>
-            <span>Cell Imbalance:</span>
-            <span className={hoveredCell.cell.isBuyImbalance ? "text-emerald-500 font-bold" : hoveredCell.cell.isSellImbalance ? "text-rose-500 font-bold" : "text-slate-400"}>
-              {hoveredCell.cell.isBuyImbalance ? "AGGRESSIVE BUY" : hoveredCell.cell.isSellImbalance ? "AGGRESSIVE SELL" : "BALANCED"}
-            </span>
-          </div>
-        </div>
-      )}
+
 
       {/* Floating Cluster Search Tooltip */}
       {hoveredClusterSearch && (() => {
