@@ -584,21 +584,41 @@ export default function App() {
     localStorage.setItem("procluster_compression_multiplier", compressionMultiplier.toString());
   }, [compressionMultiplier]);
 
-  // Load default compression for current pair + interval
-  useEffect(() => {
+  // Helper to load default compression configured for active ticker + interval or fallback globally
+  const loadDefaultCompressionForPair = (pairSymbol: string, currentInterval: string, currentMarketType: "SPOT" | "FUTURES"): number => {
     try {
       const savedMap = localStorage.getItem("procluster_default_compressions");
       if (savedMap) {
         const parsed = JSON.parse(savedMap);
-        const tickerData = parsed[activePair.symbol];
-        if (tickerData && typeof tickerData[interval] === "number") {
-          setCompressionMultiplier(tickerData[interval]);
+        const tickerData = parsed[pairSymbol];
+        if (tickerData) {
+          // Check separate SPOT/FUTURES setting for the active ticker + interval
+          const marketData = tickerData[currentMarketType];
+          if (marketData && typeof marketData[currentInterval] === "number") {
+            return marketData[currentInterval];
+          }
+          // Fallback to legacy single structure if present
+          if (typeof tickerData[currentInterval] === "number") {
+            return tickerData[currentInterval];
+          }
         }
       }
     } catch (e) {
       console.warn("Failed to load default compression override", e);
     }
-  }, [activePair.symbol, interval]);
+    // Fallback block if no specific override is set
+    if (currentMarketType === "SPOT") {
+      return 1;
+    } else {
+      return 5;
+    }
+  };
+
+  // Load default compression for current pair + interval
+  useEffect(() => {
+    const val = loadDefaultCompressionForPair(activePair.symbol, interval, marketType);
+    setCompressionMultiplier(val);
+  }, [activePair.symbol, interval, marketType]);
 
   // Persists states when they change
   useEffect(() => {
@@ -615,13 +635,23 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem("procluster_market_type", marketType);
+    const val = loadDefaultCompressionForPair(activePair.symbol, interval, marketType);
+    setCompressionMultiplier(val);
     if (marketType === "SPOT") {
-      setCompressionMultiplier(1);
       if (interval === "1m" || interval === "5m") {
         setInterval("15m");
       }
     }
   }, [marketType]);
+
+  useEffect(() => {
+    const handleCompChange = () => {
+      const val = loadDefaultCompressionForPair(activePair.symbol, interval, marketType);
+      setCompressionMultiplier(val);
+    };
+    window.addEventListener("procluster_default_comp_changed", handleCompChange);
+    return () => window.removeEventListener("procluster_default_comp_changed", handleCompChange);
+  }, [activePair.symbol, interval, marketType]);
 
   useEffect(() => {
     localStorage.setItem("procluster_candle_type", candleType);
@@ -698,135 +728,163 @@ export default function App() {
   const csSentAlertsRef = useRef<Set<string>>(new Set());
 
   // Indicators Configuration State
-  const [indicators, setIndicators] = useState<Indicator[]>([
-    {
-      id: "volume",
-      label: "Volume",
-      category: "Все индикаторы",
-      type: "Глобальный",
-      isFavorite: false,
-      isActive: true,
-      settings: { opacity: 0.8 }
-    },
-    {
-      id: "volumeOnChart",
-      label: "Volume on Chart",
-      category: "Все индикаторы",
-      type: "Оверлей",
-      isFavorite: true,
-      isActive: true,
-      settings: { opacity: 0.6 }
-    },
-    {
-      id: "volumeProfile",
-      label: "Volume Profile",
-      category: "Все индикаторы",
-      type: "Оверлей",
-      isFavorite: true,
-      isActive: true,
-      settings: { opacity: 0.7 }
-    },
-    {
-      id: "marketProfile",
-      label: "Market Profile",
-      category: "Все индикаторы",
-      type: "Оверлей",
-      isFavorite: false,
-      isActive: false,
-      settings: { opacity: 0.5 }
-    },
-    {
-      id: "delta",
-      label: "Delta",
-      category: "Все индикаторы",
-      type: "Подвальный",
-      isFavorite: true,
-      isActive: true,
-      settings: { showLabels: true, sensitivity: 5 }
-    },
-    {
-      id: "cvd",
-      label: "CVD",
-      category: "Все индикаторы",
-      type: "Подвальный",
-      isFavorite: true,
-      isActive: true,
-      settings: { smoothing: 10 }
-    },
-    {
-      id: "liquidations",
-      label: "Liquidations",
-      category: "Все индикаторы",
-      type: "Оверлей",
-      isFavorite: true,
-      isActive: false,
-      settings: { opacity: 0.9 }
-    },
-    {
-      id: "clusterSearch",
-      label: "Cluster Search",
-      category: "Все индикаторы",
-      type: "Оверлей",
-      isFavorite: true,
-      isActive: true,
-      settings: {
-        mode: "Volume",
-        direction: "Both",
-        location: "Any",
-        sensitivity: 4,
-        useMinMax: false,
-        // Common Settings
-        csMergeLevels: 1,
-        csImbalancePercent: 60,
-        // Medium Filter
-        csMedMinVolume: 100,
-        csMedMaxVolume: 500,
-        csMedMinSize: 4,
-        csMedMaxSize: 12,
-        csMedShape: "circle",
-        csMedColorBid: "#ef4444",
-        csMedColorAsk: "#10b981",
-        csMedOpacity: 0.70,
-        csMedTgAlert: false,
-        // Large Filter
-        csLargeMinVolume: 500,
-        csLargeMinSize: 10,
-        csLargeMaxSize: 20,
-        csLargeShape: "rhombus",
-        csLargeColorBid: "#f43f5e",
-        csLargeColorAsk: "#34d399",
-        csLargeOpacity: 0.90,
-        csLargeTgAlert: false
+  const [indicators, setIndicators] = useState<Indicator[]>(() => {
+    const defaultList: Indicator[] = [
+      {
+        id: "volume",
+        label: "(PROCLUSTER) Volume",
+        category: "Все индикаторы",
+        type: "Глобальный",
+        isFavorite: false,
+        isActive: true,
+        settings: { opacity: 0.8 }
+      },
+      {
+        id: "volumeOnChart",
+        label: "(PROCLUSTER) Volume on Chart",
+        category: "Все индикаторы",
+        type: "Оверлей",
+        isFavorite: true,
+        isActive: true,
+        settings: { opacity: 0.6 }
+      },
+      {
+        id: "volumeProfile",
+        label: "(PROCLUSTER) Volume Profile",
+        category: "Все индикаторы",
+        type: "Оверлей",
+        isFavorite: true,
+        isActive: true,
+        settings: { opacity: 0.7 }
+      },
+      {
+        id: "marketProfile",
+        label: "(PROCLUSTER) Market Profile",
+        category: "Все индикаторы",
+        type: "Оверлей",
+        isFavorite: false,
+        isActive: false,
+        settings: { opacity: 0.5 }
+      },
+      {
+        id: "delta",
+        label: "(PROCLUSTER) Delta",
+        category: "Все индикаторы",
+        type: "Подвальный",
+        isFavorite: true,
+        isActive: true,
+        settings: { showLabels: true, sensitivity: 5 }
+      },
+      {
+        id: "cvd",
+        label: "(PROCLUSTER) CVD",
+        category: "Все индикаторы",
+        type: "Подвальный",
+        isFavorite: true,
+        isActive: true,
+        settings: { smoothing: 10 }
+      },
+      {
+        id: "liquidations",
+        label: "(PROCLUSTER) Liquidations",
+        category: "Все индикаторы",
+        type: "Оверлей",
+        isFavorite: true,
+        isActive: false,
+        settings: { opacity: 0.9 }
+      },
+      {
+        id: "clusterSearch",
+        label: "(PROCLUSTER) Cluster Search",
+        category: "Все индикаторы",
+        type: "Оверлей",
+        isFavorite: true,
+        isActive: true,
+        settings: {
+          mode: "Volume",
+          direction: "Both",
+          location: "Any",
+          sensitivity: 4,
+          useMinMax: false,
+          csMergeLevels: 1,
+          csImbalancePercent: 60,
+          csMedMinVolume: 100,
+          csMedMaxVolume: 500,
+          csMedMinSize: 4,
+          csMedMaxSize: 12,
+          csMedShape: "circle",
+          csMedColorBid: "#ef4444",
+          csMedColorAsk: "#10b981",
+          csMedOpacity: 0.7,
+          csMedTgAlert: false,
+          csLargeMinVolume: 500,
+          csLargeMinSize: 10,
+          csLargeMaxSize: 20,
+          csLargeShape: "rhombus",
+          csLargeColorBid: "#f43f5e",
+          csLargeColorAsk: "#34d399",
+          csLargeOpacity: 0.9,
+          csLargeTgAlert: false
+        }
+      },
+      {
+        id: "reversalClusters",
+        label: "(PROCLUSTER) Reversal Clusters",
+        category: "Все индикаторы",
+        type: "Оверлей",
+        isFavorite: false,
+        isActive: false,
+        settings: { sensitivity: 5 }
+      },
+      {
+        id: "absorption",
+        label: "(PROCLUSTER) Absorption",
+        category: "Все индикаторы",
+        type: "Оверлей",
+        isFavorite: false,
+        isActive: false,
+        settings: { sensitivity: 6 }
+      },
+      {
+        id: "stackedImbalance",
+        label: "(PROCLUSTER) Stacked Imbalance",
+        category: "Все индикаторы",
+        type: "Оверлей",
+        isFavorite: true,
+        isActive: false,
+        settings: { ratio: 3.0 }
       }
-    },
-    {
-      id: "reversalClusters",
-      label: "Reversal Clusters",
-      category: "Все индикаторы",
-      type: "Оверлей",
-      isFavorite: false,
-      isActive: false,
-      settings: { sensitivity: 5 }
-    },
-    {
-      id: "absorption",
-      label: "Absorption",
-      category: "Все индикаторы",
-      type: "Оверлей",
-      isFavorite: false,
-      isActive: false,
-      settings: { sensitivity: 6 }
-    },
-    {
-      id: "stackedImbalance",
-      label: "Stacked Imbalance",
-      category: "Все индикаторы",
-      type: "Оверлей",
-      isFavorite: true,
-      isActive: false,
-      settings: { ratio: 3.0 }
+    ];
+
+    const saved = localStorage.getItem("procluster_indicators");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return defaultList.map(defl => {
+            const matched = parsed.find(item => item && item.id === defl.id);
+            if (matched) {
+              return {
+                ...defl,
+                isActive: matched.isActive,
+                isFavorite: matched.isFavorite !== undefined ? matched.isFavorite : defl.isFavorite,
+                settings: matched.settings ? { ...defl.settings, ...matched.settings } : defl.settings
+              };
+            }
+            return defl;
+          });
+        }
+      } catch (err) {
+        console.error("Error loading indicators:", err);
+      }
     }
-  ]);
+    return defaultList;
+  });
+
+  // Auto-save indicators to localStorage on modification
+  useEffect(() => {
+    localStorage.setItem("procluster_indicators", JSON.stringify(indicators));
+  }, [indicators]);
 
   const [isIndicatorsModalOpen, setIsIndicatorsModalOpen] = useState<boolean>(false);
   const [currentView, setCurrentView] = useState<"terminal" | "admin" | "profile">("terminal");
@@ -1997,6 +2055,7 @@ export default function App() {
                 <ClusterChart
                   candles={candles}
                   activePair={activePair}
+                  indicators={indicators}
                   activeIndicators={activeIndicatorsObj}
                   indicatorSettings={indicatorSettings}
                   marketType={marketType}

@@ -174,17 +174,23 @@ export default function AdminPanel({
     setTimeout(() => setPolicySuccessMsg(""), 3000);
   };
 
-  // Auto-save default compressions to localStorage
-  const updateDefaultCompression = (ticker: string, intervalVal: string, value: number) => {
+  // Auto-save default compressions to localStorage separately for Spot and Futures per ticker
+  const updateDefaultCompression = (ticker: string, marketSection: "SPOT" | "FUTURES", intervalVal: string, value: number) => {
     setDefaultCompressions(prev => {
+      const tickerData = prev[ticker] || {};
+      const sectionData = tickerData[marketSection] || {};
       const updated = {
         ...prev,
         [ticker]: {
-          ...(prev[ticker] || {}),
-          [intervalVal]: value
+          ...tickerData,
+          [marketSection]: {
+            ...sectionData,
+            [intervalVal]: value
+          }
         }
       };
       localStorage.setItem("procluster_default_compressions", JSON.stringify(updated));
+      window.dispatchEvent(new Event("procluster_default_comp_changed"));
       return updated;
     });
   };
@@ -241,6 +247,25 @@ export default function AdminPanel({
   const [newPriceStep, setNewPriceStep] = useState("1");
   const [compressionSpotVal, setCompressionSpotVal] = useState("2");
   const [compressionFuturesVal, setCompressionFuturesVal] = useState("5");
+  
+  // Default Chart Compression for Spot and Futures separately
+  const [defaultCompSpot, setDefaultCompSpot] = useState<string>(() => {
+    return localStorage.getItem("procluster_default_comp_spot") || "1";
+  });
+  const [defaultCompFutures, setDefaultCompFutures] = useState<string>(() => {
+    return localStorage.getItem("procluster_default_comp_futures") || "5";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("procluster_default_comp_spot", defaultCompSpot);
+    window.dispatchEvent(new Event("procluster_default_comp_changed"));
+  }, [defaultCompSpot]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_default_comp_futures", defaultCompFutures);
+    window.dispatchEvent(new Event("procluster_default_comp_changed"));
+  }, [defaultCompFutures]);
+
   const [tickerSuccessMsg, setTickerSuccessMsg] = useState("");
 
   // Historical download state
@@ -750,38 +775,36 @@ export default function AdminPanel({
                           <label className={`text-[9.5px] font-[600] block mb-1 ${
                             isLight ? "text-slate-700" : "text-slate-400"
                           }`}>Сжатие Spot Данных (Коэффициент)</label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="range"
-                              min="1"
-                              max="20"
-                              value={compressionSpotVal}
-                              onChange={(e) => setCompressionSpotVal(e.target.value)}
-                              className={`w-full h-1.5 rounded-full appearance-none cursor-pointer ${
-                                isLight ? "bg-slate-300 accent-blue-600" : "bg-slate-800 accent-blue-500"
-                              }`}
-                            />
-                            <span className="text-xs font-mono font-bold">{compressionSpotVal}x</span>
-                          </div>
+                          <input
+                            type="number"
+                            min="1"
+                            max="200"
+                            value={compressionSpotVal}
+                            onChange={(e) => setCompressionSpotVal(e.target.value)}
+                            className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                              isLight 
+                                ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                                : "bg-slate-900 border-white/10 text-white focus:border-blue-500"
+                            }`}
+                          />
                         </div>
 
                         <div>
                           <label className={`text-[9.5px] font-[600] block mb-1 ${
                             isLight ? "text-slate-700" : "text-slate-400"
                           }`}>Сжатие Futures Данных (Коэффициент)</label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="range"
-                              min="1"
-                              max="50"
-                              value={compressionFuturesVal}
-                              onChange={(e) => setCompressionFuturesVal(e.target.value)}
-                              className={`w-full h-1.5 rounded-full appearance-none cursor-pointer ${
-                                isLight ? "bg-slate-300 accent-blue-600" : "bg-slate-800 accent-blue-500"
-                              }`}
-                            />
-                            <span className="text-xs font-mono font-bold">{compressionFuturesVal}x</span>
-                          </div>
+                          <input
+                            type="number"
+                            min="1"
+                            max="500"
+                            value={compressionFuturesVal}
+                            onChange={(e) => setCompressionFuturesVal(e.target.value)}
+                            className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                              isLight 
+                                ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                                : "bg-slate-900 border-white/10 text-white focus:border-blue-500"
+                            }`}
+                          />
                         </div>
                       </div>
                     </div>
@@ -819,57 +842,112 @@ export default function AdminPanel({
                   </p>
 
                   <div className="flex flex-col gap-4 font-sans text-xs">
-                    <div>
-                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
-                        isLight ? "text-slate-700" : "text-slate-400"
-                      }`}>Выберите Торговую Пару для настройки</label>
-                      <select
-                        value={activeCompTicker}
-                        onChange={(e) => setActiveCompTicker(e.target.value)}
-                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
-                          isLight 
-                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white" 
-                            : "bg-slate-900 border-white/10 text-white focus:border-blue-500/50"
-                        }`}
-                      >
-                        {pairs.map(p => (
-                          <option key={p.symbol} value={p.symbol}>{p.symbol}</option>
-                        ))}
-                      </select>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-dashed border-slate-200/60 dark:border-white/5">
+                      <div className="flex flex-col gap-1 w-full sm:w-auto">
+                        <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
+                          isLight ? "text-slate-700" : "text-slate-400"
+                        }`}>Выберите Торговую Пару для настройки</label>
+                        <select
+                          value={activeCompTicker}
+                          onChange={(e) => setActiveCompTicker(e.target.value)}
+                          className={`w-full sm:w-64 text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                            isLight 
+                              ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white" 
+                              : "bg-slate-900 border-white/10 text-white focus:border-blue-500/50"
+                          }`}
+                        >
+                          {pairs.map(p => (
+                            <option key={p.symbol} value={p.symbol}>{p.symbol}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
-                    <div className={`rounded-xl border p-4 ${
+                    {/* FUTURES Horizontal settings */}
+                    <div className={`p-4 rounded-xl border flex flex-col gap-3 ${
                       isLight ? "bg-slate-50/50 border-slate-200" : "bg-white/[0.02] border-white/5"
                     }`}>
-                      <span className={`text-[10px] font-mono font-black uppercase block tracking-wider mb-3 ${
-                        isLight ? "text-slate-750" : "text-slate-300"
-                      }`}>
-                        Таймфреймы для {activeCompTicker}
-                      </span>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[11px] font-mono font-black uppercase tracking-wider text-amber-500">
+                          🟡 FUTURES Сжатие по умолчанию
+                        </span>
+                      </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {["1m", "5m", "15m", "30m", "1h", "4h", "50t"].map((intervalVal) => {
-                          const currentVal = defaultCompressions[activeCompTicker]?.[intervalVal] || 1;
-                          
+                      <div className="flex flex-wrap items-center gap-3.5">
+                        {["1m", "5m", "15m", "30m", "1h", "4h"].map((intervalVal) => {
+                          const currentVal = defaultCompressions[activeCompTicker]?.FUTURES?.[intervalVal] !== undefined
+                            ? defaultCompressions[activeCompTicker].FUTURES[intervalVal]
+                            : (defaultCompressions[activeCompTicker]?.[intervalVal] !== undefined && typeof defaultCompressions[activeCompTicker]?.[intervalVal] === "number"
+                              ? defaultCompressions[activeCompTicker][intervalVal]
+                              : 5);
                           return (
-                            <div key={intervalVal} className={`flex items-center justify-between p-2 rounded-lg border ${
-                              isLight ? "bg-white border-slate-200/60" : "bg-slate-900/60 border-white/5"
+                            <div key={intervalVal} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                              isLight ? "bg-white border-slate-200/65 shadow-sm" : "bg-slate-900/60 border-white/5"
                             }`}>
-                              <span className="font-mono font-black text-xs text-sky-450 uppercase">{intervalVal}</span>
-                              <div className="flex items-center gap-2">
-                                <select
+                              <span className="font-mono font-black text-xs text-slate-400 uppercase min-w-[24px]">{intervalVal}</span>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="500"
                                   value={currentVal}
-                                  onChange={(e) => updateDefaultCompression(activeCompTicker, intervalVal, parseInt(e.target.value))}
-                                  className={`text-xs font-mono font-bold rounded px-2 py-1 border transition-colors focus:outline-none ${
+                                  onChange={(e) => {
+                                    const parsedInput = Math.max(1, parseInt(e.target.value) || 1);
+                                    updateDefaultCompression(activeCompTicker, "FUTURES", intervalVal, parsedInput);
+                                  }}
+                                  className={`w-14 text-center text-xs font-mono font-bold rounded px-1.5 py-1 border transition-all focus:outline-none ${
                                     isLight 
-                                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-blue-500" 
-                                      : "bg-slate-950 border-white/10 text-white focus:border-blue-505"
+                                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500" 
+                                      : "bg-slate-950 border-white/10 text-white focus:border-amber-500"
                                   }`}
-                                >
-                                  {[1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50].map((m) => (
-                                    <option key={m} value={m}>{m}x</option>
-                                  ))}
-                                </select>
+                                />
+                                <span className="text-[10px] text-slate-400 font-bold font-mono">x</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* SPOT Horizontal settings */}
+                    <div className={`p-4 rounded-xl border flex flex-col gap-3 ${
+                      isLight ? "bg-slate-50/50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                    }`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[11px] font-mono font-black uppercase tracking-wider text-emerald-500">
+                          🟢 SPOT Сжатие по умолчанию
+                        </span>
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-3.5">
+                        {["15m", "30m", "1h", "4h"].map((intervalVal) => {
+                          const currentVal = defaultCompressions[activeCompTicker]?.SPOT?.[intervalVal] !== undefined
+                            ? defaultCompressions[activeCompTicker].SPOT[intervalVal]
+                            : (defaultCompressions[activeCompTicker]?.[intervalVal] !== undefined && typeof defaultCompressions[activeCompTicker]?.[intervalVal] === "number"
+                              ? defaultCompressions[activeCompTicker][intervalVal]
+                              : 1);
+                          return (
+                            <div key={intervalVal} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                              isLight ? "bg-white border-slate-200/65 shadow-sm" : "bg-slate-900/60 border-white/5"
+                            }`}>
+                              <span className="font-mono font-black text-xs text-slate-400 uppercase min-w-[24px]">{intervalVal}</span>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="500"
+                                  value={currentVal}
+                                  onChange={(e) => {
+                                    const parsedInput = Math.max(1, parseInt(e.target.value) || 1);
+                                    updateDefaultCompression(activeCompTicker, "SPOT", intervalVal, parsedInput);
+                                  }}
+                                  className={`w-14 text-center text-xs font-mono font-bold rounded px-1.5 py-1 border transition-all focus:outline-none ${
+                                    isLight 
+                                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+                                      : "bg-slate-950 border-white/10 text-white focus:border-emerald-500"
+                                  }`}
+                                />
+                                <span className="text-[10px] text-slate-400 font-bold font-mono">x</span>
                               </div>
                             </div>
                           );

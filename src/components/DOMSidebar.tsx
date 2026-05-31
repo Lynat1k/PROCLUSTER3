@@ -789,13 +789,17 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
 
           {/* ----- MID TICK / LAST PRICE ROW ----- */}
           <div className={`flex justify-center items-center border-y relative z-20 shrink-0 transition-all duration-300 h-14 ${
-            isLight ? "bg-slate-200/60 border-amber-300/40" : "bg-[#090b11] border-amber-500/25"
+            isLight ? "bg-slate-100 border-slate-200" : "bg-[#090b11] border-amber-500/25"
           }`}>
             <div 
               id="dot-matrix-price"
-              className="font-mono text-[30px] font-black tracking-widest leading-none text-center select-all text-amber-500"
+              className={`font-mono text-[30px] font-black tracking-widest leading-none text-center select-all ${
+                isLight ? "text-amber-900" : "text-amber-500"
+              }`}
               style={{
-                textShadow: '0 0 10px rgba(245, 158, 11, 0.95), 0 0 22px rgba(245, 158, 11, 0.65)',
+                textShadow: isLight 
+                  ? "none"
+                  : '0 0 10px rgba(245, 158, 11, 0.95), 0 0 22px rgba(245, 158, 11, 0.65)',
                 fontWeight: 900
               }}
             >

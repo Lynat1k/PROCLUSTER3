@@ -42,6 +42,7 @@ const LOCALIZATION = {
     savedSuccess: "Изменения сохранены!",
     avatarSelect: "Выберите аватар:",
     orCustomUrl: "Или укажите свою ссылку на аватар:",
+    password: "Новый пароль / Изменить пароль",
     statusFree: "БЕСПЛАТНЫЙ",
     statusPro: "PRO ДОСТУП",
     statusVip: "VIP ТЕРМИНАЛ",
@@ -77,6 +78,7 @@ const LOCALIZATION = {
     savedSuccess: "Profile changes saved!",
     avatarSelect: "Select Avatar:",
     orCustomUrl: "Or paste your custom avatar URL:",
+    password: "Change Password",
     statusFree: "FREE LICENSE",
     statusPro: "PRO SPECIALIST",
     statusVip: "VIP TERMINAL",
@@ -112,6 +114,7 @@ const LOCALIZATION = {
     savedSuccess: "Өзгерістер сәтті сақталды!",
     avatarSelect: "Аватар таңдаңыз:",
     orCustomUrl: "Немесе аватарға жеке сілтеме жазыңыз:",
+    password: "Құпия сөзді өзгерту",
     statusFree: "ТЕГІН НҰСҚА",
     statusPro: "PRO ДӘРЕЖЕ",
     statusVip: "VIP ТЕРМИНАЛ",
@@ -153,6 +156,7 @@ export default function UserProfile({
   const [customAvatarUrl, setCustomAvatarUrl] = useState("");
   const [tier, setTier] = useState<"Free" | "Pro" | "VIP">(user?.tier || "Pro");
   const [regDate, setRegDate] = useState(user?.regDate || "2026-05-29");
+  const [password, setPassword] = useState("");
   
   const [notification, setNotification] = useState("");
 
@@ -185,6 +189,11 @@ export default function UserProfile({
     
     // Save to localStorage so it persists correctly
     localStorage.setItem("procluster_user", JSON.stringify(updated));
+
+    if (password.trim()) {
+      localStorage.setItem("procluster_user_password", password.trim());
+      setPassword("");
+    }
     
     setNotification(t.savedSuccess);
     setTimeout(() => {
@@ -244,10 +253,10 @@ export default function UserProfile({
       </div>
 
       {/* Hero Section */}
-      <div className={`p-6 sm:p-8 rounded-[32px] border relative overflow-hidden flex flex-col md:flex-row items-center gap-6 ${
+      <div className={`py-4 sm:py-5 px-6 sm:px-8 rounded-[24px] border relative overflow-hidden flex flex-col md:flex-row items-center gap-6 ${
         isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/30 border-white/5 shadow-2xl"
       }`}>
-        <div className={`absolute top-0 right-0 w-80 h-80 rounded-full blur-[100px] pointer-events-none ${
+        <div className={`absolute top-0 right-0 w-85 h-64 rounded-full blur-[80px] pointer-events-none ${
           tier === "VIP" ? "bg-amber-500/10" : tier === "Pro" ? "bg-blue-500/10" : "bg-slate-500/5"
         }`} />
 
@@ -256,7 +265,7 @@ export default function UserProfile({
             src={avatar}
             alt={nickname}
             referrerPolicy="no-referrer"
-            className={`w-[110px] h-[110px] md:w-[130px] md:h-[130px] rounded-full object-cover border-4 shadow-xl transition-transform duration-300 group-hover:scale-105 ${
+            className={`w-[84px] h-[84px] md:w-[100px] md:h-[100px] rounded-full object-cover border-4 shadow-xl transition-transform duration-300 group-hover:scale-105 ${
               tier === "VIP" 
                 ? "border-amber-500/40 shadow-amber-500/10" 
                 : tier === "Pro" 
@@ -314,10 +323,10 @@ export default function UserProfile({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="w-full">
         
         {/* PERSONAL INFO FORM & AVATAR EDIT */}
-        <div className={`lg:col-span-2 p-6 rounded-[28px] border flex flex-col gap-5 ${
+        <div className={`w-full p-6 rounded-[28px] border flex flex-col gap-5 ${
           isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/30 border-white/5"
         }`}>
           <h2 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
@@ -328,7 +337,7 @@ export default function UserProfile({
           </h2>
 
           <form onSubmit={handleSaveChanges} className="flex flex-col gap-4 font-sans text-xs">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className={`text-[10px] font-mono font-black block mb-1 uppercase ${
                   isLight ? "text-slate-700" : "text-slate-400"
@@ -358,6 +367,23 @@ export default function UserProfile({
                   className={`w-full rounded-xl px-4 py-2.5 text-xs font-black ${
                     isLight 
                       ? "bg-slate-50 border border-slate-300 text-slate-900 focus:bg-white" 
+                      : "bg-slate-950/60 border border-white/10 text-slate-200 focus:border-emerald-500/50 focus:bg-slate-950"
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className={`text-[10px] font-mono font-black block mb-1 uppercase ${
+                  isLight ? "text-slate-700" : "text-slate-400"
+                }`}>{t.password}</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`w-full rounded-xl px-4 py-2.5 text-xs font-black ${
+                    isLight 
+                      ? "bg-slate-50 border border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500" 
                       : "bg-slate-950/60 border border-white/10 text-slate-200 focus:border-emerald-500/50 focus:bg-slate-950"
                   }`}
                 />
@@ -428,42 +454,6 @@ export default function UserProfile({
             </button>
           </form>
         </div>
-
-        {/* DIANOSTICS METRICS CARD */}
-        <div className={`p-6 rounded-[28px] border flex flex-col justify-between gap-5 ${
-          isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/30 border-white/5"
-        }`}>
-          <div>
-            <h2 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 mb-4 ${
-              isLight ? "text-slate-800" : "text-slate-200"
-            }`}>
-              <Server className="w-4 h-4 text-sky-500" />
-              {t.statsTitle}
-            </h2>
-
-            <div className="flex flex-col gap-3.5">
-              <div className={`p-3 rounded-2xl border ${isLight ? "bg-slate-50 border-slate-200/60" : "bg-slate-900/40 border-white/5"}`}>
-                <span className="text-[10px] font-mono font-bold text-slate-400 block tracking-wider uppercase">{t.metricMemory}</span>
-                <span className={`text-[13px] font-mono font-black mt-1 block ${isLight ? "text-slate-800" : "text-sky-400"}`}>{t.metricMemoryVal}</span>
-              </div>
-
-              <div className={`p-3 rounded-2xl border ${isLight ? "bg-slate-50 border-slate-200/60" : "bg-slate-900/40 border-white/5"}`}>
-                <span className="text-[10px] font-mono font-bold text-slate-400 block tracking-wider uppercase">{t.metricTicks}</span>
-                <span className={`text-[13px] font-mono font-black mt-1 block ${isLight ? "text-slate-800" : "text-emerald-400"}`}>{t.metricTicksVal}</span>
-              </div>
-
-              <div className={`p-3 rounded-2xl border ${isLight ? "bg-slate-50 border-slate-200/60" : "bg-slate-900/40 border-white/5"}`}>
-                <span className="text-[10px] font-mono font-bold text-slate-400 block tracking-wider uppercase">{t.metricLatency}</span>
-                <span className={`text-[13px] font-mono font-black mt-1 block ${isLight ? "text-slate-800" : "text-amber-400"}`}>{t.metricLatencyVal}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 p-3 rounded-2xl bg-yellow-500/5 border border-yellow-500/10 text-[10px] font-mono font-bold text-slate-400 block">
-            <Sparkles className="w-4 h-4 text-yellow-500 fill-yellow-500/20" />
-            <span>HMR: DISABLED | WS: ACTIVE ONLINE</span>
-          </div>
-        </div>
       </div>
 
       {/* PLAN SELECTOR SECTION */}
@@ -522,7 +512,7 @@ export default function UserProfile({
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono font-black text-blue-400">PRO</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-450 uppercase">49 USDT</span>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-450 uppercase">10 USDT</span>
               </div>
               <h3 className={`text-base font-black ${isLight ? "text-slate-900" : "text-slate-100"}`}>Pro Specialist</h3>
               <p className={`text-[11px] leading-snug ${isLight ? "text-slate-600" : "text-slate-400"}`}>
@@ -551,7 +541,7 @@ export default function UserProfile({
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono font-black text-amber-500">VIP</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 uppercase">199 USDT</span>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 uppercase">20 USDT</span>
               </div>
               <h3 className={`text-base font-black ${isLight ? "text-slate-900" : "text-slate-100"}`}>VIP Terminal</h3>
               <p className={`text-[11px] leading-snug ${isLight ? "text-slate-600" : "text-slate-400"}`}>
@@ -571,50 +561,6 @@ export default function UserProfile({
             </button>
           </div>
 
-        </div>
-      </div>
-
-      {/* RECENT SESSSIONS ACTIVITIES */}
-      <div className={`p-6 rounded-[28px] border flex flex-col gap-4 ${
-        isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/30 border-white/5"
-      }`}>
-        <h2 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
-          isLight ? "text-slate-800" : "text-slate-200"
-        }`}>
-          <Clock className="w-4 h-4 text-indigo-400 font-bold" />
-          {t.recentSessions}
-        </h2>
-
-        <div className="flex flex-col gap-2 pointer-events-none select-none">
-          <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${
-            isLight ? "bg-slate-50 border-slate-200/60 text-slate-800" : "bg-slate-900/30 border-white/5 text-slate-200"
-          }`}>
-            <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[11px] font-bold leading-none">{t.sessionAuth} ({nickname})</span>
-            </div>
-            <span className="text-[10px] font-mono font-bold text-slate-500">2026-05-29 21:17:11</span>
-          </div>
-
-          <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${
-            isLight ? "bg-slate-50 border-slate-200/60 text-slate-800" : "bg-slate-900/30 border-white/5 text-slate-200"
-          }`}>
-            <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-blue-500" />
-              <span className="text-[11px] font-bold leading-none">{t.sessionTick}</span>
-            </div>
-            <span className="text-[10px] font-mono font-bold text-slate-500">2026-05-29 21:05:10</span>
-          </div>
-
-          <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${
-            isLight ? "bg-slate-50 border-slate-200/60 text-slate-800" : "bg-slate-900/30 border-white/5 text-slate-200"
-          }`}>
-            <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-[11px] font-bold leading-none">{t.sessionWmark}</span>
-            </div>
-            <span className="text-[10px] font-mono font-bold text-slate-500">2026-05-29 18:11:27</span>
-          </div>
         </div>
       </div>
 
