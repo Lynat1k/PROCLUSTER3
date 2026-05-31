@@ -851,7 +851,13 @@ export default function ClusterChart({
       ctx.strokeStyle = "rgba(245, 158, 11, 0.6)";
       ctx.lineWidth = 1.2;
       ctx.setLineDash([2, 2]);
-      ctx.moveTo(margin.left, activePriceY);
+
+      // Draw starting only from the current (latest) candle to the end of the chart scroll width
+      const latestCandleIdx = Math.max(0, candles.length - 1);
+      const latestCandleX = margin.left + latestCandleIdx * (candleWidth + candleSpacing);
+      const startX = latestCandleX + candleWidth / 2;
+
+      ctx.moveTo(startX, activePriceY);
       ctx.lineTo(scrollWidth, activePriceY);
       ctx.stroke();
       ctx.setLineDash([]);
