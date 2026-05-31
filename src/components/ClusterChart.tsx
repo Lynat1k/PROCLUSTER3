@@ -516,7 +516,7 @@ export default function ClusterChart({
                 x: screenX,
                 y: screenY,
                 sumVolume,
-                usdtVolume: sumVolume * 1000 * midPrice,
+                usdtVolume: sumVolume * midPrice,
                 bidPercent,
                 askPercent,
                 isBidDominant,
@@ -1724,17 +1724,17 @@ export default function ClusterChart({
   ]);
 
   const formatCoinsVolume = (valInCoins: number, symbol: string) => {
-    const realCoins = valInCoins * 1000;
-    return `${realCoins.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${symbol.toUpperCase()}`;
+    const rounded = Math.round(valInCoins);
+    return `${rounded.toLocaleString()} ${symbol.toUpperCase()}`;
   };
 
   const formatUsdtVolume = (valInUsdt: number) => {
     if (valInUsdt >= 1_000_000_000) {
       const bils = valInUsdt / 1_000_000_000;
-      return `${parseFloat(bils.toFixed(2)).toLocaleString()}b USDT`;
+      return `${bils.toFixed(1)}b USDT`;
     }
     const mils = valInUsdt / 1_000_000;
-    return `${parseFloat(mils.toFixed(2)).toLocaleString()}m USDT`;
+    return `${mils.toFixed(1)}m USDT`;
   };
 
   return (
@@ -2355,19 +2355,32 @@ export default function ClusterChart({
 
       {/* Floating Cluster Search Tooltip */}
       {hoveredClusterSearch && (() => {
-        const isLeftIdx = hoveredClusterSearch.x > (visibleClientWidth || 800) - 260;
+        const isLeftIdx = hoveredClusterSearch.x > (visibleClientWidth || 800) - 275;
         const isTopIdx = hoveredClusterSearch.y > (totalSvgHeight || 550) - 180;
-        const leftPos = isLeftIdx ? hoveredClusterSearch.x - 245 : hoveredClusterSearch.x + 15;
+        const leftPos = isLeftIdx ? hoveredClusterSearch.x - 260 : hoveredClusterSearch.x + 30;
         const topPos = isTopIdx ? hoveredClusterSearch.y - 155 : hoveredClusterSearch.y + 15;
 
-        const netImbalance = hoveredClusterSearch.askPercent - hoveredClusterSearch.bidPercent;
+        const maxPercent = Math.max(hoveredClusterSearch.bidPercent, hoveredClusterSearch.askPercent);
+        const isBidGreater = hoveredClusterSearch.bidPercent > hoveredClusterSearch.askPercent;
+        const imbalanceValueStr = isBidGreater 
+          ? `-${hoveredClusterSearch.bidPercent.toFixed(1)}%` 
+          : `+${hoveredClusterSearch.askPercent.toFixed(1)}%`;
+
+        let anomalyIntensity = "Низкая";
+        if (maxPercent > 70) {
+          anomalyIntensity = "Высокая";
+        } else if (maxPercent >= 60) {
+          anomalyIntensity = "Средняя";
+        } else {
+          anomalyIntensity = "Низкая";
+        }
 
         return (
           <div
             className={`absolute border rounded-[14px] p-3.5 text-xs shadow-2xl z-50 flex flex-col gap-2.5 backdrop-blur-md pointer-events-none transition-all duration-100 ${
               isLight
                 ? "bg-white/95 border-slate-200 text-slate-800 shadow-xl shadow-slate-250/50"
-                : "bg-slate-950/95 border-white/10 text-slate-100 shadow-black/80"
+                : "liquid-glass-card border-none text-slate-100 shadow-black/80 shadow-2xl"
             }`}
             style={{
               left: `${leftPos}px`,
@@ -2378,14 +2391,16 @@ export default function ClusterChart({
             <span className="font-bold flex items-center justify-between uppercase tracking-wider border-b pb-1.5 border-dashed border-slate-200/20 font-mono text-[10px]">
               <span className="flex items-center gap-1.5 font-bold" style={{ color: hoveredClusterSearch.color }}>
                 <Activity className="w-3.5 h-3.5" />
-                ПОИСК КЛАСТЕРОВ
+                ПОИСК АНОМАЛИЙ
               </span>
-              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${
-                hoveredClusterSearch.filterType === "large" 
-                  ? "bg-purple-500/25 text-purple-400 border border-purple-500/20" 
-                  : "bg-blue-500/25 text-blue-400 border border-blue-500/20"
+              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${
+                anomalyIntensity === "Высокая"
+                  ? "bg-rose-500/25 text-rose-400 border border-rose-500/20"
+                  : anomalyIntensity === "Средняя"
+                    ? "bg-amber-500/25 text-amber-400 border border-amber-500/20"
+                    : "bg-blue-500/25 text-blue-400 border border-blue-500/20"
               }`}>
-                {hoveredClusterSearch.filterType === "large" ? "Крупный" : "Средний"}
+                {anomalyIntensity}
               </span>
             </span>
 
@@ -2406,19 +2421,9 @@ export default function ClusterChart({
                 isLight ? "border-slate-200" : "border-white/5"
               }`} />
 
-              <span>Покупатели (Ask):</span>
-              <span className="text-emerald-500 font-semibold text-right">
-                {hoveredClusterSearch.askPercent.toFixed(1)}%
-              </span>
-
-              <span>Продавцы (Bid):</span>
-              <span className="text-rose-500 font-semibold text-right">
-                {hoveredClusterSearch.bidPercent.toFixed(1)}%
-              </span>
-
               <span>Дисбаланс:</span>
               <span style={{ color: hoveredClusterSearch.color }} className="font-extrabold text-right">
-                {netImbalance > 0 ? "+" : ""}{netImbalance.toFixed(1)}%
+                {imbalanceValueStr}
               </span>
             </div>
           </div>
