@@ -245,6 +245,7 @@ export default function AdminPanel({
   const [newName, setNewName] = useState("");
   const [newPrice, setNewPrice] = useState("");
   const [newPriceStep, setNewPriceStep] = useState("1");
+  const [newMinTickStep, setNewMinTickStep] = useState("0.01");
   const [compressionSpotVal, setCompressionSpotVal] = useState("2");
   const [compressionFuturesVal, setCompressionFuturesVal] = useState("5");
   
@@ -415,6 +416,7 @@ export default function AdminPanel({
 
     const priceNum = 100.0;
     const stepNum = parseFloat(newPriceStep);
+    const tickStepNum = parseFloat(newMinTickStep);
     const compSpot = parseInt(compressionSpotVal) || 2;
     const compFut = parseInt(compressionFuturesVal) || 5;
 
@@ -427,7 +429,8 @@ export default function AdminPanel({
       delta24h: 0.0,
       priceStep: isNaN(stepNum) || stepNum <= 0 ? 1 : stepNum,
       compressionSpot: compSpot,
-      compressionFutures: compFut
+      compressionFutures: compFut,
+      minTickStep: isNaN(tickStepNum) || tickStepNum <= 0 ? 0.01 : tickStepNum
     };
 
     if (onAddPair) {
@@ -761,6 +764,25 @@ export default function AdminPanel({
                         <option value="0.01">0.01 (Мелкие токены)</option>
                         <option value="0.001">0.001 (Ripple)</option>
                       </select>
+                    </div>
+
+                    <div>
+                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
+                        isLight ? "text-slate-700" : "text-slate-400"
+                      }`}>Минимальный Шаг Тика (Tick Size)</label>
+                      <input
+                        type="number"
+                        step="any"
+                        required
+                        placeholder="0.01"
+                        value={newMinTickStep}
+                        onChange={(e) => setNewMinTickStep(e.target.value)}
+                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                          isLight 
+                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+                            : "bg-slate-900 border-white/10 text-white focus:border-emerald-500"
+                        }`}
+                      />
                     </div>
 
                     <div className={`p-3 rounded-lg border flex flex-col gap-1 md:col-span-2 ${

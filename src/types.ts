@@ -59,6 +59,7 @@ export interface CryptoPair {
   priceStep: number;  // Price clustering interval (e.g., $10 for BTC, $1 for ETH)
   compressionSpot?: number;
   compressionFutures?: number;
+  minTickStep?: number;
 }
 
 export interface AIAnalysis {

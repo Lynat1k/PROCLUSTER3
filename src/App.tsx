@@ -1072,9 +1072,11 @@ export default function App() {
 
     const isFutures = marketType === "FUTURES";
     const isBtc = activePair.symbol.toUpperCase().includes("BTC");
-    const baseTickStep = isBtc 
-      ? (isFutures ? 0.1 : 0.01) 
-      : getBaseTickSize(activePair.symbol);
+    const baseTickStep = activePair.minTickStep !== undefined
+      ? activePair.minTickStep
+      : (isBtc 
+        ? (isFutures ? 0.1 : 0.01) 
+        : getBaseTickSize(activePair.symbol));
     
     // Graph/Cluster compression (Returned back to original)
     const baseCompression = isBtc
