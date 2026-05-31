@@ -89,6 +89,20 @@ export default function ClusterChart({
   const totalSvgHeight = margin.top + chartHeight + deltaHeightTotal + cvdHeightTotal + margin.bottom;
 
   const [hoveredCell, setHoveredCell] = useState<{ candleIndex: number; cell: ClusterCell } | null>(null);
+  const [hoveredClusterSearch, setHoveredClusterSearch] = useState<{
+    x: number;
+    y: number;
+    sumVolume: number;
+    usdtVolume: number;
+    bidPercent: number;
+    askPercent: number;
+    isBidDominant: boolean;
+    isAskDominant: boolean;
+    baseAsset: string;
+    price: number;
+    color: string;
+    filterType: "medium" | "large";
+  } | null>(null);
   const [crosshair, setCrosshair] = useState<{ x: number; y: number; price: number } | null>(null);
 
   // Drag-to-scroll panning variables supporting full vertical + horizontal scrolling
@@ -370,6 +384,7 @@ export default function ClusterChart({
       e.currentTarget.style.cursor = "ew-resize";
       setCrosshair(null);
       setHoveredCell(null);
+      setHoveredClusterSearch(null);
       return;
     } else {
       e.currentTarget.style.cursor = "";
@@ -402,15 +417,133 @@ export default function ClusterChart({
       } else {
         setHoveredCell(null);
       }
+
+      // --- DYNAMIC CLUSTER SEARCH HOVER DETECTION ---
+      let foundCS: any = null;
+      if (activeIndicators.clusterSearch && colIdx >= 0 && colIdx < candles.length) {
+        const csSettings = indicatorSettings?.clusterSearch || {};
+        const csMergeLevels = typeof csSettings.csMergeLevels === "number" ? csSettings.csMergeLevels : 1;
+        const csImbalancePercent = typeof csSettings.csImbalancePercent === "number" ? csSettings.csImbalancePercent : 60;
+        
+        // Medium Filter
+        const csMedMinVolume = typeof csSettings.csMedMinVolume === "number" ? csSettings.csMedMinVolume : 100;
+        const csMedMaxVolume = typeof csSettings.csMedMaxVolume === "number" ? csSettings.csMedMaxVolume : 500;
+        const csMedMinSize = typeof csSettings.csMedMinSize === "number" ? csSettings.csMedMinSize : 4;
+        const csMedMaxSize = typeof csSettings.csMedMaxSize === "number" ? csSettings.csMedMaxSize : 12;
+        const csMedColorBid = csSettings.csMedColorBid || "#ef4444";
+        const csMedColorAsk = csSettings.csMedColorAsk || "#10b981";
+        
+        // Large Filter
+        const csLargeMinVolume = typeof csSettings.csLargeMinVolume === "number" ? csSettings.csLargeMinVolume : 500;
+        const csLargeMinSize = typeof csSettings.csLargeMinSize === "number" ? csSettings.csLargeMinSize : 10;
+        const csLargeMaxSize = typeof csSettings.csLargeMaxSize === "number" ? csSettings.csLargeMaxSize : 20;
+        const csLargeColorBid = csSettings.csLargeColorBid || "#f43f5e";
+        const csLargeColorAsk = csSettings.csLargeColorAsk || "#34d399";
+
+        // Check neighboring candles for overlapping geometric elements
+        const startC = Math.max(0, colIdx - 1);
+        const endC = Math.min(candles.length - 1, colIdx + 1);
+
+        for (let col = startC; col <= endC; col++) {
+          const currentCandle = candles[col];
+          const candleCells = currentCandle.cells || [];
+          const sortedCells = [...candleCells].sort((a, b) => b.price - a.price);
+          const K = Math.max(1, Math.min(csMergeLevels, sortedCells.length));
+
+          const colX = margin.left + col * (candleWidth + candleSpacing);
+          const centerX = colX + candleWidth / 2;
+
+          for (let i = 0; i <= sortedCells.length - K; i++) {
+            let sumVolume = 0;
+            let sumBid = 0;
+            let sumAsk = 0;
+            for (let j = 0; j < K; j++) {
+              const cell = sortedCells[i + j];
+              if (cell) {
+                sumVolume += cell.volume;
+                sumBid += cell.bid;
+                sumAsk += cell.ask;
+              }
+            }
+            if (sumVolume <= 0) continue;
+
+            const bidPercent = (sumBid / sumVolume) * 100;
+            const askPercent = (sumAsk / sumVolume) * 100;
+
+            const isBidDominant = bidPercent >= csImbalancePercent;
+            const isAskDominant = askPercent >= csImbalancePercent;
+
+            if (!isBidDominant && !isAskDominant) continue;
+
+            let filterType: "medium" | "large" | null = null;
+            if (sumVolume >= csLargeMinVolume) {
+              filterType = "large";
+            } else if (sumVolume >= csMedMinVolume && sumVolume <= csMedMaxVolume) {
+              filterType = "medium";
+            }
+            if (!filterType) continue;
+
+            let size = 8;
+            let color = "";
+            if (filterType === "large") {
+              color = isBidDominant ? csLargeColorBid : csLargeColorAsk;
+              const range = csLargeMinVolume * 2;
+              const ratio = range > 0 ? Math.min(1.0, (sumVolume - csLargeMinVolume) / range) : 0;
+              size = csLargeMinSize + ratio * (csLargeMaxSize - csLargeMinSize);
+            } else {
+              color = isBidDominant ? csMedColorBid : csMedColorAsk;
+              const range = csMedMaxVolume - csMedMinVolume;
+              const ratio = range > 0 ? Math.min(1.0, (sumVolume - csMedMinVolume) / range) : 0;
+              size = csMedMinSize + ratio * (csMedMaxSize - csMedMinSize);
+            }
+
+            const firstCellY = priceToY(sortedCells[i].price);
+            const lastCellY = priceToY(sortedCells[i + K - 1].price);
+            const centerY = (firstCellY + lastCellY) / 2;
+
+            const screenX = centerX - visibleScrollLeft;
+            const screenY = centerY;
+
+            const dx = x - screenX;
+            const dy = y - screenY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance <= Math.max(12, size / 2 + 8)) {
+              const midPrice = (sortedCells[i].price + sortedCells[i + K - 1].price) / 2;
+              const baseAsset = activePair.symbol.split("/")[0] || "BTC";
+
+              foundCS = {
+                x: screenX,
+                y: screenY,
+                sumVolume,
+                usdtVolume: sumVolume * 1000 * midPrice,
+                bidPercent,
+                askPercent,
+                isBidDominant,
+                isAskDominant,
+                baseAsset,
+                price: midPrice,
+                color,
+                filterType
+              };
+              break;
+            }
+          }
+          if (foundCS) break;
+        }
+      }
+      setHoveredClusterSearch(foundCS);
     } else {
       setCrosshair(null);
       setHoveredCell(null);
+      setHoveredClusterSearch(null);
     }
   };
 
   const handleSvgMouseLeave = () => {
     setCrosshair(null);
     setHoveredCell(null);
+    setHoveredClusterSearch(null);
   };
 
   // Profile aggregates: Horizontal Session Profile drawn on the vertical scale.
@@ -1590,6 +1723,20 @@ export default function ClusterChart({
     visibleClientWidth
   ]);
 
+  const formatCoinsVolume = (valInCoins: number, symbol: string) => {
+    const realCoins = valInCoins * 1000;
+    return `${realCoins.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${symbol.toUpperCase()}`;
+  };
+
+  const formatUsdtVolume = (valInUsdt: number) => {
+    if (valInUsdt >= 1_000_000_000) {
+      const bils = valInUsdt / 1_000_000_000;
+      return `${parseFloat(bils.toFixed(2)).toLocaleString()}b USDT`;
+    }
+    const mils = valInUsdt / 1_000_000;
+    return `${parseFloat(mils.toFixed(2)).toLocaleString()}m USDT`;
+  };
+
   return (
     <div className={`rounded-2xl overflow-hidden flex flex-col flex-1 shadow-2xl relative border transition-all duration-300 ${
       isLight ? "bg-white border-slate-200" : "liquid-glass-card border-none"
@@ -2205,6 +2352,78 @@ export default function ClusterChart({
           </div>
         </div>
       )}
+
+      {/* Floating Cluster Search Tooltip */}
+      {hoveredClusterSearch && (() => {
+        const isLeftIdx = hoveredClusterSearch.x > (visibleClientWidth || 800) - 260;
+        const isTopIdx = hoveredClusterSearch.y > (totalSvgHeight || 550) - 180;
+        const leftPos = isLeftIdx ? hoveredClusterSearch.x - 245 : hoveredClusterSearch.x + 15;
+        const topPos = isTopIdx ? hoveredClusterSearch.y - 155 : hoveredClusterSearch.y + 15;
+
+        const netImbalance = hoveredClusterSearch.askPercent - hoveredClusterSearch.bidPercent;
+
+        return (
+          <div
+            className={`absolute border rounded-[14px] p-3.5 text-xs shadow-2xl z-50 flex flex-col gap-2.5 backdrop-blur-md pointer-events-none transition-all duration-100 ${
+              isLight
+                ? "bg-white/95 border-slate-200 text-slate-800 shadow-xl shadow-slate-250/50"
+                : "bg-slate-950/95 border-white/10 text-slate-100 shadow-black/80"
+            }`}
+            style={{
+              left: `${leftPos}px`,
+              top: `${topPos}px`,
+              width: "230px"
+            }}
+          >
+            <span className="font-bold flex items-center justify-between uppercase tracking-wider border-b pb-1.5 border-dashed border-slate-200/20 font-mono text-[10px]">
+              <span className="flex items-center gap-1.5 font-bold" style={{ color: hoveredClusterSearch.color }}>
+                <Activity className="w-3.5 h-3.5" />
+                ПОИСК КЛАСТЕРОВ
+              </span>
+              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${
+                hoveredClusterSearch.filterType === "large" 
+                  ? "bg-purple-500/25 text-purple-400 border border-purple-500/20" 
+                  : "bg-blue-500/25 text-blue-400 border border-blue-500/20"
+              }`}>
+                {hoveredClusterSearch.filterType === "large" ? "Крупный" : "Средний"}
+              </span>
+            </span>
+
+            <div className={`grid grid-cols-[1.2fr_1fr] gap-x-2 gap-y-1.5 font-mono text-[11px] ${
+              isLight ? "text-slate-600" : "text-slate-400"
+            }`}>
+              <span>Объем (монеты):</span>
+              <span className={`font-bold text-right ${isLight ? "text-slate-900" : "text-white"}`}>
+                {formatCoinsVolume(hoveredClusterSearch.sumVolume, hoveredClusterSearch.baseAsset)}
+              </span>
+
+              <span>Объем в USDT:</span>
+              <span className={`font-bold text-right ${isLight ? "text-slate-900" : "text-white"}`}>
+                {formatUsdtVolume(hoveredClusterSearch.usdtVolume)}
+              </span>
+
+              <div className={`col-span-2 border-t border-dashed my-0.5 ${
+                isLight ? "border-slate-200" : "border-white/5"
+              }`} />
+
+              <span>Покупатели (Ask):</span>
+              <span className="text-emerald-500 font-semibold text-right">
+                {hoveredClusterSearch.askPercent.toFixed(1)}%
+              </span>
+
+              <span>Продавцы (Bid):</span>
+              <span className="text-rose-500 font-semibold text-right">
+                {hoveredClusterSearch.bidPercent.toFixed(1)}%
+              </span>
+
+              <span>Дисбаланс:</span>
+              <span style={{ color: hoveredClusterSearch.color }} className="font-extrabold text-right">
+                {netImbalance > 0 ? "+" : ""}{netImbalance.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
