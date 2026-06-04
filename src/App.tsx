@@ -554,69 +554,244 @@ export default function App() {
     return AVAILABLE_PAIRS;
   });
 
-  const [activePair, setActivePair] = useState<CryptoPair>(() => {
-    const savedSymbol = localStorage.getItem("procluster_active_symbol");
-    const initialPairs = (() => {
-      const saved = localStorage.getItem("procluster_pairs");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            const filtered = parsed.filter((p: any) => AVAILABLE_PAIRS.some(ap => ap.symbol === p.symbol));
-            const sanitized = filtered.map(p => {
-              const original = AVAILABLE_PAIRS.find(ap => ap.symbol === p.symbol);
-              if (original) {
-                const isReasonablePrice = p.price > original.price * 0.1 && p.price < original.price * 10 && !isNaN(p.price);
-                const isReasonableStep = p.priceStep > 0 && !isNaN(p.priceStep) && typeof p.priceStep === "number";
-                if (!isReasonablePrice) {
-                  p.price = original.price;
-                }
-                if (!isReasonableStep) {
-                  p.priceStep = original.priceStep;
-                }
-              }
-              return p;
-            });
-            if (sanitized.length > 0) return sanitized;
-          }
-        } catch (e) {}
+  const [workspaceLayout, setWorkspaceLayout] = useState<"1" | "2h" | "2v">("1");
+  const [activeChartIndex, setActiveChartIndex] = useState<number>(0);
+  const [resizeRatio, setResizeRatio] = useState<number>(50);
+  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState<boolean>(false);
+  const workspaceMenuRef = useRef<HTMLDivElement>(null);
+
+  // Splitter/resizer drag handlers
+  const handleSplitterMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const container = document.getElementById("charts-workspace-container");
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      let percentage = 50;
+      if (workspaceLayout === "2h") {
+        const clientX = moveEvent.clientX;
+        percentage = ((clientX - rect.left) / rect.width) * 100;
+      } else if (workspaceLayout === "2v") {
+        const clientY = moveEvent.clientY;
+        percentage = ((clientY - rect.top) / rect.height) * 100;
       }
-      return AVAILABLE_PAIRS;
-    })();
+      percentage = Math.max(15, Math.min(85, percentage));
+      setResizeRatio(percentage);
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleSplitterTouchStart = (e: React.TouchEvent) => {
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      if (moveEvent.touches.length === 0) return;
+      const container = document.getElementById("charts-workspace-container");
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      let percentage = 50;
+      if (workspaceLayout === "2h") {
+        const clientX = moveEvent.touches[0].clientX;
+        percentage = ((clientX - rect.left) / rect.width) * 100;
+      } else if (workspaceLayout === "2v") {
+        const clientY = moveEvent.touches[0].clientY;
+        percentage = ((clientY - rect.top) / rect.height) * 100;
+      }
+      percentage = Math.max(15, Math.min(85, percentage));
+      setResizeRatio(percentage);
+    };
+
+    const handleTouchEnd = () => {
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleTouchEnd);
+    };
+
+    document.addEventListener("touchmove", handleTouchMove);
+    document.addEventListener("touchend", handleTouchEnd);
+  };
+
+  const [activePair0, setActivePair0] = useState<CryptoPair>(() => {
+    const savedSymbol = localStorage.getItem("procluster_active_symbol_0") || localStorage.getItem("procluster_active_symbol");
+    const initialPairs = AVAILABLE_PAIRS;
     if (savedSymbol) {
       const found = initialPairs.find((p: CryptoPair) => p.symbol === savedSymbol);
       if (found) return found;
     }
     return initialPairs[0] || AVAILABLE_PAIRS[0];
   });
-  
-  // Dashboard Configurations
-  const [interval, setInterval] = useState<string>(() => {
-    return localStorage.getItem("procluster_interval") || "15m";
-  });
-  const [isTickingAll, setIsTickingAll] = useState<boolean>(true);
-  const [connectionStatus, setConnectionStatus] = useState<"connected" | "syncing" | "stale">("connected");
-  const [marketType, setMarketType] = useState<"SPOT" | "FUTURES">(() => {
-    return (localStorage.getItem("procluster_market_type") as "SPOT" | "FUTURES") || "SPOT";
-  });
-  const [candleType, setCandleType] = useState<"auto" | "japanese" | "footprint" | "clusters">(() => {
-    return (localStorage.getItem("procluster_candle_type") as any) || "auto";
-  });
-  const [candleDataType, setCandleDataType] = useState<"bid_ask" | "delta" | "volume">(() => {
-    return (localStorage.getItem("procluster_candle_data_type") as any) || "bid_ask";
-  });
-  const [candlePalette, setCandlePalette] = useState<"default" | "alternative">(() => {
-    return (localStorage.getItem("procluster_candle_palette") as "default" | "alternative") || "default";
+
+  const [activePair1, setActivePair1] = useState<CryptoPair>(() => {
+    const savedSymbol = localStorage.getItem("procluster_active_symbol_1");
+    const initialPairs = AVAILABLE_PAIRS;
+    if (savedSymbol) {
+      const found = initialPairs.find((p: CryptoPair) => p.symbol === savedSymbol);
+      if (found) return found;
+    }
+    return initialPairs[1] || initialPairs[0] || AVAILABLE_PAIRS[0];
   });
 
-  const [compressionMultiplier, setCompressionMultiplier] = useState<number>(() => {
-    const saved = localStorage.getItem("procluster_compression_multiplier");
+  // Dual-chart config states
+  const [interval0, setInterval0] = useState<string>(() => {
+    return localStorage.getItem("procluster_interval_0") || localStorage.getItem("procluster_interval") || "15m";
+  });
+  const [interval1, setInterval1] = useState<string>(() => {
+    return localStorage.getItem("procluster_interval_1") || "15m";
+  });
+
+  const [marketType0, setMarketType0] = useState<"SPOT" | "FUTURES">(() => {
+    return (localStorage.getItem("procluster_market_type_0") as any) || (localStorage.getItem("procluster_market_type") as any) || "SPOT";
+  });
+  const [marketType1, setMarketType1] = useState<"SPOT" | "FUTURES">(() => {
+    return (localStorage.getItem("procluster_market_type_1") as any) || "SPOT";
+  });
+
+  const [candleType0, setCandleType0] = useState<"auto" | "japanese" | "footprint" | "clusters">(() => {
+    return (localStorage.getItem("procluster_candle_type_0") as any) || (localStorage.getItem("procluster_candle_type") as any) || "auto";
+  });
+  const [candleType1, setCandleType1] = useState<"auto" | "japanese" | "footprint" | "clusters">(() => {
+    return (localStorage.getItem("procluster_candle_type_1") as any) || "auto";
+  });
+
+  const [candleDataType0, setCandleDataType0] = useState<"bid_ask" | "delta" | "volume">(() => {
+    return (localStorage.getItem("procluster_candle_data_type_0") as any) || (localStorage.getItem("procluster_candle_data_type") as any) || "bid_ask";
+  });
+  const [candleDataType1, setCandleDataType1] = useState<"bid_ask" | "delta" | "volume">(() => {
+    return (localStorage.getItem("procluster_candle_data_type_1") as any) || "bid_ask";
+  });
+
+  const [candlePalette0, setCandlePalette0] = useState<"default" | "alternative">(() => {
+    return (localStorage.getItem("procluster_candle_palette_0") as any) || (localStorage.getItem("procluster_candle_palette") as any) || "default";
+  });
+  const [candlePalette1, setCandlePalette1] = useState<"default" | "alternative">(() => {
+    return (localStorage.getItem("procluster_candle_palette_1") as any) || "default";
+  });
+
+  const [compressionMultiplier0, setCompressionMultiplier0] = useState<number>(() => {
+    const saved = localStorage.getItem("procluster_compression_multiplier_0") || localStorage.getItem("procluster_compression_multiplier");
+    return saved ? parseInt(saved, 10) || 1 : 1;
+  });
+  const [compressionMultiplier1, setCompressionMultiplier1] = useState<number>(() => {
+    const saved = localStorage.getItem("procluster_compression_multiplier_1");
     return saved ? parseInt(saved, 10) || 1 : 1;
   });
 
+  const [isTickingAll, setIsTickingAll] = useState<boolean>(true);
+  const [connectionStatus, setConnectionStatus] = useState<"connected" | "syncing" | "stale">("connected");
+
+  // Keep localStorage synchronizer effects
   useEffect(() => {
-    localStorage.setItem("procluster_compression_multiplier", compressionMultiplier.toString());
-  }, [compressionMultiplier]);
+    localStorage.setItem("procluster_compression_multiplier_0", compressionMultiplier0.toString());
+  }, [compressionMultiplier0]);
+  useEffect(() => {
+    localStorage.setItem("procluster_compression_multiplier_1", compressionMultiplier1.toString());
+  }, [compressionMultiplier1]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_interval_0", interval0);
+  }, [interval0]);
+  useEffect(() => {
+    localStorage.setItem("procluster_interval_1", interval1);
+  }, [interval1]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_market_type_0", marketType0);
+  }, [marketType0]);
+  useEffect(() => {
+    localStorage.setItem("procluster_market_type_1", marketType1);
+  }, [marketType1]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_candle_type_0", candleType0);
+  }, [candleType0]);
+  useEffect(() => {
+    localStorage.setItem("procluster_candle_type_1", candleType1);
+  }, [candleType1]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_candle_data_type_0", candleDataType0);
+  }, [candleDataType0]);
+  useEffect(() => {
+    localStorage.setItem("procluster_candle_data_type_1", candleDataType1);
+  }, [candleDataType1]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_candle_palette_0", candlePalette0);
+  }, [candlePalette0]);
+  useEffect(() => {
+    localStorage.setItem("procluster_candle_palette_1", candlePalette1);
+  }, [candlePalette1]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_active_symbol_0", activePair0.symbol);
+  }, [activePair0.symbol]);
+  useEffect(() => {
+    localStorage.setItem("procluster_active_symbol_1", activePair1.symbol);
+  }, [activePair1.symbol]);
+
+  // Getter derived configs base on activeChartIndex
+  const activePair = activeChartIndex === 0 ? activePair0 : activePair1;
+  const interval = activeChartIndex === 0 ? interval0 : interval1;
+  const marketType = activeChartIndex === 0 ? marketType0 : marketType1;
+  const candleType = activeChartIndex === 0 ? candleType0 : candleType1;
+  const candleDataType = activeChartIndex === 0 ? candleDataType0 : candleDataType1;
+  const candlePalette = activeChartIndex === 0 ? candlePalette0 : candlePalette1;
+  const compressionMultiplier = activeChartIndex === 0 ? compressionMultiplier0 : compressionMultiplier1;
+
+  // Setter proxy configs base on activeChartIndex
+  const setActivePair = (val: CryptoPair | ((p: CryptoPair) => CryptoPair)) => {
+    if (activeChartIndex === 0) {
+      setActivePair0(val);
+    } else {
+      setActivePair1(val);
+    }
+  };
+  const setInterval = (val: string | ((p: string) => string)) => {
+    if (activeChartIndex === 0) {
+      setInterval0(val);
+    } else {
+      setInterval1(val);
+    }
+  };
+  const setMarketType = (val: "SPOT" | "FUTURES" | ((p: "SPOT" | "FUTURES") => "SPOT" | "FUTURES")) => {
+    if (activeChartIndex === 0) {
+      setMarketType0(val);
+    } else {
+      setMarketType1(val);
+    }
+  };
+  const setCandleType = (val: "auto" | "japanese" | "footprint" | "clusters" | ((p: any) => any)) => {
+    if (activeChartIndex === 0) {
+      setCandleType0(val);
+    } else {
+      setCandleType1(val);
+    }
+  };
+  const setCandleDataType = (val: "bid_ask" | "delta" | "volume" | ((p: any) => any)) => {
+    if (activeChartIndex === 0) {
+      setCandleDataType0(val);
+    } else {
+      setCandleDataType1(val);
+    }
+  };
+  const setCandlePalette = (val: "default" | "alternative" | ((p: any) => any)) => {
+    if (activeChartIndex === 0) {
+      setCandlePalette0(val);
+    } else {
+      setCandlePalette1(val);
+    }
+  };
+  const setCompressionMultiplier = (val: number | ((p: number) => number)) => {
+    if (activeChartIndex === 0) {
+      setCompressionMultiplier0(val);
+    } else {
+      setCompressionMultiplier1(val);
+    }
+  };
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem("procluster_sidebar_collapsed") === "true";
@@ -1081,31 +1256,57 @@ export default function App() {
       if (paletteMenuRef.current && !paletteMenuRef.current.contains(event.target as Node)) {
         setShowPaletteMenu(false);
       }
+      if (workspaceMenuRef.current && !workspaceMenuRef.current.contains(event.target as Node)) {
+        setShowWorkspaceMenu(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Chart, book, and trades dataset
-  const [candles, setCandles] = useState<ClusterCandle[]>([]);
-  const [orderBook, setOrderBook] = useState<OrderBookType>({ bids: [], asks: [] });
-  const [trades, setTrades] = useState<LiveTrade[]>([]);
+  // Dual Chart, book, and trades datasets
+  const [candles0, setCandles0] = useState<ClusterCandle[]>([]);
+  const [orderBook0, setOrderBook0] = useState<OrderBookType>({ bids: [], asks: [] });
+  const [trades0, setTrades0] = useState<LiveTrade[]>([]);
 
-  // --- WebSocket & Real-Time Connection Refs & Buffers ---
-  const incomingTradesBufferRef = useRef<{ id: string; timestamp: number; price: number; amount: number; side: "buy" | "sell" }[]>([]);
-  const lastTickTimeRef = useRef<number>(Date.now());
-  const activePairRef = useRef<CryptoPair>(activePair);
-  const intervalRef = useRef<string>(interval);
-  const orderBookTickStepRef = useRef<number>(0.01);
-  const hasRealDepthStreamRef = useRef<boolean>(false);
+  const [candles1, setCandles1] = useState<ClusterCandle[]>([]);
+  const [orderBook1, setOrderBook1] = useState<OrderBookType>({ bids: [], asks: [] });
+  const [trades1, setTrades1] = useState<LiveTrade[]>([]);
+
+  const candles = activeChartIndex === 0 ? candles0 : candles1;
+  const orderBook = activeChartIndex === 0 ? orderBook0 : orderBook1;
+  const trades = activeChartIndex === 0 ? trades0 : trades1;
+
+  // --- Dual-Chart WebSocket & Real-Time Connection Refs & Buffers ---
+  const incomingTradesBufferRef0 = useRef<{ id: string; timestamp: number; price: number; amount: number; side: "buy" | "sell" }[]>([]);
+  const lastTickTimeRef0 = useRef<number>(Date.now());
+  const activePairRef0 = useRef<CryptoPair>(activePair0);
+  const intervalRef0 = useRef<string>(interval0);
+  const orderBookTickStepRef0 = useRef<number>(0.01);
+  const hasRealDepthStreamRef0 = useRef<boolean>(false);
+
+  const incomingTradesBufferRef1 = useRef<{ id: string; timestamp: number; price: number; amount: number; side: "buy" | "sell" }[]>([]);
+  const lastTickTimeRef1 = useRef<number>(Date.now());
+  const activePairRef1 = useRef<CryptoPair>(activePair1);
+  const intervalRef1 = useRef<string>(interval1);
+  const orderBookTickStepRef1 = useRef<number>(0.01);
+  const hasRealDepthStreamRef1 = useRef<boolean>(false);
   
   useEffect(() => {
-    activePairRef.current = activePair;
-  }, [activePair]);
+    activePairRef0.current = activePair0;
+  }, [activePair0]);
 
   useEffect(() => {
-    intervalRef.current = interval;
-  }, [interval]);
+    activePairRef1.current = activePair1;
+  }, [activePair1]);
+
+  useEffect(() => {
+    intervalRef0.current = interval0;
+  }, [interval0]);
+
+  useEffect(() => {
+    intervalRef1.current = interval1;
+  }, [interval1]);
 
   const getWhaleThreshold = (symbol: string): number => {
     if (symbol.startsWith("BTC")) return 0.5;
@@ -1115,54 +1316,46 @@ export default function App() {
     return 20000; // General high volume threshold (e.g., XRP or low price pairs)
   };
 
-  // Re-generate database sets when active token changes
+  // Re-generate database sets when Chart 0 active token/timeframe/settings change
   useEffect(() => {
     let active = true;
-    hasRealDepthStreamRef.current = false;
+    hasRealDepthStreamRef0.current = false;
     setConnectionStatus("syncing");
 
-    const isFutures = marketType === "FUTURES";
-    const isBtc = activePair.symbol.toUpperCase().includes("BTC");
-    const baseTickStep = activePair.minTickStep !== undefined
-      ? activePair.minTickStep
+    const isFutures = marketType0 === "FUTURES";
+    const isBtc = activePair0.symbol.toUpperCase().includes("BTC");
+    const baseTickStep = activePair0.minTickStep !== undefined
+      ? activePair0.minTickStep
       : (isBtc 
         ? (isFutures ? 0.1 : 0.01) 
-        : getBaseTickSize(activePair.symbol));
+        : getBaseTickSize(activePair0.symbol));
     
-    // Graph/Cluster compression (Returned back to original)
     const baseCompression = isBtc
       ? (isFutures ? 25 : 500)
       : 25;
     
-    const compression = baseCompression * compressionMultiplier;
-      
+    const compression = baseCompression * compressionMultiplier0;
     const tickStep = baseTickStep * compression;
-
-    // Orderbook compression: align with chart's tickStep for dense and fully detailed order book levels
     const orderBookTickStep = tickStep;
-      
-    orderBookTickStepRef.current = orderBookTickStep;
+    orderBookTickStepRef0.current = orderBookTickStep;
 
     async function loadRealBinanceData() {
       try {
-        const isFutures = marketType === "FUTURES";
-        
-        // 1. Fetch real historical candles or aggregate 50 ticks from Binance REST API
+        const isFutures = marketType0 === "FUTURES";
         let realCandles: ClusterCandle[] = [];
-        if (interval === "50t") {
-          realCandles = await fetchBinanceTicksAndAggregate(activePair.symbol, isFutures, tickStep, 50);
+        if (interval0 === "50t") {
+          realCandles = await fetchBinanceTicksAndAggregate(activePair0.symbol, isFutures, tickStep, 50);
         } else {
-          realCandles = await fetchBinanceKlines(activePair.symbol, interval, isFutures, tickStep);
+          realCandles = await fetchBinanceKlines(activePair0.symbol, interval0, isFutures, tickStep);
         }
         if (!active) return;
         const limits = getActiveGroupLimits();
-        setCandles(realCandles.slice(-limits.maxHistory));
+        setCandles0(realCandles.slice(-limits.maxHistory));
 
         if (realCandles.length > 0) {
           const lastCandle = realCandles[realCandles.length - 1];
-          // Re-align activePair's live price to match the close of the last kline and set correct tickStep
-          setActivePair(prev => {
-            if (prev.symbol === activePair.symbol) {
+          setActivePair0(prev => {
+            if (prev.symbol === activePair0.symbol) {
               return {
                 ...prev,
                 price: lastCandle.close,
@@ -1172,7 +1365,7 @@ export default function App() {
             return prev;
           });
           setPairs(prevPairs => prevPairs.map(p => {
-            if (p.symbol === activePair.symbol) {
+            if (p.symbol === activePair0.symbol) {
               return {
                 ...p,
                 price: lastCandle.close,
@@ -1183,32 +1376,31 @@ export default function App() {
           }));
         }
 
-        // 2. Fetch real initial Order Book depth from Binance Depth API (Using orderBookTickStep)
-        const realBook = await fetchBinanceDepth(activePair.symbol, isFutures, orderBookTickStep);
+        const realBook = await fetchBinanceDepth(activePair0.symbol, isFutures, orderBookTickStep);
         if (!active) return;
         if (realBook) {
-          setOrderBook(realBook);
-          hasRealDepthStreamRef.current = true;
+          setOrderBook0(realBook);
+          hasRealDepthStreamRef0.current = true;
         } else {
-          setOrderBook(generateOrderBook(activePair.price, orderBookTickStep));
+          setOrderBook0(generateOrderBook(activePair0.price, orderBookTickStep));
         }
 
         setConnectionStatus("connected");
       } catch (err) {
-        console.warn("[Binance REST] Load failed, falling back to simulated data with custom compression", err);
+        console.warn("[Binance REST 0] Load failed, falling back to simulated data with custom compression", err);
         if (!active) return;
 
         const limits = getActiveGroupLimits();
-        const histCandles = generateHistoricalCandles({ ...activePair, priceStep: tickStep }, Math.min(120, limits.maxHistory), parseInterval(interval));
-        if (interval === "50t") {
+        const histCandles = generateHistoricalCandles({ ...activePair0, priceStep: tickStep }, Math.min(120, limits.maxHistory), parseInterval(interval0));
+        if (interval0 === "50t") {
           histCandles.forEach(c => {
             c.tickCount = 50;
           });
         }
-        setCandles(histCandles);
+        setCandles0(histCandles);
 
-        const initialBook = generateOrderBook(activePair.price, orderBookTickStep);
-        setOrderBook(initialBook);
+        const initialBook = generateOrderBook(activePair0.price, orderBookTickStep);
+        setOrderBook0(initialBook);
 
         setConnectionStatus("connected");
       }
@@ -1216,31 +1408,141 @@ export default function App() {
 
     loadRealBinanceData();
 
-    // Presets some historical starting trades
     const histTrades: LiveTrade[] = [];
     for (let i = 0; i < 15; i++) {
-      histTrades.push(generateLiveTrade(activePair.price, tickStep));
+      histTrades.push(generateLiveTrade(activePair0.price, tickStep));
     }
-    setTrades(histTrades.sort((a, b) => b.timestamp - a.timestamp));
+    setTrades0(histTrades.sort((a, b) => b.timestamp - a.timestamp));
 
     return () => {
       active = false;
     };
-  }, [activePair.symbol, interval, marketType, compressionMultiplier]);
+  }, [activePair0.symbol, interval0, marketType0, compressionMultiplier0]);
 
-  // Batch process incoming trades to keep the chart performant and buttery-smooth
-  const processTicks = (newTicks: { id: string; timestamp: number; price: number; amount: number; side: "buy" | "sell" }[]) => {
+  // Re-generate database sets when Chart 1 active token/timeframe/settings change
+  useEffect(() => {
+    let active = true;
+    hasRealDepthStreamRef1.current = false;
+    setConnectionStatus("syncing");
+
+    const isFutures = marketType1 === "FUTURES";
+    const isBtc = activePair1.symbol.toUpperCase().includes("BTC");
+    const baseTickStep = activePair1.minTickStep !== undefined
+      ? activePair1.minTickStep
+      : (isBtc 
+        ? (isFutures ? 0.1 : 0.01) 
+        : getBaseTickSize(activePair1.symbol));
+    
+    const baseCompression = isBtc
+      ? (isFutures ? 25 : 500)
+      : 25;
+    
+    const compression = baseCompression * compressionMultiplier1;
+    const tickStep = baseTickStep * compression;
+    const orderBookTickStep = tickStep;
+    orderBookTickStepRef1.current = orderBookTickStep;
+
+    async function loadRealBinanceData() {
+      try {
+        const isFutures = marketType1 === "FUTURES";
+        let realCandles: ClusterCandle[] = [];
+        if (interval1 === "50t") {
+          realCandles = await fetchBinanceTicksAndAggregate(activePair1.symbol, isFutures, tickStep, 50);
+        } else {
+          realCandles = await fetchBinanceKlines(activePair1.symbol, interval1, isFutures, tickStep);
+        }
+        if (!active) return;
+        const limits = getActiveGroupLimits();
+        setCandles1(realCandles.slice(-limits.maxHistory));
+
+        if (realCandles.length > 0) {
+          const lastCandle = realCandles[realCandles.length - 1];
+          setActivePair1(prev => {
+            if (prev.symbol === activePair1.symbol) {
+              return {
+                ...prev,
+                price: lastCandle.close,
+                priceStep: tickStep
+              };
+            }
+            return prev;
+          });
+          setPairs(prevPairs => prevPairs.map(p => {
+            if (p.symbol === activePair1.symbol) {
+              return {
+                ...p,
+                price: lastCandle.close,
+                priceStep: tickStep
+              };
+            }
+            return p;
+          }));
+        }
+
+        const realBook = await fetchBinanceDepth(activePair1.symbol, isFutures, orderBookTickStep);
+        if (!active) return;
+        if (realBook) {
+          setOrderBook1(realBook);
+          hasRealDepthStreamRef1.current = true;
+        } else {
+          setOrderBook1(generateOrderBook(activePair1.price, orderBookTickStep));
+        }
+
+        setConnectionStatus("connected");
+      } catch (err) {
+        console.warn("[Binance REST 1] Load failed, falling back to simulated data with custom compression", err);
+        if (!active) return;
+
+        const limits = getActiveGroupLimits();
+        const histCandles = generateHistoricalCandles({ ...activePair1, priceStep: tickStep }, Math.min(120, limits.maxHistory), parseInterval(interval1));
+        if (interval1 === "50t") {
+          histCandles.forEach(c => {
+            c.tickCount = 50;
+          });
+        }
+        setCandles1(histCandles);
+
+        const initialBook = generateOrderBook(activePair1.price, orderBookTickStep);
+        setOrderBook1(initialBook);
+
+        setConnectionStatus("connected");
+      }
+    }
+
+    loadRealBinanceData();
+
+    const histTrades: LiveTrade[] = [];
+    for (let i = 0; i < 15; i++) {
+      histTrades.push(generateLiveTrade(activePair1.price, tickStep));
+    }
+    setTrades1(histTrades.sort((a, b) => b.timestamp - a.timestamp));
+
+    return () => {
+      active = false;
+    };
+  }, [activePair1.symbol, interval1, marketType1, compressionMultiplier1]);
+
+  const processTicksForIdx = (idx: number, newTicks: { id: string; timestamp: number; price: number; amount: number; side: "buy" | "sell" }[]) => {
     if (newTicks.length === 0) return;
 
+    const setTradesLocal = idx === 0 ? setTrades0 : setTrades1;
+    const activePairRefLocal = idx === 0 ? activePairRef0 : activePairRef1;
+    const hasRealDepthStreamRefLocal = idx === 0 ? hasRealDepthStreamRef0 : hasRealDepthStreamRef1;
+    const orderBookTickStepRefLocal = idx === 0 ? orderBookTickStepRef0 : orderBookTickStepRef1;
+    const setOrderBookLocal = idx === 0 ? setOrderBook0 : setOrderBook1;
+    const setCandlesLocal = idx === 0 ? setCandles0 : setCandles1;
+    const intervalRefLocal = idx === 0 ? intervalRef0 : intervalRef1;
+    const setActivePairLocal = idx === 0 ? setActivePair0 : setActivePair1;
+
     // 1. Update live Trades list (Keep max 50)
-    setTrades((prev) => {
+    setTradesLocal((prev) => {
       const formattedTrades: LiveTrade[] = newTicks.map((t) => ({
         id: t.id,
         timestamp: t.timestamp,
         price: t.price,
         amount: t.amount,
         side: t.side,
-        isWhale: t.amount >= getWhaleThreshold(activePairRef.current.symbol)
+        isWhale: t.amount >= getWhaleThreshold(activePairRefLocal.current.symbol)
       }));
       return [...formattedTrades.reverse(), ...prev].slice(0, 50);
     });
@@ -1250,7 +1552,7 @@ export default function App() {
     // 2. Re-build active pairs list with the real prices
     setPairs((prevPairs) =>
       prevPairs.map((p) => {
-        if (p.symbol === activePairRef.current.symbol) {
+        if (p.symbol === activePairRefLocal.current.symbol) {
           // Accumulate batch volumes and net delta
           let batchVolume = 0;
           let batchDelta = 0;
@@ -1275,7 +1577,7 @@ export default function App() {
             change24h
           };
           
-          setActivePair(updatedPair);
+          setActivePairLocal(updatedPair);
           return updatedPair;
         } else {
           // Subtle standard random fluctuation for inactive pairs so they feel simulated alive
@@ -1289,15 +1591,15 @@ export default function App() {
     );
 
     // 3. Update Order Book Depth once per batch (only if we don't have a real depth stream)
-    if (!hasRealDepthStreamRef.current) {
-      setOrderBook(generateOrderBook(lastTick.price, orderBookTickStepRef.current));
+    if (!hasRealDepthStreamRefLocal.current) {
+      setOrderBookLocal(generateOrderBook(lastTick.price, orderBookTickStepRefLocal.current));
     }
 
     // 4. Update candle clusters in real-time
-    setCandles((prevCandles) => {
+    setCandlesLocal((prevCandles) => {
       if (prevCandles.length === 0) return prevCandles;
       let nextCandles = [...prevCandles];
-      const candleDuration = parseInterval(intervalRef.current) * 60 * 1000;
+      const candleDuration = parseInterval(intervalRefLocal.current) * 60 * 1000;
 
       newTicks.forEach((tick) => {
         const lastCandleIdx = nextCandles.length - 1;
@@ -1315,7 +1617,7 @@ export default function App() {
           const candleVolume = tick.amount;
           const delta = tick.side === "buy" ? tick.amount : -tick.amount;
 
-          const stepPrice = Math.floor(tick.price / activePairRef.current.priceStep) * activePairRef.current.priceStep;
+          const stepPrice = Math.floor(tick.price / activePairRefLocal.current.priceStep) * activePairRefLocal.current.priceStep;
           const cellPrice = parseFloat(stepPrice.toFixed(4));
 
           const initialCell = {
@@ -1354,7 +1656,7 @@ export default function App() {
           lastCandle.delta += tick.side === "buy" ? tick.amount : -tick.amount;
 
           // Locate nearest price interval cell
-          const stepPrice = Math.floor(tick.price / activePairRef.current.priceStep) * activePairRef.current.priceStep;
+          const stepPrice = Math.floor(tick.price / activePairRefLocal.current.priceStep) * activePairRefLocal.current.priceStep;
           const cellPrice = parseFloat(stepPrice.toFixed(4));
 
           const cells = lastCandle.cells.map((c) => ({ ...c }));
@@ -1387,8 +1689,8 @@ export default function App() {
           cells.forEach((cell, idx) => {
             cell.isPoc = false;
             // Classify diagonal imbalances based on volumes and ratios
-            cell.isBuyImbalance = cell.ask > cell.bid * 1.8 && cell.volume > (activePairRef.current.priceStep * 1.5);
-            cell.isSellImbalance = cell.bid > cell.ask * 1.8 && cell.volume > (activePairRef.current.priceStep * 1.5);
+            cell.isBuyImbalance = cell.ask > cell.bid * 1.8 && cell.volume > (activePairRefLocal.current.priceStep * 1.5);
+            cell.isSellImbalance = cell.bid > cell.ask * 1.8 && cell.volume > (activePairRefLocal.current.priceStep * 1.5);
 
             if (cell.volume > maxVol) {
               maxVol = cell.volume;
@@ -1501,7 +1803,7 @@ export default function App() {
                     message: msg,
                     type: matchedFilterType,
                     isBlocked: !limits.telegramNotifications,
-                    pair: activePairRef.current.symbol,
+                    pair: activePairRefLocal.current.symbol,
                     price: startPrice,
                     volume: sumVolume,
                     imbalanceSide,
@@ -1541,12 +1843,13 @@ export default function App() {
     });
   };
 
-  const processDepthUpdate = (depthData: any) => {
+  const processDepthUpdateForIdx = (idx: number, depthData: any) => {
     if (!depthData || !Array.isArray(depthData.bids) || !Array.isArray(depthData.asks)) {
       return;
     }
     
-    const priceStep = orderBookTickStepRef.current || 0.01;
+    const priceStep = (idx === 0 ? orderBookTickStepRef0.current : orderBookTickStepRef1.current) || 0.01;
+    const setOrderBookLocal = idx === 0 ? setOrderBook0 : setOrderBook1;
     
     // Bucket real-time depth levels to aggregate them
     const aggBids: Record<number, number> = {};
@@ -1608,10 +1911,10 @@ export default function App() {
     bidsArr.forEach(b => b.percentage = (b.total / maxTotal) * 100);
     asksArr.forEach(a => a.percentage = (a.total / maxTotal) * 100);
 
-    setOrderBook({ bids: bidsArr, asks: asksArr });
+    setOrderBookLocal({ bids: bidsArr, asks: asksArr });
   };
 
-  // 1. Establish real-time Binance WebSocket stream connection (Combined streams: trade & depth)
+  // 1a. Establish real-time Binance WebSocket stream connection for Chart 0
   useEffect(() => {
     if (!isTickingAll) {
       setConnectionStatus("stale");
@@ -1620,18 +1923,17 @@ export default function App() {
 
     setConnectionStatus("syncing");
 
-    const binanceSymbol = activePair.symbol.toLowerCase().replace("/", "");
-    // Connect to Futures or Spot stream based on active market selection using combined streams
-    const wsUrl = marketType === "FUTURES"
+    const binanceSymbol = activePair0.symbol.toLowerCase().replace("/", "");
+    const wsUrl = marketType0 === "FUTURES"
       ? `wss://fstream.binance.com/stream?streams=${binanceSymbol}@aggTrade/${binanceSymbol}@depth100@100ms`
       : `wss://stream.binance.com:9443/stream?streams=${binanceSymbol}@trade/${binanceSymbol}@depth100@100ms`;
 
-    console.log(`[WebSocket] Connecting to Binance URL: ${wsUrl}`);
+    console.log(`[WebSocket 0] Connecting to Binance URL: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log(`[WebSocket] Opened combined streams for ${activePair.symbol} (${marketType})`);
-      setConnectionStatus("connected");
+      console.log(`[WebSocket 0] Opened combined streams for ${activePair0.symbol} (${marketType0})`);
+      if (activeChartIndex === 0) setConnectionStatus("connected");
     };
 
     ws.onmessage = (event) => {
@@ -1639,17 +1941,15 @@ export default function App() {
         const payload = JSON.parse(event.data);
         if (!payload) return;
 
-        // Combined streams format returns { stream: "streamName", data: { ... } }
         const streamName = payload.stream;
         const data = payload.data || payload;
 
         if (streamName && streamName.includes("depth")) {
-          hasRealDepthStreamRef.current = true;
-          processDepthUpdate(data);
+          hasRealDepthStreamRef0.current = true;
+          processDepthUpdateForIdx(0, data);
         } else {
-          // This is a trade stream (either @trade or @aggTrade)
           if (data && data.p && data.q) {
-            lastTickTimeRef.current = Date.now(); // Reset fallback timer
+            lastTickTimeRef0.current = Date.now();
             const tick = {
               id: String(data.t || data.a || Math.random()),
               timestamp: data.T || Date.now(),
@@ -1657,39 +1957,105 @@ export default function App() {
               amount: parseFloat(data.q),
               side: data.m ? "sell" : "buy"
             };
-            incomingTradesBufferRef.current.push(tick);
+            incomingTradesBufferRef0.current.push(tick);
           }
         }
       } catch (err) {
-        console.error("[WebSocket] Match message error", err);
+        console.error("[WebSocket 0] Match message error", err);
       }
     };
 
     ws.onerror = (err) => {
-      console.error("[WebSocket] Connection error:", err);
-      setConnectionStatus("stale");
+      console.error("[WebSocket 0] Connection error:", err);
+      if (activeChartIndex === 0) setConnectionStatus("stale");
     };
 
     ws.onclose = () => {
-      console.log("[WebSocket] Closed Connection");
+      console.log("[WebSocket 0] Closed Connection");
     };
 
     return () => {
       ws.close();
     };
-  }, [isTickingAll, activePair.symbol, marketType]);
+  }, [isTickingAll, activePair0.symbol, marketType0, activeChartIndex]);
+
+  // 1b. Establish real-time Binance WebSocket stream connection for Chart 1
+  useEffect(() => {
+    if (!isTickingAll) {
+      return;
+    }
+
+    const binanceSymbol = activePair1.symbol.toLowerCase().replace("/", "");
+    const wsUrl = marketType1 === "FUTURES"
+      ? `wss://fstream.binance.com/stream?streams=${binanceSymbol}@aggTrade/${binanceSymbol}@depth100@100ms`
+      : `wss://stream.binance.com:9443/stream?streams=${binanceSymbol}@trade/${binanceSymbol}@depth100@100ms`;
+
+    console.log(`[WebSocket 1] Connecting to Binance URL: ${wsUrl}`);
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log(`[WebSocket 1] Opened combined streams for ${activePair1.symbol} (${marketType1})`);
+      if (activeChartIndex === 1) setConnectionStatus("connected");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (!payload) return;
+
+        const streamName = payload.stream;
+        const data = payload.data || payload;
+
+        if (streamName && streamName.includes("depth")) {
+          hasRealDepthStreamRef1.current = true;
+          processDepthUpdateForIdx(1, data);
+        } else {
+          if (data && data.p && data.q) {
+            lastTickTimeRef1.current = Date.now();
+            const tick = {
+              id: String(data.t || data.a || Math.random()),
+              timestamp: data.T || Date.now(),
+              price: parseFloat(data.p),
+              amount: parseFloat(data.q),
+              side: data.m ? "sell" : "buy"
+            };
+            incomingTradesBufferRef1.current.push(tick);
+          }
+        }
+      } catch (err) {
+        console.error("[WebSocket 1] Match message error", err);
+      }
+    };
+
+    ws.onerror = (err) => {
+      console.error("[WebSocket 1] Connection error:", err);
+      if (activeChartIndex === 1) setConnectionStatus("stale");
+    };
+
+    ws.onclose = () => {
+      console.log("[WebSocket 1] Closed Connection");
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [isTickingAll, activePair1.symbol, marketType1, activeChartIndex]);
 
   // 2. High frequency queue flushing timer for real-time ticks
   useEffect(() => {
     if (!isTickingAll) return;
 
     const flusherId = window.setInterval(() => {
-      if (incomingTradesBufferRef.current.length === 0) return;
-
-      const ticksToProcess = [...incomingTradesBufferRef.current];
-      incomingTradesBufferRef.current = [];
-
-      processTicks(ticksToProcess);
+      if (incomingTradesBufferRef0.current.length > 0) {
+        const ticks0 = [...incomingTradesBufferRef0.current];
+        incomingTradesBufferRef0.current = [];
+        processTicksForIdx(0, ticks0);
+      }
+      if (incomingTradesBufferRef1.current.length > 0) {
+        const ticks1 = [...incomingTradesBufferRef1.current];
+        incomingTradesBufferRef1.current = [];
+        processTicksForIdx(1, ticks1);
+      }
     }, 100);
 
     return () => window.clearInterval(flusherId);
@@ -1710,11 +2076,14 @@ export default function App() {
 
   // --- Admin Panel API Callbacks ---
   const handleUpdatePairPrice = (symbol: string, newPrice: number) => {
+    const activePairRefLocal = activeChartIndex === 0 ? activePairRef0 : activePairRef1;
+    const incomingTradesBufferRefLocal = activeChartIndex === 0 ? incomingTradesBufferRef0 : incomingTradesBufferRef1;
+
     setPairs((prev) =>
       prev.map((p) => {
         if (p.symbol === symbol) {
           const updated = { ...p, price: newPrice };
-          if (activePairRef.current.symbol === symbol) {
+          if (activePairRefLocal.current.symbol === symbol) {
             setActivePair(updated);
           }
           return updated;
@@ -1727,13 +2096,14 @@ export default function App() {
       id: "admin-force-price-" + Math.random().toString(36).substring(2, 9),
       timestamp: Date.now(),
       price: newPrice,
-      amount: activePairRef.current.priceStep * (20 + Math.random() * 30),
+      amount: activePairRefLocal.current.priceStep * (20 + Math.random() * 30),
       side: "buy" as const
     };
-    incomingTradesBufferRef.current.push(tick);
+    incomingTradesBufferRefLocal.current.push(tick);
   };
 
   const handleInjectWhaleTrade = (side: "buy" | "sell", amount: number) => {
+    const incomingTradesBufferRefLocal = activeChartIndex === 0 ? incomingTradesBufferRef0 : incomingTradesBufferRef1;
     const tick = {
       id: "admin-whale-block-" + Math.random().toString(36).substring(2, 9),
       timestamp: Date.now(),
@@ -1741,12 +2111,17 @@ export default function App() {
       amount: amount,
       side: side
     };
-    incomingTradesBufferRef.current.push(tick);
+    incomingTradesBufferRefLocal.current.push(tick);
   };
 
   const handleClearHistory = () => {
-    setCandles([]);
-    setTrades([]);
+    if (activeChartIndex === 0) {
+      setCandles0([]);
+      setTrades0([]);
+    } else {
+      setCandles1([]);
+      setTrades1([]);
+    }
   };
 
   const handleAddPair = (newPair: CryptoPair) => {
@@ -1754,6 +2129,9 @@ export default function App() {
   };
 
   const handleApplyAnomaly = (type: "pump" | "dump" | "spike" | "whale-wall") => {
+    const incomingTradesBufferRefLocal = activeChartIndex === 0 ? incomingTradesBufferRef0 : incomingTradesBufferRef1;
+    const setOrderBookLocal = activeChartIndex === 0 ? setOrderBook0 : setOrderBook1;
+
     if (type === "pump") {
       const current = activePair.price;
       const ticks = [];
@@ -1766,7 +2144,7 @@ export default function App() {
           side: "buy" as const
         });
       }
-      incomingTradesBufferRef.current.push(...ticks);
+      incomingTradesBufferRefLocal.current.push(...ticks);
     } else if (type === "dump") {
       const current = activePair.price;
       const ticks = [];
@@ -1779,7 +2157,7 @@ export default function App() {
           side: "sell" as const
         });
       }
-      incomingTradesBufferRef.current.push(...ticks);
+      incomingTradesBufferRefLocal.current.push(...ticks);
     } else if (type === "spike") {
       const current = activePair.price;
       const ticks = [
@@ -1798,9 +2176,9 @@ export default function App() {
           side: "buy" as const
         }
       ];
-      incomingTradesBufferRef.current.push(...ticks);
+      incomingTradesBufferRefLocal.current.push(...ticks);
     } else if (type === "whale-wall") {
-      setOrderBook(prev => ({
+      setOrderBookLocal(prev => ({
         bids: prev.bids.map((r, i) => i === 1 ? { ...r, amount: r.amount * 12, total: r.total * 12 } : r),
         asks: prev.asks.map((r, i) => i === 1 ? { ...r, amount: r.amount * 12, total: r.total * 12 } : r)
       }));
@@ -2013,6 +2391,93 @@ export default function App() {
                             <div className="flex items-center gap-1.5 select-none">
                               <CandlePreviewIcon palette={item.id as any} />
                               <span className="font-mono text-[10px] font-bold">{item.label}</span>
+                            </div>
+                            {isSelected && (
+                              <Check className="w-3 tracking-tight ml-1 text-blue-500 shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Workspace Layout Control */}
+          <div>
+            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+              theme === "light" ? "text-slate-500 font-bold" : "text-slate-400/80"
+            }`}>
+              {language === "EN" ? "Workspace" : language === "KZ" ? "Жұмыс кеңістігі" : "Рабочее пространство"}
+            </span>
+            <div className="relative font-sans" ref={workspaceMenuRef}>
+              <button
+                onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+                className={`flex items-center justify-between gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all min-w-[145px] h-[30px] select-none border ${
+                  theme === "light"
+                    ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-800 font-extrabold shadow-sm"
+                    : "liquid-glass-button border-white/5 text-slate-200 font-black"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 leading-none">
+                  <span className="text-[12px] shrink-0">
+                    {workspaceLayout === "1" ? "🔲" : workspaceLayout === "2h" ? "🥞" : "🪟"}
+                  </span>
+                  <span className={`font-sans text-[10px] whitespace-nowrap ${theme === "light" ? "text-slate-700 font-black" : "text-white font-extrabold"}`}>
+                    {workspaceLayout === "1"
+                      ? (language === "EN" ? "1 Chart" : language === "KZ" ? "1 график" : "1 график")
+                      : workspaceLayout === "2h"
+                      ? (language === "EN" ? "2 Horizontal" : language === "KZ" ? "2 горизонтальді" : "2 графика по горизонтали")
+                      : (language === "EN" ? "2 Vertical" : language === "KZ" ? "2 вертикальді" : "2 графика по вертикали")}
+                  </span>
+                </div>
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 shrink-0 ${
+                  theme === "light" ? "text-slate-600" : "text-slate-400"
+                } ${showWorkspaceMenu ? "rotate-180" : ""}`} />
+              </button>
+
+              <AnimatePresence>
+                {showWorkspaceMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                    style={{ originY: 0 }}
+                    className={`absolute left-0 mt-1.5 w-52 rounded-xl p-1.5 z-50 text-left select-none shadow-2xl backdrop-blur-md border transition-all duration-300 ${
+                      theme === "light"
+                        ? "bg-white border-slate-300 text-slate-900 shadow-xl"
+                        : "bg-[#090d16]/98 border border-white/10 text-slate-100"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      {[
+                        { id: "1", label: language === "EN" ? "1 Chart" : language === "KZ" ? "1 график" : "1 график", icon: "🔲" },
+                        { id: "2h", label: language === "EN" ? "2 Horizontal" : language === "KZ" ? "2 горизонтальді" : "2 графика по горизонтали", icon: "🥞" },
+                        { id: "2v", label: language === "EN" ? "2 Vertical" : language === "KZ" ? "2 вертикальді" : "2 графика по вертикали", icon: "🪟" }
+                      ].map((item) => {
+                        const isSelected = workspaceLayout === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setWorkspaceLayout(item.id as any);
+                              setShowWorkspaceMenu(false);
+                            }}
+                            className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-left cursor-pointer transition-all ${
+                              isSelected
+                                ? theme === "light"
+                                  ? "bg-blue-50 text-blue-800 font-extrabold border border-blue-200 shadow-sm"
+                                  : "bg-blue-500/10 text-blue-400 font-extrabold border border-blue-500/25"
+                                : theme === "light"
+                                  ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                                  : "text-slate-300 hover:text-white hover:bg-white/5"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 select-none">
+                              <span className="text-[12px]">{item.icon}</span>
+                              <span className="font-sans text-[10px] font-bold">{item.label}</span>
                             </div>
                             {isSelected && (
                               <Check className="w-3 tracking-tight ml-1 text-blue-500 shrink-0" />
@@ -2315,30 +2780,134 @@ export default function App() {
               isSidebarCollapsed ? "gap-3 lg:gap-0" : "gap-3 lg:gap-5"
             }`}>
               {/* Left/Middle Column: Footprint Chart Section */}
-              <div className={`flex-1 flex flex-col min-h-0 min-w-0 justify-stretch ${
-                activeMobileTab === "chart" ? "flex" : "hidden lg:flex"
-              }`}>
-                <ClusterChart
-                  candles={candles}
-                  activePair={activePair}
-                  indicators={indicators}
-                  activeIndicators={activeIndicatorsObj}
-                  indicatorSettings={indicatorSettings}
-                  marketType={marketType}
-                  onToggleMarketType={() => setMarketType(p => p === "SPOT" ? "FUTURES" : "SPOT")}
-                  theme={theme}
-                  candleType={candleType}
-                  candleDataType={candleDataType}
-                  candlePalette={candlePalette}
-                  onToggleIndicator={(id) => {
-                    setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: !ind.isActive } : ind));
+              <div 
+                id="charts-workspace-container"
+                className={`flex-1 flex min-h-0 min-w-0 select-none ${
+                  workspaceLayout === "2h" ? "flex-row" : workspaceLayout === "2v" ? "flex-col" : "flex-row"
+                } ${activeMobileTab === "chart" ? "flex" : "hidden lg:flex"}`}
+              >
+                {/* CHART 0 CONTAINER */}
+                <div
+                  onClickCapture={() => {
+                    if (activeChartIndex !== 0) setActiveChartIndex(0);
                   }}
-                  onRemoveIndicator={(id) => {
-                    setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: false } : ind));
-                  }}
-                  onShowIndicatorsSettings={() => setIsIndicatorsModalOpen(true)}
-                  language={language}
-                />
+                  style={workspaceLayout !== "1" ? {
+                    flexGrow: resizeRatio,
+                    flexShrink: 1,
+                    flexBasis: `${resizeRatio}%`
+                  } : undefined}
+                  className={`flex flex-col min-h-0 min-w-0 justify-stretch relative ${
+                    workspaceLayout === "1" ? "flex-1" : ""
+                  } rounded-xl overflow-hidden transition-all duration-150 border-2 ${
+                    workspaceLayout !== "1" && activeChartIndex === 0
+                      ? theme === "light"
+                        ? "border-blue-500 shadow-md shadow-blue-500/5 bg-slate-50/50"
+                        : "border-yellow-500/50 shadow-md shadow-yellow-500/5 bg-slate-900/10"
+                      : "border-transparent"
+                  }`}
+                >
+                  {/* Active Badge indicator */}
+                  {workspaceLayout !== "1" && activeChartIndex === 0 && (
+                    <div className="absolute top-2 right-2.5 z-45 bg-yellow-500 text-slate-950 font-sans text-[8px] font-black uppercase px-2 py-0.5 rounded shadow-md tracking-widest leading-none select-none">
+                      {language === "RU" ? "Активен" : language === "KZ" ? "Белсенді" : "Active"}
+                    </div>
+                  )}
+                  <ClusterChart
+                    candles={candles0}
+                    activePair={activePair0}
+                    indicators={indicators}
+                    activeIndicators={activeIndicatorsObj}
+                    indicatorSettings={indicatorSettings}
+                    marketType={marketType0}
+                    onToggleMarketType={() => setMarketType0(p => p === "SPOT" ? "FUTURES" : "SPOT")}
+                    theme={theme}
+                    candleType={candleType0}
+                    candleDataType={candleDataType0}
+                    candlePalette={candlePalette0}
+                    onToggleIndicator={(id) => {
+                      setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: !ind.isActive } : ind));
+                    }}
+                    onRemoveIndicator={(id) => {
+                      setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: false } : ind));
+                    }}
+                    onShowIndicatorsSettings={() => setIsIndicatorsModalOpen(true)}
+                    language={language}
+                  />
+                </div>
+
+                {/* SPLITTER BAR BETWEEN CHART 0 & CHART 1 */}
+                {workspaceLayout !== "1" && (
+                  <div
+                    onMouseDown={handleSplitterMouseDown}
+                    onTouchStart={handleSplitterTouchStart}
+                    className={`relative flex shrink-0 items-center justify-center transition-all duration-150 group select-none ${
+                        workspaceLayout === "2h"
+                          ? "w-2.5 hover:w-3 cursor-col-resize h-full mx-1"
+                          : "h-2.5 hover:h-3 cursor-row-resize w-full my-1"
+                    }`}
+                  >
+                    {/* The splitter line visual */}
+                    <div className={`transition-colors duration-150 rounded-full ${
+                      workspaceLayout === "2h"
+                        ? "w-[2px] h-3/4 group-hover:bg-yellow-500"
+                        : "h-[2px] w-3/4 group-hover:bg-yellow-500"
+                    } ${theme === "light" ? "bg-slate-300 animate-pulse" : "bg-slate-800 animate-pulse"}`} />
+                    
+                    {/* Floating center touch indicator dot */}
+                    <div className={`absolute w-1.5 h-1.5 rounded-full transition-transform scale-0 group-hover:scale-100 ${
+                      theme === "light" ? "bg-slate-400" : "bg-yellow-500"
+                    }`} />
+                  </div>
+                )}
+
+                {/* CHART 1 CONTAINER */}
+                {workspaceLayout !== "1" && (
+                  <div
+                    onClickCapture={() => {
+                      if (activeChartIndex !== 1) setActiveChartIndex(1);
+                    }}
+                    style={{
+                      flexGrow: 100 - resizeRatio,
+                      flexShrink: 1,
+                      flexBasis: `${100 - resizeRatio}%`
+                    }}
+                    className={`flex flex-col min-h-0 min-w-0 justify-stretch relative rounded-xl overflow-hidden transition-all duration-150 border-2 ${
+                      activeChartIndex === 1
+                        ? theme === "light"
+                          ? "border-blue-500 shadow-md shadow-blue-500/5 bg-slate-50/50"
+                          : "border-yellow-500/50 shadow-md shadow-yellow-500/5 bg-slate-900/10"
+                        : "border-transparent"
+                    }`}
+                  >
+                    {/* Active Badge indicator */}
+                    {activeChartIndex === 1 && (
+                      <div className="absolute top-2 right-2.5 z-45 bg-yellow-500 text-slate-950 font-sans text-[8px] font-black uppercase px-2 py-0.5 rounded shadow-md tracking-widest leading-none select-none">
+                        {language === "RU" ? "Активен" : language === "KZ" ? "Белсенді" : "Active"}
+                      </div>
+                    )}
+                    <ClusterChart
+                      candles={candles1}
+                      activePair={activePair1}
+                      indicators={indicators}
+                      activeIndicators={activeIndicatorsObj}
+                      indicatorSettings={indicatorSettings}
+                      marketType={marketType1}
+                      onToggleMarketType={() => setMarketType1(p => p === "SPOT" ? "FUTURES" : "SPOT")}
+                      theme={theme}
+                      candleType={candleType1}
+                      candleDataType={candleDataType1}
+                      candlePalette={candlePalette1}
+                      onToggleIndicator={(id) => {
+                        setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: !ind.isActive } : ind));
+                      }}
+                      onRemoveIndicator={(id) => {
+                        setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: false } : ind));
+                      }}
+                      onShowIndicatorsSettings={() => setIsIndicatorsModalOpen(true)}
+                      language={language}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Right Sidebar Column: DOM Sidebar with Interactive Trading */}
