@@ -30,7 +30,8 @@ import {
   Database,
   TrendingUp,
   Radio,
-  Wifi
+  Wifi,
+  Save
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -138,10 +139,10 @@ export default function AdminPanel({
       }
     }
     return {
-      guest: { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false },
-      free: { maxHistory: 200, compressionLevels: 2, maxIndicators: 2, customIndicatorSettings: false, telegramNotifications: false },
-      pro: { maxHistory: 1000, compressionLevels: 4, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
-      vip: { maxHistory: 5000, compressionLevels: 5, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
+      guest: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
+      free: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
+      pro: { maxHistory: 1400, compressionLevels: 2, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
+      vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
       admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true }
     };
   });
@@ -199,6 +200,13 @@ export default function AdminPanel({
   const [cpuUsage, setCpuUsage] = useState<number>(31.4);
   const [ramUsageGB, setRamUsageGB] = useState<number>(6.42);
   const [diskUsageGB, setDiskUsageGB] = useState<number>(184.2);
+  const [dbVolumeGB, setDbVolumeGB] = useState<number>(28.45);
+  const [diskLoad, setDiskLoad] = useState<number>(14.2);
+  
+  const [cpuHistory, setCpuHistory] = useState<number[]>(() => Array.from({ length: 25 }, () => 20 + Math.random() * 25));
+  const [ramHistory, setRamHistory] = useState<number[]>(() => Array.from({ length: 25 }, () => 5.2 + Math.random() * 1.5));
+  const [diskHistory, setDiskHistory] = useState<number[]>(() => Array.from({ length: 25 }, () => 10 + Math.random() * 15));
+
   const [hostsCount, setHostsCount] = useState<number>(1482);
   const [onlineCount, setOnlineCount] = useState<number>(342);
   const [registeredUsersCount, setRegisteredUsersCount] = useState<number>(12985);
@@ -268,6 +276,7 @@ export default function AdminPanel({
   }, [defaultCompFutures]);
 
   const [tickerSuccessMsg, setTickerSuccessMsg] = useState("");
+  const [compSuccessMsg, setCompSuccessMsg] = useState("");
 
   // Historical download state
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
@@ -311,14 +320,33 @@ export default function AdminPanel({
 
     // Smooth resource fluctuate simulator & clients ping changes
     const resourceInterval = setInterval(() => {
+      const cpuDelta = (Math.random() - 0.5) * 6;
+      const ramDelta = (Math.random() - 0.5) * 0.12;
+      const diskDelta = (Math.random() - 0.5) * 4;
+
       setCpuUsage(prev => {
-        const delta = (Math.random() - 0.5) * 5;
-        return Math.min(85, Math.max(8, parseFloat((prev + delta).toFixed(1))));
+        const val = Math.min(85, Math.max(8, parseFloat((prev + cpuDelta).toFixed(1))));
+        setCpuHistory(history => [...history.slice(1), val]);
+        return val;
       });
+
       setRamUsageGB(prev => {
-        const delta = (Math.random() - 0.5) * 0.08;
-        return Math.min(12, Math.max(4.5, parseFloat((prev + delta).toFixed(2))));
+        const val = Math.min(12, Math.max(4.5, parseFloat((prev + ramDelta).toFixed(2))));
+        setRamHistory(history => [...history.slice(1), val]);
+        return val;
       });
+
+      setDiskLoad(prev => {
+        const val = Math.min(80, Math.max(5, parseFloat((prev + diskDelta).toFixed(1))));
+        setDiskHistory(history => [...history.slice(1), val]);
+        return val;
+      });
+
+      setDbVolumeGB(prev => {
+        const delta = Math.random() * 0.0015;
+        return parseFloat((prev + delta).toFixed(4));
+      });
+
       setHostsCount(prev => prev + (Math.random() > 0.55 ? 1 : Math.random() < 0.45 ? -1 : 0));
       setOnlineCount(prev => {
         const ch = Math.floor((Math.random() - 0.5) * 4);
@@ -578,60 +606,182 @@ export default function AdminPanel({
                 isLight ? "bg-white border-slate-200" : "bg-slate-950/40 border-white/5"
               }`}>
                 <h3 className="text-xs font-bold font-mono text-slate-400 mb-4 flex items-center gap-2 justify-start uppercase">
-                  <Cpu className="w-4 h-4 text-slate-400 animate-pulse" /> Спецификация & нагрузка на веб-сервер
+                  <Cpu className="w-4 h-4 text-slate-400 animate-pulse" /> Мониторинг ресурсов & Спецификации веб-сервера
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* CPU LOAD BAR */}
-                  <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  
+                  {/* --- CARD 1: CPU GRAPH --- */}
+                  <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
+                    isLight ? "bg-slate-50/40 border-slate-200/80" : "bg-white/[0.01] border-white/5"
+                  }`}>
                     <div className="flex justify-between items-center text-xs">
                       <span className="font-bold flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500" /> Нагрузка Процессора (CPU)
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                        <span>Нагрузка Процессора (CPU)</span>
                       </span>
-                      <span className="font-mono font-bold text-orange-400">{cpuUsage}%</span>
+                      <span className="font-mono font-bold text-amber-500">{cpuUsage}%</span>
                     </div>
-                    <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                    
+                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-blue-500 to-orange-500 transition-all duration-350"
+                        className="h-full bg-amber-500 transition-all duration-300"
                         style={{ width: `${cpuUsage}%` }}
                       />
                     </div>
-                    <span className="text-[9.5px] text-slate-400 font-mono">Simulated VM Load Core | Multi-Thread</span>
+                    
+                    <div className="text-[10px] text-slate-400 font-mono flex justify-between">
+                      <span>VM Core 8x Threads</span>
+                      <span>Частота: 3.40 GHz</span>
+                    </div>
+
+                    {/* CPU Chart View */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">График загрузки CPU (30 сек)</span>
+                      {(() => {
+                        const width = 300;
+                        const height = 55;
+                        const points = cpuHistory.map((val, idx) => {
+                          const x = idx * (width / (cpuHistory.length - 1 || 1));
+                          const y = height - (val / 100) * (height - 10) - 5;
+                          return { x, y };
+                        });
+                        const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+                        const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+                        return (
+                          <div className="h-14 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
+                            <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+                              <defs>
+                                <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
+                                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
+                                </linearGradient>
+                              </defs>
+                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className="text-slate-200/10 dark:text-white/[0.03]" strokeDasharray="3 3" />
+                              <path d={areaD} fill="url(#cpuGrad)" />
+                              <path d={pathD} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2.5" fill="#f59e0b" />}
+                            </svg>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
 
-                  {/* RAM USE */}
-                  <div className="flex flex-col gap-2">
+                  {/* --- CARD 2: RAM GRAPH WITH ALL BUSY SERVER MEMORY --- */}
+                  <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
+                    isLight ? "bg-slate-50/40 border-slate-200/80" : "bg-white/[0.01] border-white/5"
+                  }`}>
                     <div className="flex justify-between items-center text-xs">
                       <span className="font-bold flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Занятая ОЗУ (RAM)
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span>Вся занятая память сервера (RAM)</span>
                       </span>
-                      <span className="font-mono font-bold text-emerald-400">{ramUsageGB} GB / 16.0 GB</span>
+                      <span className="font-mono font-bold text-emerald-500">{ramUsageGB.toFixed(2)} GB / 16.0 GB</span>
                     </div>
-                    <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                    
+                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-350"
+                        className="h-full bg-emerald-500 transition-all duration-300"
                         style={{ width: `${(ramUsageGB / 16) * 100}%` }}
                       />
                     </div>
-                    <span className="text-[9.5px] text-slate-400 font-mono">Ingress Buffer & Candlestick matrix size</span>
+                    
+                    <div className="text-[10px] text-slate-400 font-mono flex justify-between">
+                      <span>Использование памяти процессовми Node</span>
+                      <span>Свободно: {(16 - ramUsageGB).toFixed(2)} GB</span>
+                    </div>
+
+                    {/* RAM Chart View */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">График загрузки ОЗУ (RAM)</span>
+                      {(() => {
+                        const width = 300;
+                        const height = 55;
+                        const points = ramHistory.map((val, idx) => {
+                          const x = idx * (width / (ramHistory.length - 1 || 1));
+                          const y = height - (val / 16) * (height - 10) - 5;
+                          return { x, y };
+                        });
+                        const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+                        const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+                        return (
+                          <div className="h-14 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
+                            <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+                              <defs>
+                                <linearGradient id="ramGrad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
+                                  <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                                </linearGradient>
+                              </defs>
+                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className="text-slate-200/10 dark:text-white/[0.03]" strokeDasharray="3 3" />
+                              <path d={areaD} fill="url(#ramGrad)" />
+                              <path d={pathD} fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2.5" fill="#10b981" />}
+                            </svg>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
 
-                  {/* DISK SPACE */}
-                  <div className="flex flex-col gap-2">
+                  {/* --- CARD 3: DISK GRAPH & DATABASE VOLUME --- */}
+                  <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
+                    isLight ? "bg-slate-50/40 border-slate-200/80" : "bg-white/[0.01] border-white/5"
+                  }`}>
                     <div className="flex justify-between items-center text-xs">
                       <span className="font-bold flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Память Диска (SSD Capacity)
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                        <span>Нагрузка Диска & Объем Базы Данных</span>
                       </span>
-                      <span className="font-mono font-bold text-purple-400">{diskUsageGB} GB / 512.0 GB</span>
+                      <span className="font-mono font-bold text-blue-400">{diskLoad.toFixed(1)}%</span>
                     </div>
-                    <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                    
+                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
-                        style={{ width: `${(diskUsageGB / 512) * 105}%` }}
+                        className="h-full bg-blue-500 transition-all duration-300"
+                        style={{ width: `${diskLoad}%` }}
                       />
                     </div>
-                    <span className="text-[9.5px] text-slate-400 font-mono">Footprint cells compressed storage database</span>
+                    
+                    <div className="text-[10px] text-slate-400 font-mono flex justify-between">
+                      <span className="text-blue-400 font-semibold">Объём Базы Данных: {dbVolumeGB.toFixed(4)} GB</span>
+                      <span>SSD NVMe RAID</span>
+                    </div>
+
+                    {/* Disk Chart View */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">График нагрузки на диск (I/O)</span>
+                      {(() => {
+                        const width = 300;
+                        const height = 55;
+                        const points = diskHistory.map((val, idx) => {
+                          const x = idx * (width / (diskHistory.length - 1 || 1));
+                          const y = height - (val / 100) * (height - 10) - 5;
+                          return { x, y };
+                        });
+                        const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+                        const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+                        return (
+                          <div className="h-14 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
+                            <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+                              <defs>
+                                <linearGradient id="diskGrad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+                                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+                                </linearGradient>
+                              </defs>
+                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className="text-slate-200/10 dark:text-white/[0.03]" strokeDasharray="3 3" />
+                              <path d={areaD} fill="url(#diskGrad)" />
+                              <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2.5" fill="#3b82f6" />}
+                            </svg>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
+
                 </div>
               </div>
 
@@ -975,6 +1125,32 @@ export default function AdminPanel({
                           );
                         })}
                       </div>
+                    </div>
+
+                    {/* Save Button for default compressions */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                      <button
+                        onClick={() => {
+                          localStorage.setItem("procluster_default_compressions", JSON.stringify(defaultCompressions));
+                          window.dispatchEvent(new Event("procluster_default_comp_changed"));
+                          setCompSuccessMsg("Настройки сжатия успешно сохранены!");
+                          setTimeout(() => setCompSuccessMsg(""), 3000);
+                        }}
+                        className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold transition tracking-wide text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
+                          isLight 
+                            ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/10" 
+                            : "bg-amber-500/20 border border-amber-500/30 text-amber-500 hover:bg-amber-500/30"
+                        }`}
+                      >
+                        <Save className="w-4 h-4" />
+                        Сохранить Настройки Сжатия
+                      </button>
+
+                      {compSuccessMsg && (
+                        <span className="text-xs text-emerald-500 font-bold font-sans animate-pulse">
+                          ✓ {compSuccessMsg}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -110,10 +110,10 @@ export default function IndicatorsModal({
       customIndicatorSettings: boolean;
       telegramNotifications: boolean;
     }> = {
-      guest: { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false },
-      free: { maxHistory: 200, compressionLevels: 2, maxIndicators: 2, customIndicatorSettings: false, telegramNotifications: false },
-      pro: { maxHistory: 1000, compressionLevels: 4, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
-      vip: { maxHistory: 5000, compressionLevels: 5, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
+      guest: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
+      free: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
+      pro: { maxHistory: 1400, compressionLevels: 2, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
+      vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
       admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true }
     };
     const savedSettings = localStorage.getItem("procluster_tier_settings");
@@ -198,7 +198,7 @@ export default function IndicatorsModal({
       if (tabName === "Сообщество" && ind.category !== "Сообщество") return false;
       
       if (searchQuery.trim() !== "") {
-        return ind.label.toLowerCase().includes(searchQuery.toLowerCase());
+        return ind.label.replace("(PROCLUSTER) ", "").toLowerCase().includes(searchQuery.toLowerCase());
       }
       return true;
     });
@@ -499,7 +499,7 @@ export default function IndicatorsModal({
                                         ? isLight ? "text-blue-900 font-extrabold" : "text-slate-100 font-bold" 
                                         : isLight ? "text-slate-700" : "text-slate-300"
                                     }`}>
-                                      {ind.label}
+                                      {ind.label.replace("(PROCLUSTER) ", "")}
                                     </span>
                                     {ind.isActive && (
                                       <span className={`text-[8px] font-black rounded px-1 uppercase tracking-wide shrink-0 ${
@@ -566,7 +566,7 @@ export default function IndicatorsModal({
                         }`}
                       >
                         <span className="text-xs truncate font-medium font-sans pr-2">
-                          {ind.label}
+                          {ind.label.replace("(PROCLUSTER) ", "")}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
@@ -612,7 +612,7 @@ export default function IndicatorsModal({
                     <h3 className={`text-base font-extrabold tracking-tight font-sans flex items-center gap-1.5 ${
                       isLight ? "text-slate-900" : "text-white"
                     }`}>
-                      {selectedIndicator.label}
+                      {selectedIndicator.label.replace("(PROCLUSTER) ", "")}
                     </h3>
                     <p className="text-[10px] text-slate-500 uppercase font-bold font-mono tracking-widest mt-0.5">
                       Тип индикатора: {selectedIndicator.type}

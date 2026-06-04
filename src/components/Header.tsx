@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { CryptoPair } from "../types";
-import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders } from "lucide-react";
+import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface HeaderProps {
@@ -21,6 +21,7 @@ interface HeaderProps {
   onChangeUserRole: (role: "Guest" | "Free" | "Pro" | "VIP" | "Admin") => void;
   onOpenProfile?: () => void;
   onOpenHome?: () => void;
+  onOpenRoadmap?: () => void;
 }
 
 export default function Header({
@@ -35,7 +36,8 @@ export default function Header({
   userRole,
   onChangeUserRole,
   onOpenProfile,
-  onOpenHome
+  onOpenHome,
+  onOpenRoadmap
 }: HeaderProps) {
   
   const isLight = theme === "light";
@@ -342,6 +344,23 @@ export default function Header({
         <Logo />
       </div>
 
+      {/* Centered BETA Badge with dynamic styling and link to project roadmap */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex items-center">
+        <button
+          onClick={onOpenRoadmap}
+          className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all duration-300 hover:scale-105 active:scale-98 select-none ${
+            isLight
+              ? "bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/30 text-amber-600 shadow-sm"
+              : "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-500 shadow-md shadow-amber-500/5 animate-pulse"
+          }`}
+          style={{ animationDuration: "2.5s" }}
+          title={language === "RU" ? "Открыть дорожную карту проекта" : language === "KZ" ? "Жобаның жол картасын ашу" : "Open Project Roadmap"}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-500 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
+          <span>BETA</span>
+        </button>
+      </div>
+
       {/* Right Controls: Simple & Clean Authorized Profile / Login Section */}
       <div className="flex items-center gap-3 relative z-10" ref={dropdownRef}>
         {/* ADMIN MODAL TRIGGER */}
@@ -562,70 +581,72 @@ export default function Header({
                   </div>
 
                   {/* VIP & Admin Role Selector (Simulating subscription tier overrides) */}
-                  <div className={`mt-4 pt-3.5 border-t ${isLight ? "border-slate-100" : "border-white/5"}`}>
-                    <span className={`text-[9px] font-mono font-extrabold tracking-widest uppercase block mb-2 px-1 ${
-                      isLight ? "text-slate-500" : "text-slate-400"
-                    }`}>
-                      {language === "EN" ? "SUBSCRIPTION ROLE" : language === "KZ" ? "ТІРКЕЛГІ ДӘРЕЖЕСІ" : "РОЛЬ И ДОСТУП"}
-                    </span>
-                    <div className={`grid ${
-                      user && (user.name === "Admin" || user.email === "admin@procluster.io") ? "grid-cols-5" : "grid-cols-3"
-                    } gap-1 p-[3px] rounded-2xl border shadow-inner ${
-                      isLight ? "bg-slate-100/80 border-slate-200/50" : "bg-slate-950/60 border-white/5"
-                    }`}>
-                      {(user && (user.name === "Admin" || user.email === "admin@procluster.io") 
-                        ? ["Guest", "Free", "Pro", "VIP", "Admin"] 
-                        : ["Guest", "VIP", "Admin"]
-                      ).map((roleOption) => {
-                        const isSelected = userRole === roleOption;
-                        let roleLabel = roleOption;
-                        if (roleOption === "Guest") roleLabel = language === "RU" ? "Гость" : language === "KZ" ? "Қонақ" : "Guest";
-                        if (roleOption === "Admin") roleLabel = language === "RU" ? "Админ" : language === "KZ" ? "Админ" : "Admin";
-                        
-                        return (
-                          <button
-                            key={roleOption}
-                            onClick={() => onChangeUserRole(roleOption as any)}
-                            className="py-1.5 rounded-xl text-[9px] font-black cursor-pointer text-center relative border-0 outline-none"
-                          >
-                            {isSelected && (
-                              <motion.div
-                                layoutId="activeRole"
-                                className={`absolute inset-0 rounded-xl ${
-                                  roleOption === "Admin"
-                                    ? "bg-rose-500/25 border border-rose-500/35"
+                  {userRole === "Admin" && (
+                    <div className={`mt-4 pt-3.5 border-t ${isLight ? "border-slate-100" : "border-white/5"}`}>
+                      <span className={`text-[9px] font-mono font-extrabold tracking-widest uppercase block mb-2 px-1 ${
+                        isLight ? "text-slate-500" : "text-slate-400"
+                      }`}>
+                        {language === "EN" ? "SUBSCRIPTION ROLE" : language === "KZ" ? "ТІРКЕЛГІ ДӘРЕЖЕСІ" : "РОЛЬ И ДОСТУП"}
+                      </span>
+                      <div className={`grid ${
+                        user && (user.name === "Admin" || user.email === "admin@procluster.io") ? "grid-cols-5" : "grid-cols-3"
+                      } gap-1 p-[3px] rounded-2xl border shadow-inner ${
+                        isLight ? "bg-slate-100/80 border-slate-200/50" : "bg-slate-950/60 border-white/5"
+                      }`}>
+                        {(user && (user.name === "Admin" || user.email === "admin@procluster.io") 
+                          ? ["Guest", "Free", "Pro", "VIP", "Admin"] 
+                          : ["Guest", "VIP", "Admin"]
+                        ).map((roleOption) => {
+                          const isSelected = userRole === roleOption;
+                          let roleLabel = roleOption;
+                          if (roleOption === "Guest") roleLabel = language === "RU" ? "Гость" : language === "KZ" ? "Қонақ" : "Guest";
+                          if (roleOption === "Admin") roleLabel = language === "RU" ? "Админ" : language === "KZ" ? "Админ" : "Admin";
+                          
+                          return (
+                            <button
+                              key={roleOption}
+                              onClick={() => onChangeUserRole(roleOption as any)}
+                              className="py-1.5 rounded-xl text-[9px] font-black cursor-pointer text-center relative border-0 outline-none"
+                            >
+                              {isSelected && (
+                                <motion.div
+                                  layoutId="activeRole"
+                                  className={`absolute inset-0 rounded-xl ${
+                                    roleOption === "Admin"
+                                      ? "bg-rose-500/25 border border-rose-500/35"
+                                      : roleOption === "VIP"
+                                        ? "bg-amber-500/25 border border-amber-500/35"
+                                        : roleOption === "Pro"
+                                          ? "bg-blue-500/25 border border-blue-500/35"
+                                          : roleOption === "Free"
+                                            ? "bg-slate-400/20 border border-slate-400/30"
+                                            : "bg-purple-500/25 border border-purple-500/35"
+                                  }`}
+                                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                                  style={{ zIndex: 0 }}
+                                />
+                              )}
+                              <span className={`relative z-10 transition-colors duration-200 ${
+                                isSelected
+                                  ? roleOption === "Admin"
+                                    ? "text-rose-500 font-extrabold"
                                     : roleOption === "VIP"
-                                      ? "bg-amber-500/25 border border-amber-500/35"
+                                      ? "text-amber-500 font-extrabold"
                                       : roleOption === "Pro"
-                                        ? "bg-blue-500/25 border border-blue-500/35"
+                                        ? "text-blue-500 font-extrabold"
                                         : roleOption === "Free"
-                                          ? "bg-slate-400/20 border border-slate-400/30"
-                                          : "bg-purple-500/25 border border-purple-500/35"
-                                }`}
-                                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                                style={{ zIndex: 0 }}
-                              />
-                            )}
-                            <span className={`relative z-10 transition-colors duration-200 ${
-                              isSelected
-                                ? roleOption === "Admin"
-                                  ? "text-rose-500 font-extrabold"
-                                  : roleOption === "VIP"
-                                    ? "text-amber-500 font-extrabold"
-                                    : roleOption === "Pro"
-                                      ? "text-blue-500 font-extrabold"
-                                      : roleOption === "Free"
-                                        ? "text-slate-500 font-extrabold"
-                                        : isLight ? "text-purple-650 font-extrabold" : "text-purple-400 font-extrabold"
-                                : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
-                            }`}>
-                              {roleLabel}
-                            </span>
-                          </button>
-                        );
-                      })}
+                                          ? "text-slate-500 font-extrabold"
+                                          : isLight ? "text-purple-650 font-extrabold" : "text-purple-400 font-extrabold"
+                                  : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
+                              }`}>
+                                {roleLabel}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Exiting separator */}
                   <div className={`mt-4 pt-3 border-t text-left ${isLight ? "border-slate-100" : "border-white/5"}`}>

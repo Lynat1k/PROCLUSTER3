@@ -187,15 +187,44 @@ export default function ClusterChart({
           return Math.min(2000.0, Math.max(0.1, next));
         });
       } else {
-        // Standard Wheel -> zoom horizontally
-        setCandleWidth(prev => {
-          const delta = e.deltaY;
-          const direction = Math.sign(delta);
-          if (direction === 0) return prev;
-          const next = prev - direction * 12;
-          const minW = (candleType === "japanese" || candleType === "auto") ? 2 : 8;
-          return Math.min(450, Math.max(minW, next));
-        });
+        // Standard Wheel -> zoom horizontally around mouse position!
+        const delta = e.deltaY;
+        const direction = Math.sign(delta);
+        if (direction === 0) return;
+
+        // Calculate next candleWidth synchronously
+        const prevWidth = candleWidth;
+        const widthDeltaCount = 12;
+        let nextWidth = prevWidth - direction * widthDeltaCount;
+        const minW = (candleType === "japanese" || candleType === "auto") ? 2 : 8;
+        nextWidth = Math.min(450, Math.max(minW, nextWidth));
+
+        if (nextWidth === prevWidth) return;
+
+        // Perform centering offsets
+        const rect = container.getBoundingClientRect();
+        const mouseRelativeX = e.clientX - rect.left;
+        const currentScrollLeft = container.scrollLeft;
+        const chartCursorX = currentScrollLeft + mouseRelativeX;
+        
+        const marginLeftVal = margin.left;
+        const activeChartX = chartCursorX - marginLeftVal;
+        
+        // Calculate new spacing based on next candleWidth
+        const prevSpacing = Math.max(1, prevWidth < 30 ? Math.floor(prevWidth * 0.35) : 12);
+        const nextSpacing = Math.max(1, nextWidth < 30 ? Math.floor(nextWidth * 0.35) : 12);
+        
+        const ratio = (nextWidth + nextSpacing) / (prevWidth + prevSpacing);
+        
+        const newChartCursorX = marginLeftVal + activeChartX * ratio;
+        const nextScrollLeft = Math.max(0, newChartCursorX - mouseRelativeX);
+
+        // Update state and scroll container synchronously
+        setCandleWidth(nextWidth);
+        
+        // Directly apply scroll property to ensure smooth focus locking
+        container.scrollLeft = nextScrollLeft;
+        setVisibleScrollLeft(nextScrollLeft);
       }
     };
 
@@ -265,8 +294,10 @@ export default function ClusterChart({
   }, [candles, visibleScrollLeft, visibleClientWidth, candleWidth, candleSpacing]);
 
   const candlesToScale = useMemo(() => {
-    return visibleCandlesList.length > 0 ? visibleCandlesList : candles;
-  }, [visibleCandlesList, candles]);
+    // Keep reference to all loaded candles so the vertical scaling is 100% stable
+    // and never shifts or jumps up/down when we zoom or scroll horizontally.
+    return candles;
+  }, [candles]);
 
   const priceBounds = useMemo(() => {
     if (candlesToScale.length === 0) {
@@ -1784,7 +1815,7 @@ export default function ClusterChart({
                 title={`${ind.label} (${ind.type})`}
               >
                 <Layers className="w-2.5 h-2.5 text-blue-450 shrink-0" />
-                {ind.label.replace("(PROCLUSTER) ", "")}
+                {ind.label}
               </span>
             ))}
           </div>

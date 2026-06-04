@@ -17,6 +17,7 @@ import DOMSidebar from "./components/DOMSidebar";
 import IndicatorsModal from "./components/IndicatorsModal";
 import AdminPanel from "./components/AdminPanel";
 import UserProfile from "./components/UserProfile";
+import RoadmapModal from "./components/RoadmapModal";
 import { TrendingUp, TrendingDown, Layers, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -890,6 +891,7 @@ export default function App() {
   }, [indicators]);
 
   const [isIndicatorsModalOpen, setIsIndicatorsModalOpen] = useState<boolean>(false);
+  const [isRoadmapModalOpen, setIsRoadmapModalOpen] = useState<boolean>(false);
   const [currentView, setCurrentView] = useState<"terminal" | "admin" | "profile">("terminal");
   const [showTickerMenu, setShowTickerMenu] = useState<boolean>(false);
   const tickerMenuRef = useRef<HTMLDivElement>(null);
@@ -997,10 +999,10 @@ export default function App() {
       customIndicatorSettings: boolean;
       telegramNotifications: boolean;
     }> = {
-      guest: { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false },
-      free: { maxHistory: 200, compressionLevels: 2, maxIndicators: 2, customIndicatorSettings: false, telegramNotifications: false },
-      pro: { maxHistory: 1000, compressionLevels: 4, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
-      vip: { maxHistory: 5000, compressionLevels: 5, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
+      guest: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
+      free: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
+      pro: { maxHistory: 1400, compressionLevels: 2, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
+      vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
       admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true }
     };
     const savedSettings = localStorage.getItem("procluster_tier_settings");
@@ -1699,6 +1701,7 @@ export default function App() {
         onChangeUserRole={handleUserRoleChange}
         onOpenProfile={() => setCurrentView("profile")}
         onOpenHome={() => setCurrentView("terminal")}
+        onOpenRoadmap={() => setIsRoadmapModalOpen(true)}
       />
 
       {currentView === "admin" ? (
@@ -2137,6 +2140,14 @@ export default function App() {
         indicators={indicators}
         onApply={(updatedIndicators) => setIndicators(updatedIndicators)}
         theme={theme}
+      />
+
+      {/* Project Roadmap (BETA) Modal */}
+      <RoadmapModal
+        isOpen={isRoadmapModalOpen}
+        onClose={() => setIsRoadmapModalOpen(false)}
+        theme={theme}
+        language={language}
       />
 
       {/* ✈️ REAL-TIME TELEGRAM ALERT BANNER BOX */}
