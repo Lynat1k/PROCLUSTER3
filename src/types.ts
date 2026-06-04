@@ -116,6 +116,7 @@ export interface Indicator {
   type: "Оверлей" | "Подвальный" | "Глобальный";
   isFavorite: boolean;
   isActive: boolean;
+  isVisible?: boolean;
   settings: IndicatorSettings;
 }
 

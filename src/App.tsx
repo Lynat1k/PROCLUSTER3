@@ -18,7 +18,7 @@ import IndicatorsModal from "./components/IndicatorsModal";
 import AdminPanel from "./components/AdminPanel";
 import UserProfile from "./components/UserProfile";
 import RoadmapModal from "./components/RoadmapModal";
-import { TrendingUp, TrendingDown, Layers, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid } from "lucide-react";
+import { TrendingUp, TrendingDown, Layers, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 const AutoIcon = ({ className }: { className?: string }) => (
@@ -295,8 +295,15 @@ export async function fetchBinanceKlines(symbol: string, interval: string, isFut
       let pocIndex = -1;
 
       // Safe guard against cell count exploding on bad precision parameters
+      let activePriceStep = priceStep;
+      let rangeUnits = Math.round((endPrice - startPrice) / activePriceStep);
+      if (rangeUnits > 250) {
+        const scaleFactor = Math.ceil(rangeUnits / 250);
+        activePriceStep = priceStep * scaleFactor;
+      }
+
       let cellCount = 0;
-      for (let price = startPrice; price <= endPrice; price += priceStep) {
+      for (let price = startPrice; price <= endPrice; price += activePriceStep) {
         cellCount++;
         if (cellCount > 250) break;
       }
@@ -305,7 +312,7 @@ export async function fetchBinanceKlines(symbol: string, interval: string, isFut
       const parsedLevels: number[] = [];
       for (let i = 0; i < cellCount; i++) {
         parsedLevels.push(parseFloat(currentPriceLevel.toFixed(4)));
-        currentPriceLevel += priceStep;
+        currentPriceLevel += activePriceStep;
       }
 
       const weights = parsedLevels.map(p => {
@@ -427,7 +434,7 @@ export async function fetchBinanceDepth(symbol: string, isFutures: boolean, pric
     Object.keys(aggBids)
       .map(Number)
       .sort((a, b) => b - a)
-      .slice(0, 80)
+      .slice(0, 250)
       .forEach((price) => {
         const amount = aggBids[price];
         cumulativeBid += amount;
@@ -444,7 +451,7 @@ export async function fetchBinanceDepth(symbol: string, isFutures: boolean, pric
     Object.keys(aggAsks)
       .map(Number)
       .sort((a, b) => a - b)
-      .slice(0, 80)
+      .slice(0, 250)
       .forEach((price) => {
         const amount = aggAsks[price];
         cumulativeAsk += amount;
@@ -578,6 +585,9 @@ export default function App() {
   const [candleDataType, setCandleDataType] = useState<"bid_ask" | "delta" | "volume">(() => {
     return (localStorage.getItem("procluster_candle_data_type") as any) || "bid_ask";
   });
+  const [candlePalette, setCandlePalette] = useState<"default" | "alternative">(() => {
+    return (localStorage.getItem("procluster_candle_palette") as "default" | "alternative") || "default";
+  });
 
   const [compressionMultiplier, setCompressionMultiplier] = useState<number>(() => {
     const saved = localStorage.getItem("procluster_compression_multiplier");
@@ -587,6 +597,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("procluster_compression_multiplier", compressionMultiplier.toString());
   }, [compressionMultiplier]);
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem("procluster_sidebar_collapsed") === "true";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("procluster_sidebar_collapsed", isSidebarCollapsed ? "true" : "false");
+  }, [isSidebarCollapsed]);
 
   // Helper to load default compression configured for active ticker + interval or fallback globally
   const loadDefaultCompressionForPair = (pairSymbol: string, currentInterval: string, currentMarketType: "SPOT" | "FUTURES"): number => {
@@ -664,6 +682,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("procluster_candle_data_type", candleDataType);
   }, [candleDataType]);
+
+  useEffect(() => {
+    localStorage.setItem("procluster_candle_palette", candlePalette);
+  }, [candlePalette]);
 
   // Active User Role state (Guest, Free, Pro, VIP, or Admin) for Telegram notification gating
   const [userRole, setUserRole] = useState<"Guest" | "Free" | "Pro" | "VIP" | "Admin">(() => {
@@ -1050,6 +1072,7 @@ export default function App() {
   const activePairRef = useRef<CryptoPair>(activePair);
   const intervalRef = useRef<string>(interval);
   const orderBookTickStepRef = useRef<number>(0.01);
+  const hasRealDepthStreamRef = useRef<boolean>(false);
   
   useEffect(() => {
     activePairRef.current = activePair;
@@ -1070,6 +1093,7 @@ export default function App() {
   // Re-generate database sets when active token changes
   useEffect(() => {
     let active = true;
+    hasRealDepthStreamRef.current = false;
     setConnectionStatus("syncing");
 
     const isFutures = marketType === "FUTURES";
@@ -1141,6 +1165,7 @@ export default function App() {
         if (!active) return;
         if (realBook) {
           setOrderBook(realBook);
+          hasRealDepthStreamRef.current = true;
         } else {
           setOrderBook(generateOrderBook(activePair.price, orderBookTickStep));
         }
@@ -1240,8 +1265,10 @@ export default function App() {
       })
     );
 
-    // 3. Update Order Book Depth once per batch
-    setOrderBook(generateOrderBook(lastTick.price, orderBookTickStepRef.current));
+    // 3. Update Order Book Depth once per batch (only if we don't have a real depth stream)
+    if (!hasRealDepthStreamRef.current) {
+      setOrderBook(generateOrderBook(lastTick.price, orderBookTickStepRef.current));
+    }
 
     // 4. Update candle clusters in real-time
     setCandles((prevCandles) => {
@@ -1491,7 +1518,77 @@ export default function App() {
     });
   };
 
-  // 1. Establish real-time Binance WebSocket stream connection
+  const processDepthUpdate = (depthData: any) => {
+    if (!depthData || !Array.isArray(depthData.bids) || !Array.isArray(depthData.asks)) {
+      return;
+    }
+    
+    const priceStep = orderBookTickStepRef.current || 0.01;
+    
+    // Bucket real-time depth levels to aggregate them
+    const aggBids: Record<number, number> = {};
+    const aggAsks: Record<number, number> = {};
+
+    depthData.bids.forEach((item: any) => {
+      const p = parseFloat(item[0]);
+      const q = parseFloat(item[1]);
+      const bucketPrice = parseFloat((Math.floor(p / priceStep) * priceStep).toFixed(4));
+      aggBids[bucketPrice] = (aggBids[bucketPrice] || 0) + q;
+    });
+
+    depthData.asks.forEach((item: any) => {
+      const p = parseFloat(item[0]);
+      const q = parseFloat(item[1]);
+      const bucketPrice = parseFloat((Math.ceil(p / priceStep) * priceStep).toFixed(4));
+      aggAsks[bucketPrice] = (aggAsks[bucketPrice] || 0) + q;
+    });
+
+    const bidsArr: OrderBookRow[] = [];
+    let cumulativeBid = 0;
+    Object.keys(aggBids)
+      .map(Number)
+      .sort((a, b) => b - a)
+      .slice(0, 250)
+      .forEach((price) => {
+        const amount = aggBids[price];
+        cumulativeBid += amount;
+        bidsArr.push({
+          price,
+          amount,
+          total: cumulativeBid,
+          percentage: 0
+        });
+      });
+
+    const asksArr: OrderBookRow[] = [];
+    let cumulativeAsk = 0;
+    Object.keys(aggAsks)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .slice(0, 250)
+      .forEach((price) => {
+        const amount = aggAsks[price];
+        cumulativeAsk += amount;
+        asksArr.push({
+          price,
+          amount,
+          total: cumulativeAsk,
+          percentage: 0
+        });
+      });
+
+    const maxTotal = Math.max(
+      bidsArr.length > 0 ? bidsArr[bidsArr.length - 1].total : 1,
+      asksArr.length > 0 ? asksArr[asksArr.length - 1].total : 1
+    );
+
+    bidsArr.forEach(b => b.percentage = (b.total / maxTotal) * 100);
+    asksArr.forEach(a => a.percentage = (a.total / maxTotal) * 100);
+
+    setOrderBook({ bids: bidsArr, asks: asksArr });
+  };
+
+  // 1. Establish real-time Binance WebSocket stream connection (Combined streams: trade & depth)
   useEffect(() => {
     if (!isTickingAll) {
       setConnectionStatus("stale");
@@ -1501,32 +1598,44 @@ export default function App() {
     setConnectionStatus("syncing");
 
     const binanceSymbol = activePair.symbol.toLowerCase().replace("/", "");
-    // Connect to Futures or Spot stream based on active market selection
+    // Connect to Futures or Spot stream based on active market selection using combined streams
     const wsUrl = marketType === "FUTURES"
-      ? `wss://fstream.binance.com/ws/${binanceSymbol}@aggTrade`
-      : `wss://stream.binance.com:9443/ws/${binanceSymbol}@trade`;
+      ? `wss://fstream.binance.com/stream?streams=${binanceSymbol}@aggTrade/${binanceSymbol}@depth100@100ms`
+      : `wss://stream.binance.com:9443/stream?streams=${binanceSymbol}@trade/${binanceSymbol}@depth100@100ms`;
 
     console.log(`[WebSocket] Connecting to Binance URL: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log(`[WebSocket] Opened for ${activePair.symbol} (${marketType})`);
+      console.log(`[WebSocket] Opened combined streams for ${activePair.symbol} (${marketType})`);
       setConnectionStatus("connected");
     };
 
     ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
-        if (data && data.p && data.q) {
-          lastTickTimeRef.current = Date.now(); // Reset fallback timer
-          const tick = {
-            id: String(data.t || data.a || Math.random()),
-            timestamp: data.T || Date.now(),
-            price: parseFloat(data.p),
-            amount: parseFloat(data.q),
-            side: data.m ? "sell" : "buy"
-          };
-          incomingTradesBufferRef.current.push(tick);
+        const payload = JSON.parse(event.data);
+        if (!payload) return;
+
+        // Combined streams format returns { stream: "streamName", data: { ... } }
+        const streamName = payload.stream;
+        const data = payload.data || payload;
+
+        if (streamName && streamName.includes("depth")) {
+          hasRealDepthStreamRef.current = true;
+          processDepthUpdate(data);
+        } else {
+          // This is a trade stream (either @trade or @aggTrade)
+          if (data && data.p && data.q) {
+            lastTickTimeRef.current = Date.now(); // Reset fallback timer
+            const tick = {
+              id: String(data.t || data.a || Math.random()),
+              timestamp: data.T || Date.now(),
+              price: parseFloat(data.p),
+              amount: parseFloat(data.q),
+              side: data.m ? "sell" : "buy"
+            };
+            incomingTradesBufferRef.current.push(tick);
+          }
         }
       } catch (err) {
         console.error("[WebSocket] Match message error", err);
@@ -1734,12 +1843,12 @@ export default function App() {
       ) : (
         <>
           {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
-      <section className={`backdrop-blur-md border-b px-4 py-1.5 flex items-center relative z-30 transition-shadow duration-300 overflow-x-auto scrollbar-none ${
+      <section className={`backdrop-blur-md border-b px-4 py-1.5 flex items-center justify-between relative z-30 transition-shadow duration-300 overflow-visible ${
         theme === "light"
           ? "bg-white/95 border-slate-300 shadow-md"
           : "bg-slate-950/40 border-slate-900/60 shadow-md"
       }`}>
-        <div className="flex items-center gap-x-4 sm:gap-x-6 shrink-0 select-none pr-4">
+        <div className="flex items-center gap-x-4 sm:gap-x-6 select-none mr-4 relative z-40 shrink-0">
           {/* 1. Ticker Dropdown Select */}
           <div>
             <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
@@ -1812,6 +1921,10 @@ export default function App() {
               </AnimatePresence>
             </div>
           </div>
+        </div>
+
+        {/* Scrollable list of other controls and stats options */}
+        <div className="flex-1 flex items-center gap-x-4 sm:gap-x-6 select-none overflow-x-auto scrollbar-none py-1 pr-4">
 
           {/* Market Type (SPOT / FUTURES) Segment Control */}
           <div>
@@ -1976,6 +2089,56 @@ export default function App() {
             </div>
           </div>
 
+          {/* Candle Palette Switcher */}
+          <div>
+            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
+            }`}>
+              {language === "EN" ? "Candle Palette" : language === "KZ" ? "Шам палитрасы" : "Палитра свечей"}
+            </span>
+            <div className={`flex items-center p-[2px] rounded-lg h-[30px] select-none transition-all duration-300 border ${
+              theme === "light" ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
+            }`}>
+              {[
+                { id: "default", label: language === "EN" ? "Default" : language === "KZ" ? "Әдепкі" : "Стандарт" },
+                { id: "alternative", label: language === "EN" ? "Alt" : language === "KZ" ? "Балама" : "Альт" }
+              ].map((item) => {
+                const isSelected = candlePalette === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setCandlePalette(item.id as any)}
+                    className="relative flex-1 px-3 py-0.5 rounded-md text-xs font-bold cursor-pointer text-center leading-none h-[24px] flex items-center justify-center border-0 outline-none select-none"
+                  >
+                    {isSelected && (
+                      <motion.div
+                        layoutId="activeCandlePalette"
+                        className={`absolute inset-0 rounded-md ${
+                          theme === "light"
+                            ? "bg-white border border-slate-300 shadow-sm"
+                            : "bg-blue-500/10 border border-blue-500/25 shadow-inner"
+                        }`}
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        style={{ zIndex: 0 }}
+                      />
+                    )}
+                    <span className={`relative z-10 font-mono text-[10px] sm:text-[11px] whitespace-nowrap transition-colors duration-200 ${
+                      isSelected
+                        ? theme === "light"
+                          ? "text-blue-800 font-black"
+                          : "text-blue-400 font-extrabold"
+                        : theme === "light"
+                          ? "text-slate-600 hover:text-slate-900 font-bold"
+                          : "text-slate-400 hover:text-slate-200"
+                    }`}>
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Chart Compression Select */}
           <div>
             <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
@@ -2040,11 +2203,11 @@ export default function App() {
       {/* MAIN WORKSTATION PANEL: CONTENT VIEWS */}
       {(() => {
         const activeIndicatorsObj = {
-          clusterSearch: indicators.find(i => i.id === "clusterSearch")?.isActive ?? false,
-          delta: indicators.find(i => i.id === "delta")?.isActive ?? false,
-          volume: indicators.find(i => i.id === "volume" || i.id === "volumeProfile")?.isActive ?? false,
-          cvd: indicators.find(i => i.id === "cvd")?.isActive ?? false,
-          stackedImbalance: indicators.find(i => i.id === "stackedImbalance")?.isActive ?? false
+          clusterSearch: (indicators.find(i => i.id === "clusterSearch")?.isActive ?? false) && (indicators.find(i => i.id === "clusterSearch")?.isVisible !== false),
+          delta: (indicators.find(i => i.id === "delta")?.isActive ?? false) && (indicators.find(i => i.id === "delta")?.isVisible !== false),
+          volume: (indicators.find(i => i.id === "volume" || i.id === "volumeProfile")?.isActive ?? false) && (indicators.find(i => i.id === "volume" || i.id === "volumeProfile")?.isVisible !== false),
+          cvd: (indicators.find(i => i.id === "cvd")?.isActive ?? false) && (indicators.find(i => i.id === "cvd")?.isVisible !== false),
+          stackedImbalance: (indicators.find(i => i.id === "stackedImbalance")?.isActive ?? false) && (indicators.find(i => i.id === "stackedImbalance")?.isVisible !== false)
         };
 
         const indicatorSettings = {
@@ -2093,7 +2256,9 @@ export default function App() {
               </button>
             </div>
 
-            <div className="flex-1 flex flex-col lg:flex-row gap-3 lg:gap-5 min-h-0 min-w-0 items-stretch font-sans">
+            <div className={`flex-1 flex flex-col lg:flex-row min-h-0 min-w-0 items-stretch font-sans relative ${
+              isSidebarCollapsed ? "gap-3 lg:gap-0" : "gap-3 lg:gap-5"
+            }`}>
               {/* Left/Middle Column: Footprint Chart Section */}
               <div className={`flex-1 flex flex-col min-h-0 min-w-0 justify-stretch ${
                 activeMobileTab === "chart" ? "flex" : "hidden lg:flex"
@@ -2109,6 +2274,7 @@ export default function App() {
                   theme={theme}
                   candleType={candleType}
                   candleDataType={candleDataType}
+                  candlePalette={candlePalette}
                   onToggleIndicator={(id) => {
                     setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: !ind.isActive } : ind));
                   }}
@@ -2120,11 +2286,39 @@ export default function App() {
               </div>
 
               {/* Right Sidebar Column: DOM Sidebar with Interactive Trading */}
-              <aside className={`w-full lg:w-[380px] flex flex-col shrink-0 min-h-0 ${
+              <div className={`relative flex min-h-0 flex-col shrink-0 transition-all duration-300 ease-in-out ${
+                isSidebarCollapsed ? "lg:w-0 lg:ml-0" : "w-full lg:w-[380px]"
+              } ${
                 activeMobileTab === "dom" ? "flex" : "hidden lg:flex"
               }`}>
-                <DOMSidebar orderBook={orderBook} activePair={activePair} theme={theme} />
-              </aside>
+                {/* Expand / Collapse Button */}
+                <button
+                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                  className={`hidden lg:flex absolute top-1/2 -translate-y-1/2 z-35 items-center justify-center w-6 h-12 rounded-md border transition-all duration-200 cursor-pointer ${
+                    isSidebarCollapsed 
+                      ? "-left-3 " + (theme === "light"
+                          ? "bg-white hover:bg-slate-50 text-slate-600 border-slate-300 shadow-md hover:text-slate-900"
+                          : "bg-slate-900 hover:bg-slate-850 text-slate-400 border-slate-700 shadow-lg hover:text-slate-200")
+                      : "-left-3 " + (theme === "light"
+                          ? "bg-white hover:bg-slate-50 text-slate-600 border-slate-200 shadow-sm hover:text-slate-900"
+                          : "bg-slate-900 hover:bg-slate-850 text-slate-400 border-slate-750/80 hover:text-slate-200")
+                  }`}
+                  style={{ transform: "translateY(-50%)" }}
+                  title={
+                    isSidebarCollapsed 
+                      ? (language === "RU" ? "Развернуть стакан и индекс" : language === "KZ" ? "Стақанды жаю" : "Expand orderbook & sentiment sidebar")
+                      : (language === "RU" ? "Свернуть стакан и индекс" : language === "KZ" ? "Стақанды жинау" : "Collapse orderbook & sentiment sidebar")
+                  }
+                >
+                  {isSidebarCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+
+                <div className={`flex-1 flex flex-col min-h-0 transition-opacity duration-300 ${
+                  isSidebarCollapsed ? "lg:opacity-0 lg:pointer-events-none lg:overflow-hidden w-0" : "w-full"
+                }`}>
+                  <DOMSidebar orderBook={orderBook} activePair={activePair} theme={theme} />
+                </div>
+              </div>
             </div>
           </main>
         );

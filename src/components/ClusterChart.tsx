@@ -18,6 +18,7 @@ interface ClusterChartProps {
   theme?: "dark" | "light";
   candleType?: "auto" | "japanese" | "footprint" | "clusters";
   candleDataType?: "bid_ask" | "delta" | "volume";
+  candlePalette?: "default" | "alternative";
   onToggleIndicator?: (id: string) => void;
   onRemoveIndicator?: (id: string) => void;
   onShowIndicatorsSettings?: () => void;
@@ -40,6 +41,7 @@ export default function ClusterChart({
   theme = "dark",
   candleType = "auto",
   candleDataType = "bid_ask",
+  candlePalette = "default",
   onToggleIndicator,
   onRemoveIndicator,
   onShowIndicatorsSettings
@@ -167,7 +169,52 @@ export default function ClusterChart({
     return () => resizeObserver.disconnect();
   }, [candles.length]);
 
-  // Standard trading wheel zoom engine (Wheel / Shift + Wheel on main area/timeline = Horizontal scale; Wheel on price scale = Vertical scale)
+  const candlesToScale = useMemo(() => {
+    // Keep reference to all loaded candles so the vertical scaling is 100% stable
+    // and never shifts or jumps up/down when we zoom or scroll horizontally.
+    return candles;
+  }, [candles]);
+
+  const priceBounds = useMemo(() => {
+    if (candlesToScale.length === 0) {
+      return { maxPriceRaw: 100, minPriceRaw: 0, priceRange: 100, basePriceCenter: 50 };
+    }
+    let maxPriceRaw = candlesToScale[0].high;
+    let minPriceRaw = candlesToScale[0].low;
+    for (let i = 0; i < candlesToScale.length; i++) {
+      const c = candlesToScale[i];
+      if (c.high > maxPriceRaw) maxPriceRaw = c.high;
+      if (c.low < minPriceRaw) minPriceRaw = c.low;
+    }
+    const priceRange = maxPriceRaw - minPriceRaw || 1;
+    const basePriceCenter = (maxPriceRaw + minPriceRaw) / 2;
+    return { maxPriceRaw, minPriceRaw, priceRange, basePriceCenter };
+  }, [candlesToScale]);
+
+  const { maxPriceRaw, minPriceRaw, priceRange, basePriceCenter } = priceBounds;
+
+  // We apply the vertical scale to the price range projection to stretch/compress candles visually!
+  // verticalScale > 1.0 means we stretch vertically (narrower visible price range = taller candles)
+  // verticalScale < 1.0 means we compress vertically (wider visible price range = flatter candles)
+  const zoomedPriceRange = useMemo(() => priceRange / Math.max(0.1, verticalScale), [priceRange, verticalScale]);
+  
+  const priceCenter = useMemo(() => basePriceCenter + priceCenterOffset, [basePriceCenter, priceCenterOffset]);
+  
+  const maxPrice = useMemo(() => priceCenter + zoomedPriceRange * 0.58, [priceCenter, zoomedPriceRange]);
+  const minPrice = useMemo(() => Math.max(0, priceCenter - zoomedPriceRange * 0.58), [priceCenter, zoomedPriceRange]);
+
+  const priceToY = (price: number) => {
+    const range = maxPrice - minPrice || 1;
+    return margin.top + chartHeight * (1 - (price - minPrice) / range);
+  };
+
+  const yToPrice = (y: number) => {
+    const range = maxPrice - minPrice || 1;
+    const rawPrice = minPrice + (1 - (y - margin.top) / Math.max(1, chartHeight)) * range;
+    return Math.max(0, rawPrice);
+  };
+
+  // Standard trading wheel zoom engine (Standard wheel = zoom both directions at cursor; Ctrl+wheel = Horizontal zoom; Shift+wheel = Vertical zoom)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -175,56 +222,110 @@ export default function ClusterChart({
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       
-      if (e.shiftKey) {
-        // Shift + Wheel on the main chart area -> zoom/stretch vertically!
-        setVerticalScale(prev => {
-          const delta = e.deltaY;
-          const direction = Math.sign(delta);
-          if (direction === 0) return prev;
-          // scroll up (negative delta) => stretch => multiplier > 1
-          const multiplier = direction < 0 ? 1.15 : 0.85;
-          const next = prev * multiplier;
-          return Math.min(2000.0, Math.max(0.1, next));
-        });
-      } else {
-        // Standard Wheel -> zoom horizontally around mouse position!
-        const delta = e.deltaY;
-        const direction = Math.sign(delta);
-        if (direction === 0) return;
+      const delta = e.deltaY;
+      const direction = Math.sign(delta);
+      if (direction === 0) return;
 
-        // Calculate next candleWidth synchronously
+      const isCtrl = e.ctrlKey || e.metaKey;
+      const isShift = e.shiftKey;
+
+      if (isShift) {
+        // Shift + Wheel -> zoom/stretch vertically centered on mouse position!
+        const rect = container.getBoundingClientRect();
+        const relativeY = e.clientY - rect.top;
+        if (relativeY >= margin.top && relativeY <= margin.top + chartHeight) {
+          const mousePrice = yToPrice(relativeY);
+          const multiplier = direction < 0 ? 1.15 : 0.85;
+          const nextVerticalScale = Math.min(2000.0, Math.max(0.1, verticalScale * multiplier));
+          const actualMultiplier = nextVerticalScale / verticalScale;
+
+          if (actualMultiplier !== 1) {
+            const currentPriceCenter = basePriceCenter + priceCenterOffset;
+            const newPriceCenter = mousePrice - (mousePrice - currentPriceCenter) / actualMultiplier;
+            const nextPriceCenterOffset = newPriceCenter - basePriceCenter;
+
+            setVerticalScale(nextVerticalScale);
+            setPriceCenterOffset(nextPriceCenterOffset);
+          }
+        }
+      } else if (isCtrl) {
+        // Ctrl + Wheel -> zoom horizontally centered on mouse position!
         const prevWidth = candleWidth;
         const widthDeltaCount = 12;
         let nextWidth = prevWidth - direction * widthDeltaCount;
         const minW = (candleType === "japanese" || candleType === "auto") ? 2 : 8;
         nextWidth = Math.min(450, Math.max(minW, nextWidth));
 
-        if (nextWidth === prevWidth) return;
+        if (nextWidth !== prevWidth) {
+          const rect = container.getBoundingClientRect();
+          const mouseRelativeX = e.clientX - rect.left;
+          const currentScrollLeft = container.scrollLeft;
+          const chartCursorX = currentScrollLeft + mouseRelativeX;
+          
+          const marginLeftVal = margin.left;
+          const activeChartX = chartCursorX - marginLeftVal;
+          
+          const prevSpacing = Math.max(1, prevWidth < 30 ? Math.floor(prevWidth * 0.35) : 12);
+          const nextSpacing = Math.max(1, nextWidth < 30 ? Math.floor(nextWidth * 0.35) : 12);
+          
+          const ratio = (nextWidth + nextSpacing) / (prevWidth + prevSpacing);
+          const newChartCursorX = marginLeftVal + activeChartX * ratio;
+          const nextScrollLeft = Math.max(0, newChartCursorX - mouseRelativeX);
 
-        // Perform centering offsets
+          setCandleWidth(nextWidth);
+          container.scrollLeft = nextScrollLeft;
+          setVisibleScrollLeft(nextScrollLeft);
+        }
+      } else {
+        // Standard Wheel -> zoom BOTH horizontally and vertically centered on mouse position!
+        
+        // 1. Horizontal zoom
+        const prevWidth = candleWidth;
+        const widthDeltaCount = 12;
+        let nextWidth = prevWidth - direction * widthDeltaCount;
+        const minW = (candleType === "japanese" || candleType === "auto") ? 2 : 8;
+        nextWidth = Math.min(450, Math.max(minW, nextWidth));
+
+        let updatedScrollLeft = container.scrollLeft;
+        if (nextWidth !== prevWidth) {
+          const rect = container.getBoundingClientRect();
+          const mouseRelativeX = e.clientX - rect.left;
+          const currentScrollLeft = container.scrollLeft;
+          const chartCursorX = currentScrollLeft + mouseRelativeX;
+          
+          const marginLeftVal = margin.left;
+          const activeChartX = chartCursorX - marginLeftVal;
+          
+          const prevSpacing = Math.max(1, prevWidth < 30 ? Math.floor(prevWidth * 0.35) : 12);
+          const nextSpacing = Math.max(1, nextWidth < 30 ? Math.floor(nextWidth * 0.35) : 12);
+          
+          const ratio = (nextWidth + nextSpacing) / (prevWidth + prevSpacing);
+          const newChartCursorX = marginLeftVal + activeChartX * ratio;
+          updatedScrollLeft = Math.max(0, newChartCursorX - mouseRelativeX);
+
+          setCandleWidth(nextWidth);
+          container.scrollLeft = updatedScrollLeft;
+          setVisibleScrollLeft(updatedScrollLeft);
+        }
+
+        // 2. Vertical zoom
         const rect = container.getBoundingClientRect();
-        const mouseRelativeX = e.clientX - rect.left;
-        const currentScrollLeft = container.scrollLeft;
-        const chartCursorX = currentScrollLeft + mouseRelativeX;
-        
-        const marginLeftVal = margin.left;
-        const activeChartX = chartCursorX - marginLeftVal;
-        
-        // Calculate new spacing based on next candleWidth
-        const prevSpacing = Math.max(1, prevWidth < 30 ? Math.floor(prevWidth * 0.35) : 12);
-        const nextSpacing = Math.max(1, nextWidth < 30 ? Math.floor(nextWidth * 0.35) : 12);
-        
-        const ratio = (nextWidth + nextSpacing) / (prevWidth + prevSpacing);
-        
-        const newChartCursorX = marginLeftVal + activeChartX * ratio;
-        const nextScrollLeft = Math.max(0, newChartCursorX - mouseRelativeX);
+        const relativeY = e.clientY - rect.top;
+        if (relativeY >= margin.top && relativeY <= margin.top + chartHeight) {
+          const mousePrice = yToPrice(relativeY);
+          const multiplier = direction < 0 ? 1.15 : 0.85;
+          const nextVerticalScale = Math.min(2000.0, Math.max(0.1, verticalScale * multiplier));
+          const actualMultiplier = nextVerticalScale / verticalScale;
 
-        // Update state and scroll container synchronously
-        setCandleWidth(nextWidth);
-        
-        // Directly apply scroll property to ensure smooth focus locking
-        container.scrollLeft = nextScrollLeft;
-        setVisibleScrollLeft(nextScrollLeft);
+          if (actualMultiplier !== 1) {
+            const currentPriceCenter = basePriceCenter + priceCenterOffset;
+            const newPriceCenter = mousePrice - (mousePrice - currentPriceCenter) / actualMultiplier;
+            const nextPriceCenterOffset = newPriceCenter - basePriceCenter;
+
+            setVerticalScale(nextVerticalScale);
+            setPriceCenterOffset(nextPriceCenterOffset);
+          }
+        }
       }
     };
 
@@ -232,7 +333,18 @@ export default function ClusterChart({
     return () => {
       container.removeEventListener("wheel", handleWheel);
     };
-  }, [candles.length, candleWidth, candleSpacing, candleType]);
+  }, [
+    candles.length, 
+    candleWidth, 
+    candleSpacing, 
+    candleType, 
+    verticalScale, 
+    priceCenterOffset, 
+    basePriceCenter, 
+    maxPrice, 
+    minPrice, 
+    chartHeight
+  ]);
 
   // Auto-scroll to show the latest candles with a comfortable padding from the right price scale on mount or symbol change
   useEffect(() => {
@@ -293,50 +405,7 @@ export default function ClusterChart({
     });
   }, [candles, visibleScrollLeft, visibleClientWidth, candleWidth, candleSpacing]);
 
-  const candlesToScale = useMemo(() => {
-    // Keep reference to all loaded candles so the vertical scaling is 100% stable
-    // and never shifts or jumps up/down when we zoom or scroll horizontally.
-    return candles;
-  }, [candles]);
 
-  const priceBounds = useMemo(() => {
-    if (candlesToScale.length === 0) {
-      return { maxPriceRaw: 100, minPriceRaw: 0, priceRange: 100, basePriceCenter: 50 };
-    }
-    let maxPriceRaw = candlesToScale[0].high;
-    let minPriceRaw = candlesToScale[0].low;
-    for (let i = 0; i < candlesToScale.length; i++) {
-      const c = candlesToScale[i];
-      if (c.high > maxPriceRaw) maxPriceRaw = c.high;
-      if (c.low < minPriceRaw) minPriceRaw = c.low;
-    }
-    const priceRange = maxPriceRaw - minPriceRaw || 1;
-    const basePriceCenter = (maxPriceRaw + minPriceRaw) / 2;
-    return { maxPriceRaw, minPriceRaw, priceRange, basePriceCenter };
-  }, [candlesToScale]);
-
-  const { maxPriceRaw, minPriceRaw, priceRange, basePriceCenter } = priceBounds;
-
-  // We apply the vertical scale to the price range projection to stretch/compress candles visually!
-  // verticalScale > 1.0 means we stretch vertically (narrower visible price range = taller candles)
-  // verticalScale < 1.0 means we compress vertically (wider visible price range = flatter candles)
-  const zoomedPriceRange = useMemo(() => priceRange / Math.max(0.1, verticalScale), [priceRange, verticalScale]);
-  
-  const priceCenter = useMemo(() => basePriceCenter + priceCenterOffset, [basePriceCenter, priceCenterOffset]);
-  
-  const maxPrice = useMemo(() => priceCenter + zoomedPriceRange * 0.58, [priceCenter, zoomedPriceRange]);
-  const minPrice = useMemo(() => Math.max(0, priceCenter - zoomedPriceRange * 0.58), [priceCenter, zoomedPriceRange]);
-
-  const priceToY = (price: number) => {
-    const range = maxPrice - minPrice || 1;
-    return margin.top + chartHeight * (1 - (price - minPrice) / range);
-  };
-
-  const yToPrice = (y: number) => {
-    const range = maxPrice - minPrice || 1;
-    const rawPrice = minPrice + (1 - (y - margin.top) / Math.max(1, chartHeight)) * range;
-    return Math.max(0, rawPrice);
-  };
 
   // Compute scrollable content width - add a generous scroll zone on the right (85% of screen width) so users can freely drag the last candles away from the price scale
   const scrollRightPadding = Math.round(Number(visibleClientWidth || 800) * 0.85);
@@ -387,15 +456,17 @@ export default function ClusterChart({
     e.preventDefault();
     
     const x = e.pageX - containerRef.current.offsetLeft;
-    const walkX = (x - startX) * 1.5; // multiplier for panning speed
-    containerRef.current.scrollLeft = scrollLeft - walkX;
+    const walkX = x - startX; // 1.0 multiplier is mathematically perfect for 1:1 mouse tracking!
+    const nextScroll = scrollLeft - walkX;
+    containerRef.current.scrollLeft = nextScroll;
+    setVisibleScrollLeft(nextScroll); // Update immediately for instant layout/canvas sync!
 
     const y = e.pageY - containerRef.current.offsetTop;
     const deltaY = y - startY;
-    // Scale deltaY to actual financial price change.
-    // Since page Y coordinate is 0 at top and increases downwards, dragging down (positive deltaY) should
-    // make candles move down (representing higher prices). Therefore, dragging down should increase the priceCenterOffset.
-    const priceChange = (deltaY / Math.max(100, chartHeight)) * zoomedPriceRange;
+    
+    // Mathematically perfect 1:1 vertical mouse tracking based on current price range
+    const currentPriceRange = maxPrice - minPrice;
+    const priceChange = (deltaY / Math.max(1, chartHeight)) * currentPriceRange;
     setPriceCenterOffset(startPriceOffset + priceChange);
   };
 
@@ -727,8 +798,8 @@ export default function ClusterChart({
   // Find dynamic maximum volume on visible part of the chart (memoized)
   const visibleMaxCellVol = useMemo(() => {
     let max = 1;
-    for (let c = 0; c < candlesToScale.length; c++) {
-      const cells = candlesToScale[c].cells || [];
+    for (let c = 0; c < visibleCandlesList.length; c++) {
+      const cells = visibleCandlesList[c].cells || [];
       for (let i = 0; i < cells.length; i++) {
         if (cells[i].volume > max) {
           max = cells[i].volume;
@@ -736,12 +807,12 @@ export default function ClusterChart({
       }
     }
     return max;
-  }, [candlesToScale]);
+  }, [visibleCandlesList]);
 
   const visibleMaxSingleVol = useMemo(() => {
     let max = 1;
-    for (let c = 0; c < candlesToScale.length; c++) {
-      const cells = candlesToScale[c].cells || [];
+    for (let c = 0; c < visibleCandlesList.length; c++) {
+      const cells = visibleCandlesList[c].cells || [];
       for (let i = 0; i < cells.length; i++) {
         const cell = cells[i];
         if (cell.bid > max) max = cell.bid;
@@ -749,7 +820,7 @@ export default function ClusterChart({
       }
     }
     return max;
-  }, [candlesToScale]);
+  }, [visibleCandlesList]);
 
   // Window-level mouse resize tracker for indicator panels
   useEffect(() => {
@@ -1094,9 +1165,23 @@ export default function ClusterChart({
       ctx.rect(margin.left, margin.top, scrollWidth - margin.left + 50, chartHeight);
       ctx.clip();
 
+      // Determine colors based on palette
+      const useAltPalette = candlePalette === "alternative";
+      const bullFill = useAltPalette ? "#E3E3E3" : "#10b981";
+      const bullBorder = useAltPalette ? "#BCBCBC" : "#10b981";
+      const bullWick = useAltPalette ? "#BCBCBC" : "#10b981";
+
+      const bearFill = useAltPalette ? "#777777" : "#f43f5e";
+      const bearBorder = useAltPalette ? "#A3A3A3" : "#f43f5e";
+      const bearWick = useAltPalette ? "#A3A3A3" : "#f43f5e";
+
+      const candleFillColor = isGreen ? bullFill : bearFill;
+      const candleBorderColor = isGreen ? bullBorder : bearBorder;
+      const candleWickColor = isGreen ? bullWick : bearWick;
+
       // Draw vertical wick lines
       ctx.beginPath();
-      ctx.strokeStyle = isGreen ? "#10b981" : "#f43f5e";
+      ctx.strokeStyle = candleWickColor;
       ctx.lineWidth = 1.5;
       ctx.globalAlpha = isDetailedMode ? 0.45 : 0.85;
       ctx.moveTo(x + candleWidth / 2, priceToY(candle.high));
@@ -1106,8 +1191,8 @@ export default function ClusterChart({
 
       // A. Zoomed out simple candlestick
       if (!isDetailedMode) {
-        ctx.fillStyle = isGreen ? "#10b981" : "#f43f5e";
-        ctx.strokeStyle = isGreen ? "#10b981" : "#f43f5e";
+        ctx.fillStyle = candleFillColor;
+        ctx.strokeStyle = candleBorderColor;
         ctx.lineWidth = 1.5;
         
         const rectY = Math.min(bodyY1, bodyY2);
@@ -1138,8 +1223,12 @@ export default function ClusterChart({
         const bodyH = Math.max(3, bodyBottomY - bodyTopY);
         
         ctx.strokeStyle = isGreen 
-          ? (isLight ? "rgba(16, 185, 129, 0.45)" : "rgba(16, 185, 129, 0.55)") 
-          : (isLight ? "rgba(239, 68, 68, 0.45)" : "rgba(239, 68, 68, 0.55)");
+          ? (useAltPalette
+              ? (isLight ? "rgba(188, 188, 188, 0.45)" : "rgba(188, 188, 188, 0.55)")
+              : (isLight ? "rgba(16, 185, 129, 0.45)" : "rgba(16, 185, 129, 0.55)"))
+          : (useAltPalette
+              ? (isLight ? "rgba(163, 163, 163, 0.45)" : "rgba(163, 163, 163, 0.55)")
+              : (isLight ? "rgba(239, 68, 68, 0.45)" : "rgba(239, 68, 68, 0.55)"));
         ctx.lineWidth = 1.0;
         ctx.strokeRect(x + 0.5, bodyTopY + 0.5, candleWidth - 1, bodyH - 1);
 
@@ -1804,20 +1893,29 @@ export default function ClusterChart({
 
           {/* Display active indicators on chart header */}
           <div className="hidden md:flex items-center gap-1.5 ml-2">
-            {indicators && indicators.filter(ind => ind.isActive).map(ind => (
-              <span 
-                key={ind.id}
-                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider border shadow-sm ${
-                  isLight 
-                    ? "bg-slate-100 border-slate-250 text-slate-600" 
-                    : "bg-white/5 border-white/5 text-slate-300"
-                }`}
-                title={`${ind.label} (${ind.type})`}
-              >
-                <Layers className="w-2.5 h-2.5 text-blue-450 shrink-0" />
-                {ind.label}
-              </span>
-            ))}
+            {indicators && indicators.filter(ind => ind.isActive).map(ind => {
+              const isVisible = ind.isVisible !== false;
+              return (
+                <span 
+                  key={ind.id}
+                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider border shadow-sm transition-opacity duration-200 ${
+                    !isVisible ? "opacity-40" : ""
+                  } ${
+                    isLight 
+                      ? "bg-slate-100 border-slate-250 text-slate-600" 
+                      : "bg-white/5 border-white/5 text-slate-300"
+                  }`}
+                  title={`${ind.label} (${ind.type}) - ${isVisible ? "Видимый" : "Скрытый"}`}
+                >
+                  {isVisible ? (
+                    <Layers className="w-2.5 h-2.5 text-blue-450 shrink-0" />
+                  ) : (
+                    <EyeOff className="w-2.5 h-2.5 text-rose-500 shrink-0" />
+                  )}
+                  <span className={!isVisible ? "line-through" : ""}>{ind.label.replace("(PROCLUSTER) ", "")}</span>
+                </span>
+              );
+            })}
           </div>
         </div>
 

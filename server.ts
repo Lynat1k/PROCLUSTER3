@@ -200,8 +200,15 @@ Cumulative volume in the last 5 cycles is **${(totalVolume / 1000).toFixed(2)}M*
         const centerPrice = (open + close) / 2;
         const maxPriceDistance = Math.max(endPrice - startPrice, priceStep);
 
+        let activePriceStep = priceStep;
+        let rangeUnits = Math.round((endPrice - startPrice) / activePriceStep);
+        if (rangeUnits > 250) {
+          const scaleFactor = Math.ceil(rangeUnits / 250);
+          activePriceStep = priceStep * scaleFactor;
+        }
+
         let cellCount = 0;
-        for (let price = startPrice; price <= endPrice; price += priceStep) {
+        for (let price = startPrice; price <= endPrice; price += activePriceStep) {
           cellCount++;
           if (cellCount > 250) break;
         }
@@ -210,7 +217,7 @@ Cumulative volume in the last 5 cycles is **${(totalVolume / 1000).toFixed(2)}M*
         const parsedLevels: number[] = [];
         for (let i = 0; i < cellCount; i++) {
           parsedLevels.push(parseFloat(currentPriceLevel.toFixed(4)));
-          currentPriceLevel += priceStep;
+          currentPriceLevel += activePriceStep;
         }
 
         const weights = parsedLevels.map(p => {
