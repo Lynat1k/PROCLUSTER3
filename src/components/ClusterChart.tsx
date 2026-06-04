@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator } from "../types";
-import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe } from "lucide-react";
 
 interface ClusterChartProps {
   candles: ClusterCandle[];
@@ -22,6 +22,7 @@ interface ClusterChartProps {
   onToggleIndicator?: (id: string) => void;
   onRemoveIndicator?: (id: string) => void;
   onShowIndicatorsSettings?: () => void;
+  language?: "RU" | "EN" | "KZ";
 }
 
 export default function ClusterChart({
@@ -44,10 +45,43 @@ export default function ClusterChart({
   candlePalette = "default",
   onToggleIndicator,
   onRemoveIndicator,
-  onShowIndicatorsSettings
+  onShowIndicatorsSettings,
+  language = "EN"
 }: ClusterChartProps) {
   
   const isLight = theme === "light";
+
+  const [selectedTimezone, setSelectedTimezone] = useState<string>(() => {
+    return localStorage.getItem("procluster_chart_timezone") || "local";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("procluster_chart_timezone", selectedTimezone);
+  }, [selectedTimezone]);
+
+  const formatTimezoneString = (timestamp: number, isHovered: boolean) => {
+    const date = new Date(timestamp);
+    const timezoneOpt = selectedTimezone === "local" ? undefined : selectedTimezone;
+    
+    const timeStr = date.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: timezoneOpt,
+    });
+    
+    if (isHovered) {
+      const dateStr = date.toLocaleDateString(undefined, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: timezoneOpt,
+      });
+      return `${timeStr} ${dateStr}`;
+    }
+    
+    return timeStr;
+  };
   // Zoom state: width of each candlestick in pixels
   const [candleWidth, setCandleWidth] = useState<number>(145);
   const candleSpacing = Math.max(1, candleWidth < 30 ? Math.floor(candleWidth * 0.35) : 12);
@@ -1744,10 +1778,7 @@ export default function ClusterChart({
         : -1;
       const isHovered = crosshair && cIdx === hoveredCandleIdx;
 
-      const timeStr = new Date(candle.timestamp).toLocaleTimeString(undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      const timeStr = formatTimezoneString(candle.timestamp, !!isHovered);
 
       ctx.save();
       if (isHovered) {
@@ -1840,7 +1871,8 @@ export default function ClusterChart({
     activePair.price,
     activePair.priceStep,
     visibleScrollLeft,
-    visibleClientWidth
+    visibleClientWidth,
+    selectedTimezone
   ]);
 
   const formatCoinsVolume = (valInCoins: number, symbol: string) => {
@@ -1978,7 +2010,46 @@ export default function ClusterChart({
             </button>
           </div>
           
-          <div className={`border px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold flex items-center gap-1.5 hidden sm:flex shadow-inner transition-all duration-300 ${
+          {/* Timezone Select Control */}
+          <div className={`border px-2.5 py-1 rounded-xl text-[10px] font-mono font-bold flex items-center gap-1.5 shadow-inner transition-all duration-300 ${
+            isLight ? "bg-slate-100 border-slate-200/60 text-slate-600" : "bg-slate-950/60 border-white/5 text-slate-400"
+          }`}>
+            <Globe className={`w-3.5 h-3.5 shrink-0 ${isLight ? "text-slate-500" : "text-slate-400"}`} />
+            <select
+              value={selectedTimezone}
+              onChange={(e) => setSelectedTimezone(e.target.value)}
+              className="bg-transparent border-none text-[10px] text-inherit font-sans font-semibold cursor-pointer focus:outline-none pr-1"
+              title={language === "RU" ? "Выбор часового пояса" : "Select Timezone"}
+            >
+              <option value="local" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
+                {language === "RU" ? "Системное" : language === "KZ" ? "Жүйелік" : "Local Time"}
+              </option>
+              <option value="UTC" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>UTC (GMT)</option>
+              <option value="Europe/Moscow" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
+                {language === "RU" ? "Москва (UTC+3)" : language === "KZ" ? "Мәскеу (UTC+3)" : "Moscow (UTC+3)"}
+              </option>
+              <option value="Asia/Almaty" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
+                {language === "RU" ? "Алматы (UTC+5)" : language === "KZ" ? "Алматы (UTC+5)" : "Almaty (UTC+5)"}
+              </option>
+              <option value="Asia/Aqtobe" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
+                {language === "RU" ? "Актобе (UTC+5)" : language === "KZ" ? "Ақтөбе (UTC+5)" : "Aqtobe (UTC+5)"}
+              </option>
+              <option value="Asia/Singapore" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
+                {language === "RU" ? "Сингапур (UTC+8)" : language === "KZ" ? "Сингапур (UTC+8)" : "Singapore (UTC+8)"}
+              </option>
+              <option value="Asia/Tokyo" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
+                {language === "RU" ? "Токио (UTC+9)" : language === "KZ" ? "Токио (UTC+9)" : "Tokyo (UTC+9)"}
+              </option>
+              <option value="Europe/Paris" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
+                {language === "RU" ? "Париж (UTC+1)" : language === "KZ" ? "Париж (UTC+1)" : "Paris (UTC+1)"}
+              </option>
+              <option value="America/New_York" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
+                {language === "RU" ? "Нью-Йорк (UTC-5)" : language === "KZ" ? "Нью-Йорк (UTC-5)" : "New York (UTC-5)"}
+              </option>
+            </select>
+          </div>
+          
+          <div className={`border px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold flex items-center gap-1.5 hidden md:flex shadow-inner transition-all duration-300 ${
             isLight ? "bg-slate-100 border-slate-200/60 text-slate-600" : "bg-slate-950/60 border-white/5 text-slate-400"
           }`}>
             <Move className="w-3 h-3 text-slate-500" /> Click & Drag to Pan (2D)

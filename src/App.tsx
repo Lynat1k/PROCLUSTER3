@@ -51,6 +51,26 @@ const ClustersIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const CandlePreviewIcon = ({ palette }: { palette: "default" | "alternative" }) => {
+  const isDefault = palette === "default";
+  const bullColor = isDefault ? "#10b981" : "#E3E3E3";
+  const bearColor = isDefault ? "#f43f5e" : "#777777";
+  const bullBorder = isDefault ? "#10b981" : "#BCBCBC";
+  const bearBorder = isDefault ? "#f43f5e" : "#A3A3A3";
+
+  return (
+    <svg width="22" height="18" viewBox="0 0 22 18" className="inline-block shrink-0 select-none">
+      {/* Bullish Candle (Green or Light Alt) */}
+      <line x1="6" y1="2" x2="6" y2="16" stroke={bullBorder} strokeWidth="1.5" strokeLinecap="round" />
+      <rect x="3.5" y="5" width="5" height="8" fill={bullColor} stroke={bullBorder} strokeWidth="1" rx="0.5" />
+
+      {/* Bearish Candle (Red or Dark Alt) */}
+      <line x1="16" y1="2" x2="16" y2="16" stroke={bearBorder} strokeWidth="1.5" strokeLinecap="round" />
+      <rect x="13.5" y="7" width="5" height="7" fill={bearColor} stroke={bearBorder} strokeWidth="1" rx="0.5" />
+    </svg>
+  );
+};
+
 export const getBaseTickSize = (symbol: string): number => {
   const norm = symbol.toUpperCase().replace("/", "");
   if (norm.includes("BTC")) return 0.1;
@@ -917,6 +937,8 @@ export default function App() {
   const [currentView, setCurrentView] = useState<"terminal" | "admin" | "profile">("terminal");
   const [showTickerMenu, setShowTickerMenu] = useState<boolean>(false);
   const tickerMenuRef = useRef<HTMLDivElement>(null);
+  const [showPaletteMenu, setShowPaletteMenu] = useState<boolean>(false);
+  const paletteMenuRef = useRef<HTMLDivElement>(null);
 
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(() => {
     const saved = localStorage.getItem("procluster_user");
@@ -1050,11 +1072,14 @@ export default function App() {
     return settings[group] || settings.free;
   };
 
-  // Click outside to close the ticker custom menu
+  // Click outside to close custom menus
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (tickerMenuRef.current && !tickerMenuRef.current.contains(event.target as Node)) {
         setShowTickerMenu(false);
+      }
+      if (paletteMenuRef.current && !paletteMenuRef.current.contains(event.target as Node)) {
+        setShowPaletteMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -1113,10 +1138,8 @@ export default function App() {
       
     const tickStep = baseTickStep * compression;
 
-    // Orderbook compression (Decoupled: Spot is 5000, Futures remains tickStep)
-    const orderBookTickStep = isFutures
-      ? tickStep
-      : (baseTickStep * 5000);
+    // Orderbook compression: align with chart's tickStep for dense and fully detailed order book levels
+    const orderBookTickStep = tickStep;
       
     orderBookTickStepRef.current = orderBookTickStep;
 
@@ -1921,6 +1944,88 @@ export default function App() {
               </AnimatePresence>
             </div>
           </div>
+
+          {/* Candle Palette Switcher */}
+          <div>
+            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+              theme === "light" ? "text-slate-500 font-bold" : "text-slate-400/80"
+            }`}>
+              {language === "EN" ? "Candle Palette" : language === "KZ" ? "Шам палитрасы" : "Палитра свечей"}
+            </span>
+            <div className="relative font-sans" ref={paletteMenuRef}>
+              <button
+                onClick={() => setShowPaletteMenu(!showPaletteMenu)}
+                className={`flex items-center justify-between gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all min-w-[135px] h-[30px] select-none border ${
+                  theme === "light"
+                    ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-800 font-extrabold shadow-sm"
+                    : "liquid-glass-button border-white/5 text-slate-200 font-black"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 leading-none">
+                  <CandlePreviewIcon palette={candlePalette} />
+                  <span className={`font-mono text-[10px] whitespace-nowrap ${theme === "light" ? "text-slate-700 font-black" : "text-white font-extrabold"}`}>
+                    {candlePalette === "default" 
+                      ? (language === "EN" ? "Default" : language === "KZ" ? "Әдепкі" : "Стандарт")
+                      : (language === "EN" ? "Alternative" : language === "KZ" ? "Балама" : "Альт")}
+                  </span>
+                </div>
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 shrink-0 ${
+                  theme === "light" ? "text-slate-600" : "text-slate-400"
+                } ${showPaletteMenu ? "rotate-180" : ""}`} />
+              </button>
+
+              <AnimatePresence>
+                {showPaletteMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                    style={{ originY: 0 }}
+                    className={`absolute left-0 mt-1.5 w-44 rounded-xl p-1.5 z-50 text-left select-none shadow-2xl backdrop-blur-md border transition-all duration-300 ${
+                      theme === "light"
+                        ? "bg-white border-slate-300 text-slate-900 shadow-xl"
+                        : "bg-[#090d16]/98 border border-white/10 text-slate-100"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      {[
+                        { id: "default", label: language === "EN" ? "Default" : language === "KZ" ? "Әдепкі" : "Стандарт" },
+                        { id: "alternative", label: language === "EN" ? "Alternative" : language === "KZ" ? "Балама" : "Альт" }
+                      ].map((item) => {
+                        const isSelected = candlePalette === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setCandlePalette(item.id as any);
+                              setShowPaletteMenu(false);
+                            }}
+                            className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-left cursor-pointer transition-all ${
+                              isSelected
+                                ? theme === "light"
+                                  ? "bg-blue-50 text-blue-800 font-extrabold border border-blue-200 shadow-sm"
+                                  : "bg-blue-500/10 text-blue-400 font-extrabold border border-blue-500/25"
+                                : theme === "light"
+                                  ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                                  : "text-slate-300 hover:text-white hover:bg-white/5"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 select-none">
+                              <CandlePreviewIcon palette={item.id as any} />
+                              <span className="font-mono text-[10px] font-bold">{item.label}</span>
+                            </div>
+                            {isSelected && (
+                              <Check className="w-3 tracking-tight ml-1 text-blue-500 shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
         </div>
 
         {/* Scrollable list of other controls and stats options */}
@@ -2063,56 +2168,6 @@ export default function App() {
                     {isSelected && (
                       <motion.div
                         layoutId="activeCandleDataType"
-                        className={`absolute inset-0 rounded-md ${
-                          theme === "light"
-                            ? "bg-white border border-slate-300 shadow-sm"
-                            : "bg-blue-500/10 border border-blue-500/25 shadow-inner"
-                        }`}
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        style={{ zIndex: 0 }}
-                      />
-                    )}
-                    <span className={`relative z-10 font-mono text-[10px] sm:text-[11px] whitespace-nowrap transition-colors duration-200 ${
-                      isSelected
-                        ? theme === "light"
-                          ? "text-blue-800 font-black"
-                          : "text-blue-400 font-extrabold"
-                        : theme === "light"
-                          ? "text-slate-600 hover:text-slate-900 font-bold"
-                          : "text-slate-400 hover:text-slate-200"
-                    }`}>
-                      {item.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Candle Palette Switcher */}
-          <div>
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
-            }`}>
-              {language === "EN" ? "Candle Palette" : language === "KZ" ? "Шам палитрасы" : "Палитра свечей"}
-            </span>
-            <div className={`flex items-center p-[2px] rounded-lg h-[30px] select-none transition-all duration-300 border ${
-              theme === "light" ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
-            }`}>
-              {[
-                { id: "default", label: language === "EN" ? "Default" : language === "KZ" ? "Әдепкі" : "Стандарт" },
-                { id: "alternative", label: language === "EN" ? "Alt" : language === "KZ" ? "Балама" : "Альт" }
-              ].map((item) => {
-                const isSelected = candlePalette === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setCandlePalette(item.id as any)}
-                    className="relative flex-1 px-3 py-0.5 rounded-md text-xs font-bold cursor-pointer text-center leading-none h-[24px] flex items-center justify-center border-0 outline-none select-none"
-                  >
-                    {isSelected && (
-                      <motion.div
-                        layoutId="activeCandlePalette"
                         className={`absolute inset-0 rounded-md ${
                           theme === "light"
                             ? "bg-white border border-slate-300 shadow-sm"
@@ -2282,6 +2337,7 @@ export default function App() {
                     setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: false } : ind));
                   }}
                   onShowIndicatorsSettings={() => setIsIndicatorsModalOpen(true)}
+                  language={language}
                 />
               </div>
 
