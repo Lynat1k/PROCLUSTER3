@@ -414,10 +414,10 @@ export default function IndicatorsModal({
           initial={{ opacity: 0, scale: 0.94, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 15 }}
-          className={`rounded-3xl flex flex-col overflow-hidden font-sans border shadow-2xl relative ${
+          className={`rounded-3xl flex flex-col overflow-hidden font-sans border shadow-2xl relative muddy-glass-popover ${
             isLight
-              ? "bg-white border-slate-200 text-slate-850"
-              : "bg-[#0F1420]/98 border border-white/10 text-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.85)]"
+              ? "border-slate-200/50 text-slate-850"
+              : "border-white/10 text-slate-200"
           }`}
           style={{ width: `${size.width}px`, height: `${size.height}px` }}
         >
@@ -425,7 +425,7 @@ export default function IndicatorsModal({
           <div 
             onMouseDown={handleMouseDown}
             className={`flex items-center justify-between px-6 py-4.5 border-b transition-all duration-300 cursor-grab active:cursor-grabbing select-none ${
-              isLight ? "bg-slate-50 border-slate-200/80 text-slate-800" : "border-white/5 bg-slate-950/20"
+              isLight ? "bg-white/30 border-slate-200/80 text-slate-800" : "border-white/5 bg-slate-950/20"
             }`}
           >
             <div className="flex items-center gap-2.5 pointer-events-none">
@@ -1266,7 +1266,7 @@ export default function IndicatorsModal({
 
         {/* BOTTOM FOOTER */}
         <div className={`flex items-center justify-between px-6 py-4.5 border-t transition-all duration-300 ${
-          isLight ? "bg-slate-50 border-slate-200" : "border-white/5 bg-slate-950/20"
+          isLight ? "bg-white/30 border-slate-200" : "border-white/5 bg-slate-950/20"
         }`}>
           <span className="text-[10.5px] font-mono text-slate-500 select-none pb-0.5">
             Хоткей: <span className={`font-bold px-1.5 py-0.5 rounded border transition-colors ${

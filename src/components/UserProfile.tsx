@@ -13,6 +13,12 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
+import trumpAvatar from "../assets/images/trump_avatar_1780681677035.png";
+import saylorAvatar from "../assets/images/saylor_avatar_1780681691105.png";
+import buterinAvatar from "../assets/images/buterin_avatar_1780681705442.png";
+import satoshiAvatar from "../assets/images/satoshi_avatar_1780681722789.png";
+import powellAvatar from "../assets/images/powell_avatar_1780681738195.png";
+
 interface UserProfileProps {
   user: ProfileUser | null;
   onUpdateUser: (updatedUser: ProfileUser | null) => void;
@@ -21,14 +27,15 @@ interface UserProfileProps {
   language: "RU" | "EN" | "KZ";
 }
 
-const AVATAR_PRESETS = [
-  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
-  "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80",
-  "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80",
-  "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=150&q=80"
+const AVATAR_PRESETS_DATA = [
+  { url: trumpAvatar, nameRU: "Дональд Трамп", nameEN: "Donald Trump" },
+  { url: saylorAvatar, nameRU: "Майкл Сейлор", nameEN: "Michael Saylor" },
+  { url: buterinAvatar, nameRU: "Виталик Бутерин", nameEN: "Vitalik Buterin" },
+  { url: satoshiAvatar, nameRU: "Сатоши Накамото", nameEN: "Satoshi Nakamoto" },
+  { url: powellAvatar, nameRU: "Джером Пауэлл", nameEN: "Jerome Powell" }
 ];
+
+const AVATAR_PRESETS = AVATAR_PRESETS_DATA.map(d => d.url);
 
 const LOCALIZATION = {
   RU: {
@@ -381,10 +388,10 @@ export default function UserProfile({
   };
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto overflow-y-auto px-6 py-6 relative z-10 flex flex-col gap-6 scrollbar-thin">
+    <div className={`flex-1 w-full max-w-7xl mx-auto overflow-y-auto px-6 py-6 relative z-10 flex flex-col gap-6 ${isLight ? "scrollbar-thin-light" : "scrollbar-thin-dark"}`}>
       
       {/* Navigation Header bar with Back trigger */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between shrink-0">
         <button
           onClick={onClose}
           className={`group flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wide cursor-pointer transition border hover:scale-[1.02] active:scale-[0.98] ${
@@ -412,14 +419,14 @@ export default function UserProfile({
       </div>
 
       {/* Hero Section */}
-      <div className={`py-5 px-6 sm:px-8 rounded-[24px] border relative overflow-hidden flex flex-col md:flex-row items-center gap-6 ${
-        isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/30 border-white/5 shadow-2xl"
+      <div className={`shrink-0 py-8 sm:py-10 px-6 sm:px-8 rounded-[24px] relative overflow-hidden flex flex-col md:flex-row items-center gap-6 shadow-sm transition-all duration-300 ${
+        isLight ? "bg-white border border-slate-200/60" : "liquid-glass-card"
       }`}>
         <div className={`absolute top-0 right-0 w-85 h-64 rounded-full blur-[80px] pointer-events-none ${
           tier === "VIP" ? "bg-amber-500/10" : tier === "Pro" ? "bg-blue-500/10" : "bg-slate-500/5"
         }`} />
 
-        <div className="relative group select-none">
+        <div className="relative group select-none shrink-0">
           <img
             src={avatar}
             alt={nickname}
@@ -486,8 +493,8 @@ export default function UserProfile({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
         
         {/* Column 1 & 2: PERSONAL INFO FORM */}
-        <div className={`lg:col-span-2 p-6 rounded-[28px] border flex flex-col gap-5 ${
-          isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/30 border-white/5"
+        <div className={`lg:col-span-2 p-6 rounded-[28px] flex flex-col gap-5 transition-all duration-300 ${
+          isLight ? "bg-white border border-slate-200/60" : "liquid-glass-card"
         }`}>
           <h2 className={`text-xs font-black uppercase tracking-wider flex items-center gap-2 ${
             isLight ? "text-slate-800" : "text-slate-200"
@@ -556,14 +563,16 @@ export default function UserProfile({
               }`}>{t.avatarSelect}</label>
               
               <div className="flex flex-wrap gap-2 mb-3">
-                {AVATAR_PRESETS.map((preset) => {
-                  const isSelected = avatar === preset && !customAvatarUrl.trim();
+                {AVATAR_PRESETS_DATA.map((preset) => {
+                  const isSelected = avatar === preset.url && !customAvatarUrl.trim();
+                  const displayName = language === "RU" ? preset.nameRU : preset.nameEN;
                   return (
                     <button
-                      key={preset}
+                      key={preset.url}
                       type="button"
+                      title={displayName}
                       onClick={() => {
-                        setAvatar(preset);
+                        setAvatar(preset.url);
                         setCustomAvatarUrl("");
                       }}
                       className={`relative w-12 h-12 rounded-full cursor-pointer overflow-hidden border-2 transition-transform duration-200 hover:scale-110 active:scale-95 ${
@@ -572,7 +581,7 @@ export default function UserProfile({
                           : isLight ? "border-slate-200" : "border-white/10"
                       }`}
                     >
-                      <img src={preset} alt="preset avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <img src={preset.url} alt={displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       {isSelected && (
                         <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
                           <Check className="w-4 h-4 text-white drop-shadow" />
@@ -616,8 +625,8 @@ export default function UserProfile({
         </div>
 
         {/* Column 3: SUBSCRIPTION INFO & DATES CARD */}
-        <div className={`p-6 rounded-[28px] border flex flex-col justify-between gap-5 relative overflow-hidden ${
-          isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/30 border-white/5"
+        <div className={`p-6 rounded-[28px] flex flex-col justify-between gap-5 relative overflow-hidden transition-all duration-300 ${
+          isLight ? "bg-white border border-slate-200/60" : "liquid-glass-card"
         }`}>
           <div className="flex flex-col gap-5">
             <h2 className={`text-xs font-black uppercase tracking-wider flex items-center gap-2 ${
@@ -699,8 +708,8 @@ export default function UserProfile({
       </div>
 
       {/* EXPANDED PLANS COMPARISON CARDS */}
-      <div className={`p-6 sm:p-8 rounded-[32px] border flex flex-col gap-6 ${
-        isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/30 border-white/5"
+      <div className={`p-6 sm:p-8 rounded-[32px] flex flex-col gap-6 transition-all duration-300 ${
+        isLight ? "bg-white border border-slate-200/60" : "liquid-glass-card"
       }`}>
         <h2 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
           isLight ? "text-slate-800" : "text-slate-200"
@@ -939,7 +948,7 @@ export default function UserProfile({
               </div>
 
               {/* Step Flow Switcher */}
-              <div className="p-6 overflow-y-auto space-y-5 scrollbar-thin">
+              <div className={`p-6 overflow-y-auto space-y-5 ${isLight ? "scrollbar-thin-light" : "scrollbar-thin-dark"}`}>
                 
                 {paymentStep === "choose" && (
                   <div className="flex flex-col gap-4">

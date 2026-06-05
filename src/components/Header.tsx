@@ -333,11 +333,11 @@ export default function Header({
 
   return (
     <header className={`border-b px-6 py-3 flex flex-wrap items-center justify-between gap-4 z-50 sticky top-0 transition-all duration-300 relative ${
-      isLight ? "border-slate-200 shadow-sm" : "border-white/10 shadow-2xl"
+      isLight ? "border-slate-200/50 shadow-sm" : "border-white/10 shadow-2xl"
     }`}>
       {/* Background layer decoupled to avoid nested backdrop-filter browser rendering conflicts */}
       <div className={`absolute inset-0 z-0 pointer-events-none rounded-none transition-all duration-300 ${
-        isLight ? "bg-white/85 backdrop-blur-md" : "bg-slate-950/45 backdrop-blur-md"
+        isLight ? "bg-white/55 backdrop-blur-3xl saturate-150" : "bg-slate-950/45 backdrop-blur-md"
       }`} />
 
       <div className="flex items-center gap-8 relative z-10">
@@ -670,9 +670,7 @@ export default function Header({
               setAuthTab("login");
               setShowLoginModal(true);
             }}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wide cursor-pointer text-yellow-500 hover:scale-[1.02] active:scale-[0.98] transition-all border ${
-              isLight ? "bg-amber-50 hover:bg-amber-100 border-amber-200" : "liquid-glass-active"
-            }`}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wide cursor-pointer text-yellow-600 hover:scale-[1.02] active:scale-[0.98] transition-all border liquid-glass-active"
           >
             <LogIn className="w-4 h-4 text-yellow-500" />
             Sign In
@@ -700,10 +698,10 @@ export default function Header({
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className={`relative w-full max-w-sm rounded-[24px] p-6 border transition-all duration-300 ${
+              className={`relative w-full max-w-sm rounded-[24px] p-6 border transition-all duration-300 muddy-glass-popover ${
                 isLight 
-                  ? "bg-[#f8fafc] border-slate-300 shadow-2xl text-slate-900" 
-                  : "muddy-glass-popover border-white/5 text-slate-100"
+                  ? "border-slate-200/80 text-slate-900" 
+                  : "border-white/5 text-slate-100"
               }`}
             >
               {/* Modal Header */}
@@ -874,21 +872,13 @@ export default function Header({
                   <button
                     type="button"
                     onClick={() => setShowLoginModal(false)}
-                    className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wide cursor-pointer transition ${
-                      isLight 
-                        ? "bg-slate-200 hover:bg-slate-300 border border-slate-300 text-slate-700 font-extrabold" 
-                        : "liquid-glass-button text-slate-300 hover:text-white"
-                    }`}
+                    className="flex-1 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wide cursor-pointer transition liquid-glass-button"
                   >
                     {(authTexts[language] || authTexts.EN).cancelBtn}
                   </button>
                   <button
                     type="submit"
-                    className={`flex-1 py-2.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wide cursor-pointer transition ${
-                      isLight 
-                        ? "bg-amber-500 hover:bg-amber-600 border border-amber-600 text-slate-950 font-black shadow-md" 
-                        : "liquid-glass-gold-button text-slate-900"
-                    }`}
+                    className="flex-1 py-2.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wide cursor-pointer transition liquid-glass-gold-button"
                   >
                     {authTab === "login" 
                       ? (authTexts[language] || authTexts.EN).authBtn

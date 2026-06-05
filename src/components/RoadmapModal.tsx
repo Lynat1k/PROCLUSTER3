@@ -335,7 +335,7 @@ export default function RoadmapModal({ isOpen, onClose, theme = "dark", language
         </div>
 
         {/* Milestone lists / timeline */}
-        <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-6 relative z-10 space-y-6 scrollbar-thin">
+        <div className={`flex-1 overflow-y-auto px-6 sm:px-8 py-6 relative z-10 space-y-6 ${isLight ? "scrollbar-thin-light" : "scrollbar-thin-dark"}`}>
           <div className="absolute left-[33px] sm:left-[41px] top-6 bottom-6 w-0.5 bg-gradient-to-b from-emerald-500 via-amber-500 to-blue-500 opacity-20 pointer-events-none" />
 
           {filteredMilestones.map((item, idx) => {

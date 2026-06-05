@@ -603,7 +603,7 @@ export default function AdminPanel({
               
               {/* SERVER METRICS ROW */}
               <div className={`p-5 rounded-2xl border ${
-                isLight ? "bg-white border-slate-200" : "bg-slate-950/40 border-white/5"
+                isLight ? "bg-white border-slate-200" : "liquid-glass-card"
               }`}>
                 <h3 className="text-xs font-bold font-mono text-slate-400 mb-4 flex items-center gap-2 justify-start uppercase">
                   <Cpu className="w-4 h-4 text-slate-400 animate-pulse" /> Мониторинг ресурсов & Спецификации веб-сервера
@@ -787,7 +787,7 @@ export default function AdminPanel({
 
               {/* SERVER TERMINAL DIAGNOSTICS LOGS CONSOLE */}
               <div className={`flex-1 flex flex-col min-h-[300px] rounded-2xl p-5 border gap-3 ${
-                isLight ? "bg-white border-slate-200" : "bg-slate-950/40 border-white/5"
+                isLight ? "bg-white border-slate-200" : "liquid-glass-card"
               }`}>
                 <div className="flex justify-between items-center text-xs">
                   <span className="font-extrabold tracking-wider font-mono text-slate-500 flex items-center gap-2 uppercase">
@@ -833,7 +833,7 @@ export default function AdminPanel({
                 
                 {/* BOX 1: ADD COIN & SET GRIDS */}
                 <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
-                  isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+                  isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
                 }`}>
                   <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
                     isLight ? "text-emerald-700" : "text-emerald-500"
@@ -997,7 +997,7 @@ export default function AdminPanel({
 
                 {/* DEFAULT CHART COMPRESSIONS BY TICKER AND TIMEFRAME */}
                 <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
-                  isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+                  isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
                 }`}>
                   <div className="flex items-center justify-between">
                     <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
@@ -1162,7 +1162,7 @@ export default function AdminPanel({
                 
                 {/* BINANCE VISION CDN DOWNLOADER */}
                 <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
-                  isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+                  isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
                 }`}>
                   <h3 className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-yellow-500">
                     <Download className="w-4 h-4 text-goldenrod" />
@@ -1276,7 +1276,7 @@ export default function AdminPanel({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* 1. Host Counter */}
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
-                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950/40 border-white/5"
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "liquid-glass-card"
                 }`}>
                   <div className="p-3 rounded-lg bg-blue-500/10 text-blue-500">
                     <Globe className="w-6 h-6 animate-spin-slow" />
@@ -1290,7 +1290,7 @@ export default function AdminPanel({
 
                 {/* 2. Licensed / Registered Users */}
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
-                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950/40 border-white/5"
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "liquid-glass-card"
                 }`}>
                   <div className="p-3 rounded-lg bg-yellow-500/10 text-yellow-500">
                     <Users className="w-6 h-6 animate-pulse" />
@@ -1304,7 +1304,7 @@ export default function AdminPanel({
 
                 {/* 3. Real-time Users Online */}
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
-                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950/40 border-white/5"
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "liquid-glass-card"
                 }`}>
                   <div className="p-3 rounded-lg bg-emerald-500/10 text-emerald-500">
                     <Activity className="w-6 h-6" />
@@ -1321,7 +1321,7 @@ export default function AdminPanel({
 
                 {/* 4. WebSocket Link Stat */}
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
-                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950/40 border-white/5"
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "liquid-glass-card"
                 }`}>
                   <div className="p-3 rounded-lg bg-purple-500/10 text-purple-500">
                     <Server className="w-6 h-6" />
@@ -1350,7 +1350,7 @@ export default function AdminPanel({
 
               {/* CONFIGURATION OF SUBSCRIPTION TIERS / POLICY POLICIES */}
               <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
-                isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+                isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
               }`}>
                 <div className="flex flex-wrap justify-between items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -1629,7 +1629,7 @@ export default function AdminPanel({
 
               {/* REGISTERED USERS MANAGEMENT PANEL */}
               <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
-                isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+                isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
               }`}>
                 <div className="flex flex-wrap justify-between items-center gap-4">
                   <h3 className="text-sm font-bold font-mono text-slate-455 flex items-center gap-2 uppercase">
@@ -1864,7 +1864,7 @@ export default function AdminPanel({
 
               {/* CONNECTION TABLE */}
               <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
-                isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/40 border-white/5"
+                isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
               }`}>
                 <div className="flex justify-between items-center">
                   <h3 className="text-xs font-bold font-mono text-slate-400 flex items-center gap-2 uppercase">

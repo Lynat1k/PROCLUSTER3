@@ -1043,7 +1043,8 @@ export default function ClusterChart({
     ctx.textBaseline = "middle";
 
     // Clear and draw background (full viewport size)
-    ctx.fillStyle = isLight ? "#f8fafc" : "#06080f";
+    ctx.clearRect(0, 0, viewportWidth, totalSvgHeight);
+    ctx.fillStyle = isLight ? "rgba(248, 250, 252, 0.15)" : "#06080f";
     ctx.fillRect(0, 0, viewportWidth, totalSvgHeight);
 
     // -------------------------------------------------------------------------
@@ -1753,7 +1754,7 @@ export default function ClusterChart({
 
     // 5.5 Draw the solid timeline footer strip and time axis labels on top of everything else (to hide overlapping candles/wicks)
     ctx.save();
-    ctx.fillStyle = isLight ? "#f1f5f9" : "#090b12";
+    ctx.fillStyle = isLight ? "rgba(241, 245, 249, 0.65)" : "#090b12";
     // We fill the entire bottom margin (timeline section) as a solid background to cover any overflowed elements from candles
     ctx.fillRect(0, totalSvgHeight - margin.bottom, viewportWidth, margin.bottom);
     
@@ -1890,12 +1891,12 @@ export default function ClusterChart({
   };
 
   return (
-    <div className={`rounded-2xl overflow-hidden flex flex-col flex-1 shadow-2xl relative border transition-all duration-300 ${
-      isLight ? "bg-white border-slate-200" : "liquid-glass-card border-none"
+    <div className={`rounded-2xl overflow-hidden flex flex-col flex-1 shadow-2xl relative transition-all duration-300 ${
+      isLight ? "bg-white border border-slate-200/50" : "liquid-glass-card"
     }`}>
       {/* Chart Tools Header */}
-      <div className={`px-5 py-1.5 flex items-center justify-between z-20 backdrop-blur-md border-b transition-all duration-300 ${
-        isLight ? "bg-slate-50/90 border-slate-200" : "bg-slate-950/80 border-white/5"
+      <div className={`px-5 py-1.5 flex items-center justify-between z-20 backdrop-blur-lg border-b transition-all duration-300 ${
+        isLight ? "bg-white/35 border-slate-200/50" : "bg-slate-950/80 border-white/5"
       }`}>
         <div className="flex items-center gap-3 flex-wrap">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-md shadow-emerald-500/30" />

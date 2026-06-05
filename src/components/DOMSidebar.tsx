@@ -531,10 +531,10 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
   );
 
   return (
-    <div className={`rounded-2xl p-4 flex flex-col h-full shadow-2xl relative backdrop-blur-md overflow-hidden text-xs transition-all duration-300 border ${
+    <div className={`rounded-2xl p-4 flex flex-col h-full shadow-2xl relative overflow-hidden text-xs transition-all duration-300 ${
       isLight
-        ? "bg-white border-slate-200 text-slate-800"
-        : "liquid-glass-card bg-slate-950/40 border-white/5 text-slate-100"
+        ? "bg-white border border-slate-200 text-slate-800"
+        : "liquid-glass-card text-slate-100"
     }`}>
       
       {/* CRYPTO FEAR & GREED INDEX WIDGET */}

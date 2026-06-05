@@ -18,6 +18,7 @@ import IndicatorsModal from "./components/IndicatorsModal";
 import AdminPanel from "./components/AdminPanel";
 import UserProfile from "./components/UserProfile";
 import RoadmapModal from "./components/RoadmapModal";
+import defaultAvatar from "./assets/images/trump_avatar_1780681677035.png";
 import { TrendingUp, TrendingDown, Layers, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -928,7 +929,7 @@ export default function App() {
         : {
             name: role === "Guest" ? "Guest" : role,
             email: role === "Guest" ? "guest@procluster.io" : `${role.toLowerCase()}@procluster.io`,
-            avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+            avatar: defaultAvatar,
             regDate: "2026-05-29",
             tier: newTier,
             role: role,
@@ -1135,7 +1136,7 @@ export default function App() {
     return {
       name: savedRole === "Guest" ? "Guest" : savedRole,
       email: savedRole === "Guest" ? "guest@procluster.io" : `${savedRole.toLowerCase()}@procluster.io`,
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+      avatar: defaultAvatar,
       regDate: "2026-05-29",
       tier: tierMap[savedRole] || "Admin"
     };
@@ -2187,7 +2188,7 @@ export default function App() {
 
   return (
     <div className={`h-screen max-h-screen flex flex-col font-sans select-none antialiased relative overflow-hidden transition-all duration-300 ${
-      theme === "light" ? "bg-[#e2e8f0] text-slate-900" : "bg-[#030712]/92 text-slate-100"
+      theme === "light" ? "light bg-[#e2e8f0] text-slate-900" : "bg-[#030712]/92 text-slate-100"
     }`}>
       {/* Dynamic Drifting Liquid Background Blobs (Lava-lamp style glass ambient glow) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
