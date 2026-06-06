@@ -113,7 +113,9 @@ export default function ClusterChart({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [containerHeight, setContainerHeight] = useState<number>(550);
-  const [verticalScale, setVerticalScale] = useState<number>(1.0);
+  const [verticalScale, setVerticalScale] = useState<number>(0.7);
+
+  const hasInitializedZoomRef = useRef<string | null>(null);
 
   // Height configurations dynamic calculations
   const [deltaPanelHeight, setDeltaPanelHeight] = useState<number>(() => {
@@ -408,7 +410,50 @@ export default function ClusterChart({
     const container = containerRef.current;
     if (container && candles.length > 0) {
       const clientWidth = container.clientWidth || 800;
-      const candlesTotalWidth = candles.length * (candleWidth + candleSpacing);
+
+      // Ensure default zoom configuration on symbol change: 40 visible candles and 0.812 verticalScale (70% height)
+      let currentWidth = candleWidth;
+      if (hasInitializedZoomRef.current !== activePair.symbol) {
+        const visibleWidth = clientWidth - margin.left - margin.right;
+        const spacePerCandle = visibleWidth / 40;
+        
+        let bestWidth = 10;
+        for (let w = 2; w < 120; w++) {
+          const spacing = Math.max(1, w < 30 ? Math.floor(w * 0.35) : 12);
+          if (w + spacing <= spacePerCandle) {
+            bestWidth = w;
+          } else {
+            break;
+          }
+        }
+        currentWidth = Math.max(2, bestWidth);
+        setCandleWidth(currentWidth);
+
+        // Centering on last 40 candles and scaling so they take up 70% of vertical height
+        const last40 = candles.slice(-40);
+        let maxL40 = candles[0]?.high || 100;
+        let minL40 = candles[0]?.low || 0;
+        if (last40.length > 0) {
+          maxL40 = last40[0].high;
+          minL40 = last40[0].low;
+          for (let i = 0; i < last40.length; i++) {
+            const c = last40[i];
+            if (c.high > maxL40) maxL40 = c.high;
+            if (c.low < minL40) minL40 = c.low;
+          }
+        }
+        const rangeL40 = maxL40 - minL40 || 1;
+        const centerL40 = (maxL40 + minL40) / 2;
+        const targetVerticalScale = (priceRange * 0.812) / rangeL40;
+
+        setVerticalScale(Math.min(2000.0, Math.max(0.1, targetVerticalScale)));
+        setPriceCenterOffset(centerL40 - basePriceCenter);
+
+        hasInitializedZoomRef.current = activePair.symbol;
+      }
+
+      const spacingVal = Math.max(1, currentWidth < 30 ? Math.floor(currentWidth * 0.35) : 12);
+      const candlesTotalWidth = candles.length * (currentWidth + spacingVal);
       const lastCandleRight = margin.left + candlesTotalWidth;
       
       // Position the last candle with a neat 120px margin from the fixed price scale
@@ -424,12 +469,7 @@ export default function ClusterChart({
       setVisibleScrollLeft(finalScrollLeft);
       setVisibleClientWidth(clientWidth);
     }
-  }, [activePair.symbol, candles.length]);
-
-  // Reset vertical panning offset only when pair changes
-  useEffect(() => {
-    setPriceCenterOffset(0);
-  }, [activePair.symbol]);
+  }, [activePair.symbol, candles.length, visibleClientWidth, priceRange, basePriceCenter]);
 
   // Adjust canvas zoom
   const handleZoom = (factor: number) => {
@@ -449,9 +489,42 @@ export default function ClusterChart({
   };
 
   const handleResetZoom = () => {
-    setCandleWidth(145);
-    setVerticalScale(1.0);
-    setPriceCenterOffset(0);
+    if (visibleClientWidth > 100) {
+      const visibleWidth = visibleClientWidth - margin.left - margin.right;
+      const spacePerCandle = visibleWidth / 40;
+      let bestWidth = 10;
+      for (let w = 2; w < 120; w++) {
+        const spacing = Math.max(1, w < 30 ? Math.floor(w * 0.35) : 12);
+        if (w + spacing <= spacePerCandle) {
+          bestWidth = w;
+        } else {
+          break;
+        }
+      }
+      setCandleWidth(Math.max(2, bestWidth));
+    } else {
+      setCandleWidth(10);
+    }
+    
+    // Centering on last 40 candles and scaling so they take up 70% of vertical height
+    const last40 = candles.slice(-40);
+    let maxL40 = candles[0]?.high || 100;
+    let minL40 = candles[0]?.low || 0;
+    if (last40.length > 0) {
+      maxL40 = last40[0].high;
+      minL40 = last40[0].low;
+      for (let i = 0; i < last40.length; i++) {
+        const c = last40[i];
+        if (c.high > maxL40) maxL40 = c.high;
+        if (c.low < minL40) minL40 = c.low;
+      }
+    }
+    const rangeL40 = maxL40 - minL40 || 1;
+    const centerL40 = (maxL40 + minL40) / 2;
+    const targetVerticalScale = (priceRange * 0.812) / rangeL40;
+
+    setVerticalScale(Math.min(2000.0, Math.max(0.1, targetVerticalScale)));
+    setPriceCenterOffset(centerL40 - basePriceCenter);
   };
 
   // Find min/max price boundaries for mapping coordinates based on VISIBLE candles! (memoized)
