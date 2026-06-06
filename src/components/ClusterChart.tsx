@@ -1420,10 +1420,17 @@ export default function ClusterChart({
       if (isDetailedMode) {
         // Find maximums for normalization
         let candleMaxTotalVol = 1;
+        let candleMaxSingleVal = 1;
         for (let i = 0; i < candleCells.length; i++) {
-          const vol = candleCells[i].volume;
-          if (vol > candleMaxTotalVol) {
-            candleMaxTotalVol = vol;
+          const cell = candleCells[i];
+          if (cell.volume > candleMaxTotalVol) {
+            candleMaxTotalVol = cell.volume;
+          }
+          if (cell.bid > candleMaxSingleVal) {
+            candleMaxSingleVal = cell.bid;
+          }
+          if (cell.ask > candleMaxSingleVal) {
+            candleMaxSingleVal = cell.ask;
           }
         }
         const isClustersMode = candleType === "clusters";
@@ -1625,65 +1632,65 @@ export default function ClusterChart({
             const deltaDisplayStr = (cellDeltaVal > 0 ? "+" : cellDeltaVal < 0 ? "-" : "") + fmt(Math.abs(cellDeltaVal));
             const volStr = fmt(cell.volume);
 
-            const ratioBid = visibleMaxSingleVol > 0 ? (cell.bid / visibleMaxSingleVol) : 0;
-            const ratioAsk = visibleMaxSingleVol > 0 ? (cell.ask / visibleMaxSingleVol) : 0;
-
-            const tBid = Math.pow(Math.min(1.0, Math.max(0.0, ratioBid)), 0.5);
-            const tAsk = Math.pow(Math.min(1.0, Math.max(0.0, ratioAsk)), 0.5);
-
-            let bidCol = "";
-            if (isLight) {
-              if (isDiagonalSellImbalance) {
-                const r = Math.round(180 + (220 - 180) * tBid);
-                const g = Math.round(120 + (38 - 120) * tBid);
-                const b = Math.round(120 + (38 - 120) * tBid);
-                bidCol = `rgb(${r}, ${g}, ${b})`;
-              } else {
-                const r = Math.round(160 + (15 - 160) * tBid);
-                const g = Math.round(174 + (23 - 174) * tBid);
-                const b = Math.round(192 + (42 - 192) * tBid);
-                bidCol = `rgb(${r}, ${g}, ${b})`;
-              }
-            } else {
-              if (isDiagonalSellImbalance) {
-                const r = Math.round(110 + (255 - 110) * tBid);
-                const g = Math.round(65 + (51 - 65) * tBid);
-                const b = Math.round(75 + (85 - 75) * tBid);
-                bidCol = `rgb(${r}, ${g}, ${b})`;
-              } else {
-                const r = Math.round(80 + (255 - 80) * tBid);
-                const g = Math.round(95 + (255 - 95) * tBid);
-                const b = Math.round(115 + (255 - 115) * tBid);
-                bidCol = `rgb(${r}, ${g}, ${b})`;
-              }
-            }
-
-            let askCol = "";
-            if (isLight) {
-              if (isDiagonalBuyImbalance) {
-                const r = Math.round(135 + (22 - 135) * tAsk);
-                const g = Math.round(175 + (163 - 175) * tAsk);
-                const b = Math.round(145 + (74 - 145) * tAsk);
-                askCol = `rgb(${r}, ${g}, ${b})`;
-              } else {
-                const r = Math.round(160 + (15 - 160) * tAsk);
-                const g = Math.round(174 + (23 - 174) * tAsk);
-                const b = Math.round(192 + (42 - 192) * tAsk);
-                askCol = `rgb(${r}, ${g}, ${b})`;
-              }
-            } else {
-              if (isDiagonalBuyImbalance) {
-                const r = Math.round(65 + (5 - 65) * tAsk);
-                const g = Math.round(115 + (243 - 115) * tAsk);
-                const b = Math.round(85 + (140 - 85) * tAsk);
-                askCol = `rgb(${r}, ${g}, ${b})`;
-              } else {
-                const r = Math.round(80 + (255 - 80) * tAsk);
-                const g = Math.round(95 + (255 - 95) * tAsk);
-                const b = Math.round(115 + (255 - 115) * tAsk);
-                askCol = `rgb(${r}, ${g}, ${b})`;
-              }
-            }
+             const ratioBid = candleMaxSingleVal > 0 ? (cell.bid / candleMaxSingleVal) : 0;
+             const ratioAsk = candleMaxSingleVal > 0 ? (cell.ask / candleMaxSingleVal) : 0;
+ 
+             const tBid = Math.pow(Math.min(1.0, Math.max(0.0, ratioBid)), 0.7);
+             const tAsk = Math.pow(Math.min(1.0, Math.max(0.0, ratioAsk)), 0.7);
+ 
+             let bidCol = "";
+             if (isLight) {
+               if (isDiagonalSellImbalance) {
+                 const r = Math.round(195 + (180 - 195) * tBid);
+                 const g = Math.round(170 + (30 - 170) * tBid);
+                 const b = Math.round(170 + (40 - 170) * tBid);
+                 bidCol = `rgb(${r}, ${g}, ${b})`;
+               } else {
+                 const r = Math.round(180 + (15 - 180) * tBid);
+                 const g = Math.round(190 + (23 - 190) * tBid);
+                 const b = Math.round(204 + (42 - 204) * tBid);
+                 bidCol = `rgb(${r}, ${g}, ${b})`;
+               }
+             } else {
+               if (isDiagonalSellImbalance) {
+                 const r = Math.round(80 + (255 - 80) * tBid);
+                 const g = Math.round(50 + (51 - 50) * tBid);
+                 const b = Math.round(55 + (85 - 55) * tBid);
+                 bidCol = `rgb(${r}, ${g}, ${b})`;
+               } else {
+                 const r = Math.round(65 + (255 - 65) * tBid);
+                 const g = Math.round(78 + (255 - 78) * tBid);
+                 const b = Math.round(92 + (255 - 92) * tBid);
+                 bidCol = `rgb(${r}, ${g}, ${b})`;
+               }
+             }
+ 
+             let askCol = "";
+             if (isLight) {
+               if (isDiagonalBuyImbalance) {
+                 const r = Math.round(170 + (15 - 170) * tAsk);
+                 const g = Math.round(195 + (120 - 195) * tAsk);
+                 const b = Math.round(175 + (50 - 175) * tAsk);
+                 askCol = `rgb(${r}, ${g}, ${b})`;
+               } else {
+                 const r = Math.round(180 + (15 - 180) * tAsk);
+                 const g = Math.round(190 + (23 - 190) * tAsk);
+                 const b = Math.round(204 + (42 - 204) * tAsk);
+                 askCol = `rgb(${r}, ${g}, ${b})`;
+               }
+             } else {
+               if (isDiagonalBuyImbalance) {
+                 const r = Math.round(55 + (0 - 55) * tAsk);
+                 const g = Math.round(80 + (245 - 80) * tAsk);
+                 const b = Math.round(65 + (140 - 65) * tAsk);
+                 askCol = `rgb(${r}, ${g}, ${b})`;
+               } else {
+                 const r = Math.round(65 + (255 - 65) * tAsk);
+                 const g = Math.round(78 + (255 - 78) * tAsk);
+                 const b = Math.round(92 + (255 - 92) * tAsk);
+                 askCol = `rgb(${r}, ${g}, ${b})`;
+               }
+             }
 
             const textToMeasure = candleDataType === "bid_ask"
               ? `${bidValStr}x${askValStr}`
