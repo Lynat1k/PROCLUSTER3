@@ -1711,112 +1711,177 @@ export default function App() {
           const isClusterSearchActive = indicators.find((i) => i.id === "clusterSearch")?.isActive ?? false;
 
           if (isClusterSearchActive && lastCandle.cells && lastCandle.cells.length > 0) {
-            const csMergeLevels = typeof csSettingsObj.csMergeLevels === "number" ? csSettingsObj.csMergeLevels : 1;
-            const csImbalancePercent = typeof csSettingsObj.csImbalancePercent === "number" ? csSettingsObj.csImbalancePercent : 60;
-            
-            // Filters
-            const csMedMinVolume = typeof csSettingsObj.csMedMinVolume === "number" ? csSettingsObj.csMedMinVolume : 100;
-            const csMedMaxVolume = typeof csSettingsObj.csMedMaxVolume === "number" ? csSettingsObj.csMedMaxVolume : 500;
-            const csMedTgAlert = csSettingsObj.csMedTgAlert ?? false;
-            
-            const csLargeMinVolume = typeof csSettingsObj.csLargeMinVolume === "number" ? csSettingsObj.csLargeMinVolume : 500;
-            const csLargeTgAlert = csSettingsObj.csLargeTgAlert ?? false;
+            const csMergeLevelsFallback = typeof csSettingsObj.csMergeLevels === "number" ? csSettingsObj.csMergeLevels : 1;
+            const csImbalancePercentFallback = typeof csSettingsObj.csImbalancePercent === "number" ? csSettingsObj.csImbalancePercent : 60;
+
+            const maxBody = Math.max(lastCandle.open, lastCandle.close);
+            const minBody = Math.min(lastCandle.open, lastCandle.close);
 
             const sortedList = [...lastCandle.cells].sort((a, b) => b.price - a.price);
-            const K = Math.max(1, Math.min(csMergeLevels, sortedList.length));
 
-            for (let i = 0; i <= sortedList.length - K; i++) {
-              let sumVolume = 0;
-              let sumBid = 0;
-              let sumAsk = 0;
-              
-              for (let j = 0; j < K; j++) {
-                const cell = sortedList[i + j];
-                if (cell) {
-                  sumVolume += cell.volume;
-                  sumBid += cell.bid;
-                  sumAsk += cell.ask;
-                }
-              }
+            const alertsToTrigger: Array<{
+              price: number;
+              volume: number;
+              imbalanceSide: "bid" | "ask";
+              imbalancePercent: number;
+              type: "medium" | "large";
+              mergeLevels: number;
+            }> = [];
 
-              if (sumVolume <= 0) continue;
+            // 1. Medium filter match check
+            const csMedEnabled = csSettingsObj.csMedEnabled !== false;
+            if (csMedEnabled && csSettingsObj.csMedTgAlert) {
+              const csMedMinVolume = typeof csSettingsObj.csMedMinVolume === "number" ? csSettingsObj.csMedMinVolume : 100;
+              const csMedMaxVolume = typeof csSettingsObj.csMedMaxVolume === "number" ? csSettingsObj.csMedMaxVolume : 500;
+              const csMedMergeLevels = typeof csSettingsObj.csMedMergeLevels === "number" ? csSettingsObj.csMedMergeLevels : csMergeLevelsFallback;
+              const csMedImbalancePercent = typeof csSettingsObj.csMedImbalancePercent === "number" ? csSettingsObj.csMedImbalancePercent : csImbalancePercentFallback;
+              const csMedMinDelta = typeof csSettingsObj.csMedMinDelta === "number" ? csSettingsObj.csMedMinDelta : 0;
+              const csMedLocation = csSettingsObj.csMedLocation || "any";
 
-              const bidImbalance = (sumBid / sumVolume) * 100;
-              const askImbalance = (sumAsk / sumVolume) * 100;
-
-              const isBidDominant = bidImbalance >= csImbalancePercent;
-              const isAskDominant = askImbalance >= csImbalancePercent;
-
-              if (!isBidDominant && !isAskDominant) {
-                continue;
-              }
-
-              const imbalanceSide = isBidDominant ? "bid" : "ask";
-              const imbalancePercent = Math.round(isBidDominant ? bidImbalance : askImbalance);
-
-              // Classify filter match
-              let matchedFilterType: "medium" | "large" | null = null;
-              let alertEnabled = false;
-
-              if (sumVolume >= csLargeMinVolume) {
-                matchedFilterType = "large";
-                alertEnabled = csLargeTgAlert;
-              } else if (sumVolume >= csMedMinVolume && sumVolume <= csMedMaxVolume) {
-                matchedFilterType = "medium";
-                alertEnabled = csMedTgAlert;
-              }
-
-              if (matchedFilterType && alertEnabled) {
-                const startPrice = sortedList[i].price;
-                const uniqueAlertId = `${lastCandle.timestamp}_${startPrice}_${matchedFilterType}`;
-
-                if (!csSentAlertsRef.current.has(uniqueAlertId)) {
-                  csSentAlertsRef.current.add(uniqueAlertId);
-
-                  const formattedPrice = startPrice.toLocaleString();
-                  const sideStr = imbalanceSide === "bid" 
-                    ? (language === "RU" ? "преобладание бидов (продавцы)" : "Bid Dominance (Sellers)")
-                    : (language === "RU" ? "преобладание асков (покупатели)" : "Ask Dominance (Buyers)");
-                  
-                  const filterLabel = matchedFilterType === "large" 
-                    ? (language === "RU" ? "🚨 КРУПНЫЙ ФИЛЬТР СТАКАНА" : "🚨 LARGE CLUSTER FILTER")
-                    : (language === "RU" ? "🐳 СРЕДНИЙ ФИЛЬТР СТАКАНА" : "🐳 MEDIUM CLUSTER FILTER");
-
-                  const limits = getActiveGroupLimits();
-                  let msg = "";
-                  if (!limits.telegramNotifications) {
-                    if (language === "RU") {
-                      msg = `[Блокировка: тариф не поддерживает ТГ-оповещения] ${filterLabel}: Объем в ${Math.round(sumVolume)} контрактов замечен на BTC/USD уровне цены $${formattedPrice}!`;
-                    } else {
-                      msg = `[Blocked: tariff doesn't support TG notification triggers] ${filterLabel}: Volume of ${Math.round(sumVolume)} detected at BTC/USD level of $${formattedPrice}!`;
-                    }
-                  } else {
-                    if (language === "RU") {
-                      msg = `${filterLabel}: Объем в ${Math.round(sumVolume)} контрактов замечен на BTC/USD уровне цены $${formattedPrice}! Перевес по Bid/Ask: ${imbalancePercent}% (${sideStr}). Объединено уровней: ${csMergeLevels}.`;
-                    } else {
-                      msg = `${filterLabel}: Volume of ${Math.round(sumVolume)} detected at BTC/USD level of $${formattedPrice}! Bid/Ask Imbalance: ${imbalancePercent}% (${sideStr}). Levels merged: ${csMergeLevels}.`;
-                    }
+              const K_med = Math.max(1, Math.min(csMedMergeLevels, sortedList.length));
+              for (let i = 0; i <= sortedList.length - K_med; i++) {
+                let sumVolume = 0, sumBid = 0, sumAsk = 0;
+                for (let j = 0; j < K_med; j++) {
+                  const cell = sortedList[i + j];
+                  if (cell) {
+                    sumVolume += cell.volume;
+                    sumBid += cell.bid;
+                    sumAsk += cell.ask;
                   }
-
-                  const newAlert = {
-                    id: "tg-alert-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
-                    timestamp: Date.now(),
-                    message: msg,
-                    type: matchedFilterType,
-                    isBlocked: !limits.telegramNotifications,
-                    pair: activePairRefLocal.current.symbol,
-                    price: startPrice,
-                    volume: sumVolume,
-                    imbalanceSide,
-                    imbalancePercent,
-                    dismissed: false
-                  };
-
-                  setTelegramAlerts(prev => [newAlert, ...prev].slice(0, 100));
-                  console.log("[Telegram Router Core]: Dispatched notification alert. Active TG permission: " + limits.telegramNotifications);
                 }
+                if (sumVolume <= 0) continue;
+                if (sumVolume < csMedMinVolume || sumVolume > csMedMaxVolume) continue;
+
+                const bidPercent = (sumBid / sumVolume) * 100;
+                const askPercent = (sumAsk / sumVolume) * 100;
+                const isBidDominant = bidPercent >= csMedImbalancePercent;
+                const isAskDominant = askPercent >= csMedImbalancePercent;
+                if (!isBidDominant && !isAskDominant) continue;
+
+                const absDelta = Math.abs(sumAsk - sumBid);
+                if (absDelta < csMedMinDelta) continue;
+
+                const midPrice = (sortedList[i].price + sortedList[i + K_med - 1].price) / 2;
+                if (csMedLocation === "body" && !(midPrice >= minBody && midPrice <= maxBody)) continue;
+                if (csMedLocation === "lowerWick" && !(midPrice < minBody)) continue;
+                if (csMedLocation === "upperWick" && !(midPrice > maxBody)) continue;
+
+                const imbalanceSide = isBidDominant ? "bid" : "ask";
+                const imbalancePercent = Math.round(isBidDominant ? bidPercent : askPercent);
+
+                alertsToTrigger.push({
+                  price: midPrice,
+                  volume: sumVolume,
+                  imbalanceSide,
+                  imbalancePercent,
+                  type: "medium",
+                  mergeLevels: csMedMergeLevels
+                });
               }
             }
+
+            // 2. Large filter match check
+            const csLargeEnabled = csSettingsObj.csLargeEnabled !== false;
+            if (csLargeEnabled && csSettingsObj.csLargeTgAlert) {
+              const csLargeMinVolume = typeof csSettingsObj.csLargeMinVolume === "number" ? csSettingsObj.csLargeMinVolume : 500;
+              const csLargeMergeLevels = typeof csSettingsObj.csLargeMergeLevels === "number" ? csSettingsObj.csLargeMergeLevels : csMergeLevelsFallback;
+              const csLargeImbalancePercent = typeof csSettingsObj.csLargeImbalancePercent === "number" ? csSettingsObj.csLargeImbalancePercent : csImbalancePercentFallback;
+              const csLargeMinDelta = typeof csSettingsObj.csLargeMinDelta === "number" ? csSettingsObj.csLargeMinDelta : 0;
+              const csLargeLocation = csSettingsObj.csLargeLocation || "any";
+
+              const K_large = Math.max(1, Math.min(csLargeMergeLevels, sortedList.length));
+              for (let i = 0; i <= sortedList.length - K_large; i++) {
+                let sumVolume = 0, sumBid = 0, sumAsk = 0;
+                for (let j = 0; j < K_large; j++) {
+                  const cell = sortedList[i + j];
+                  if (cell) {
+                    sumVolume += cell.volume;
+                    sumBid += cell.bid;
+                    sumAsk += cell.ask;
+                  }
+                }
+                if (sumVolume <= 0) continue;
+                if (sumVolume < csLargeMinVolume) continue;
+
+                const bidPercent = (sumBid / sumVolume) * 100;
+                const askPercent = (sumAsk / sumVolume) * 100;
+                const isBidDominant = bidPercent >= csLargeImbalancePercent;
+                const isAskDominant = askPercent >= csLargeImbalancePercent;
+                if (!isBidDominant && !isAskDominant) continue;
+
+                const absDelta = Math.abs(sumAsk - sumBid);
+                if (absDelta < csLargeMinDelta) continue;
+
+                const midPrice = (sortedList[i].price + sortedList[i + K_large - 1].price) / 2;
+                if (csLargeLocation === "body" && !(midPrice >= minBody && midPrice <= maxBody)) continue;
+                if (csLargeLocation === "lowerWick" && !(midPrice < minBody)) continue;
+                if (csLargeLocation === "upperWick" && !(midPrice > maxBody)) continue;
+
+                const imbalanceSide = isBidDominant ? "bid" : "ask";
+                const imbalancePercent = Math.round(isBidDominant ? bidPercent : askPercent);
+
+                alertsToTrigger.push({
+                  price: midPrice,
+                  volume: sumVolume,
+                  imbalanceSide,
+                  imbalancePercent,
+                  type: "large",
+                  mergeLevels: csLargeMergeLevels
+                });
+              }
+            }
+
+            // Exclude already sent and dispatch remaining
+            alertsToTrigger.forEach((alertItem) => {
+              const startPrice = alertItem.price;
+              const uniqueAlertId = `${lastCandle.timestamp}_${startPrice}_${alertItem.type}`;
+
+              if (!csSentAlertsRef.current.has(uniqueAlertId)) {
+                csSentAlertsRef.current.add(uniqueAlertId);
+
+                const formattedPrice = startPrice.toLocaleString();
+                const sideStr = alertItem.imbalanceSide === "bid" 
+                  ? (language === "RU" ? "преобладание бидов (продавцы)" : "Bid Dominance (Sellers)")
+                  : (language === "RU" ? "преобладание асков (покупатели)" : "Ask Dominance (Buyers)");
+                
+                const filterLabel = alertItem.type === "large" 
+                  ? (language === "RU" ? "🚨 КРУПНЫЙ ФИЛЬТР СТАКАНА" : "🚨 LARGE CLUSTER FILTER")
+                  : (language === "RU" ? "🐳 СРЕДНИЙ ФИЛЬТР СТАКАНА" : "🐳 MEDIUM CLUSTER FILTER");
+
+                const limits = getActiveGroupLimits();
+                let msg = "";
+                if (!limits.telegramNotifications) {
+                  if (language === "RU") {
+                    msg = `[Блокировка: тариф не поддерживает ТГ-оповещения] ${filterLabel}: Объем в ${Math.round(alertItem.volume)} контрактов замечен на BTC/USD уровне цены $${formattedPrice}!`;
+                  } else {
+                    msg = `[Blocked: tariff doesn't support TG notification triggers] ${filterLabel}: Volume of ${Math.round(alertItem.volume)} detected at BTC/USD level of $${formattedPrice}!`;
+                  }
+                } else {
+                  if (language === "RU") {
+                    msg = `${filterLabel}: Объем в ${Math.round(alertItem.volume)} контрактов замечен на BTC/USD уровне цены $${formattedPrice}! Перевес по Bid/Ask: ${alertItem.imbalancePercent}% (${sideStr}). Объединено уровней: ${alertItem.mergeLevels}.`;
+                  } else {
+                    msg = `${filterLabel}: Volume of ${Math.round(alertItem.volume)} detected at BTC/USD level of $${formattedPrice}! Bid/Ask Imbalance: ${alertItem.imbalancePercent}% (${sideStr}). Levels merged: ${alertItem.mergeLevels}.`;
+                  }
+                }
+
+                const newAlert = {
+                  id: "tg-alert-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+                  timestamp: Date.now(),
+                  message: msg,
+                  type: alertItem.type,
+                  isBlocked: !limits.telegramNotifications,
+                  pair: activePairRefLocal.current.symbol,
+                  price: startPrice,
+                  volume: alertItem.volume,
+                  imbalanceSide: alertItem.imbalanceSide,
+                  imbalancePercent: alertItem.imbalancePercent,
+                  dismissed: false
+                };
+
+                setTelegramAlerts(prev => [newAlert, ...prev].slice(0, 100));
+                console.log("[Telegram Router Core]: Dispatched notification alert. Active TG permission: " + limits.telegramNotifications);
+              }
+            });
           }
 
           // Value Area (VAH/VAL) Estimation
@@ -2245,7 +2310,7 @@ export default function App() {
       ) : (
         <>
           {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
-          <section className={`backdrop-blur-md border-b px-4 py-1.5 flex items-center select-none overflow-x-auto scrollbar-none relative z-30 transition-shadow duration-300 gap-x-4 sm:gap-x-6 ${
+          <section className={`backdrop-blur-md border-b px-4 py-1.5 flex items-center select-none overflow-visible relative z-30 transition-shadow duration-300 gap-x-4 sm:gap-x-6 ${
         theme === "light"
           ? "bg-white/95 border-slate-300 shadow-md"
           : "bg-slate-950/40 border-slate-900/60 shadow-md"

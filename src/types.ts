@@ -84,6 +84,7 @@ export interface IndicatorSettings {
   ratio?: number;        // stacked imbalance ratio
   
   // Cluster Search Medium Filter Settings
+  csMedEnabled?: boolean;
   csMedMinVolume?: number;
   csMedMaxVolume?: number;
   csMedMinSize?: number;
@@ -93,8 +94,13 @@ export interface IndicatorSettings {
   csMedColorAsk?: string;
   csMedOpacity?: number;
   csMedTgAlert?: boolean;
+  csMedMergeLevels?: number;
+  csMedImbalancePercent?: number;
+  csMedMinDelta?: number;
+  csMedLocation?: "any" | "body" | "lowerWick" | "upperWick";
 
   // Cluster Search Large Filter Settings
+  csLargeEnabled?: boolean;
   csLargeMinVolume?: number;
   csLargeMinSize?: number;
   csLargeMaxSize?: number;
@@ -103,6 +109,10 @@ export interface IndicatorSettings {
   csLargeColorAsk?: string;
   csLargeOpacity?: number;
   csLargeTgAlert?: boolean;
+  csLargeMergeLevels?: number;
+  csLargeImbalancePercent?: number;
+  csLargeMinDelta?: number;
+  csLargeLocation?: "any" | "body" | "lowerWick" | "upperWick";
 
   // Cluster Search Common Settings
   csMergeLevels?: number;

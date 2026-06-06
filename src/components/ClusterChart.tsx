@@ -686,83 +686,160 @@ export default function ClusterChart({
           const currentCandle = candles[col];
           const candleCells = currentCandle.cells || [];
           const sortedCells = [...candleCells].sort((a, b) => b.price - a.price);
-          const K = Math.max(1, Math.min(csMergeLevels, sortedCells.length));
+          if (sortedCells.length === 0) continue;
 
           const colX = margin.left + col * (candleWidth + candleSpacing);
           const centerX = colX + candleWidth / 2;
 
-          for (let i = 0; i <= sortedCells.length - K; i++) {
-            let sumVolume = 0;
-            let sumBid = 0;
-            let sumAsk = 0;
-            for (let j = 0; j < K; j++) {
-              const cell = sortedCells[i + j];
-              if (cell) {
-                sumVolume += cell.volume;
-                sumBid += cell.bid;
-                sumAsk += cell.ask;
+          const maxBody = Math.max(currentCandle.open, currentCandle.close);
+          const minBody = Math.min(currentCandle.open, currentCandle.close);
+
+          const matches: Array<{
+            filterType: "medium" | "large";
+            sumVolume: number;
+            bidPercent: number;
+            askPercent: number;
+            isBidDominant: boolean;
+            isAskDominant: boolean;
+            price: number;
+            size: number;
+            color: string;
+          }> = [];
+
+          // 1. Medium filter check
+          const csMedEnabled = csSettings.csMedEnabled !== false;
+          if (csMedEnabled) {
+            const csMedMergeLevels = typeof csSettings.csMedMergeLevels === "number" ? csSettings.csMedMergeLevels : csMergeLevels;
+            const csMedImbalancePercent = typeof csSettings.csMedImbalancePercent === "number" ? csSettings.csMedImbalancePercent : csImbalancePercent;
+            const csMedMinDelta = typeof csSettings.csMedMinDelta === "number" ? csSettings.csMedMinDelta : 0;
+            const csMedLocation = csSettings.csMedLocation || "any";
+
+            const K_med = Math.max(1, Math.min(csMedMergeLevels, sortedCells.length));
+            for (let i = 0; i <= sortedCells.length - K_med; i++) {
+              let sumVolume = 0, sumBid = 0, sumAsk = 0;
+              for (let j = 0; j < K_med; j++) {
+                const cell = sortedCells[i + j];
+                if (cell) {
+                  sumVolume += cell.volume;
+                  sumBid += cell.bid;
+                  sumAsk += cell.ask;
+                }
               }
-            }
-            if (sumVolume <= 0) continue;
+              if (sumVolume <= 0) continue;
+              if (sumVolume < csMedMinVolume || sumVolume > csMedMaxVolume) continue;
 
-            const bidPercent = (sumBid / sumVolume) * 100;
-            const askPercent = (sumAsk / sumVolume) * 100;
+              const bidPercent = (sumBid / sumVolume) * 100;
+              const askPercent = (sumAsk / sumVolume) * 105 ? (sumAsk / sumVolume) * 100 : 0; // Guard NaN
+              const isBidDominant = bidPercent >= csMedImbalancePercent;
+              const isAskDominant = askPercent >= csMedImbalancePercent;
+              if (!isBidDominant && !isAskDominant) continue;
 
-            const isBidDominant = bidPercent >= csImbalancePercent;
-            const isAskDominant = askPercent >= csImbalancePercent;
+              const absDelta = Math.abs(sumAsk - sumBid);
+              if (absDelta < csMedMinDelta) continue;
 
-            if (!isBidDominant && !isAskDominant) continue;
+              const midPrice = (sortedCells[i].price + sortedCells[i + K_med - 1].price) / 2;
+              if (csMedLocation === "body" && !(midPrice >= minBody && midPrice <= maxBody)) continue;
+              if (csMedLocation === "lowerWick" && !(midPrice < minBody)) continue;
+              if (csMedLocation === "upperWick" && !(midPrice > maxBody)) continue;
 
-            let filterType: "medium" | "large" | null = null;
-            if (sumVolume >= csLargeMinVolume) {
-              filterType = "large";
-            } else if (sumVolume >= csMedMinVolume && sumVolume <= csMedMaxVolume) {
-              filterType = "medium";
-            }
-            if (!filterType) continue;
-
-            let size = 8;
-            let color = "";
-            if (filterType === "large") {
-              color = isBidDominant ? csLargeColorBid : csLargeColorAsk;
-              const range = csLargeMinVolume * 2;
-              const ratio = range > 0 ? Math.min(1.0, (sumVolume - csLargeMinVolume) / range) : 0;
-              size = csLargeMinSize + ratio * (csLargeMaxSize - csLargeMinSize);
-            } else {
-              color = isBidDominant ? csMedColorBid : csMedColorAsk;
+              const color = isBidDominant ? csMedColorBid : csMedColorAsk;
               const range = csMedMaxVolume - csMedMinVolume;
               const ratio = range > 0 ? Math.min(1.0, (sumVolume - csMedMinVolume) / range) : 0;
-              size = csMedMinSize + ratio * (csMedMaxSize - csMedMinSize);
+              const size = csMedMinSize + ratio * (csMedMaxSize - csMedMinSize);
+
+              matches.push({
+                filterType: "medium",
+                sumVolume,
+                bidPercent,
+                askPercent,
+                isBidDominant,
+                isAskDominant,
+                price: midPrice,
+                size,
+                color
+              });
             }
+          }
 
-            const firstCellY = priceToY(sortedCells[i].price);
-            const lastCellY = priceToY(sortedCells[i + K - 1].price);
-            const centerY = (firstCellY + lastCellY) / 2;
+          // 2. Large filter check
+          const csLargeEnabled = csSettings.csLargeEnabled !== false;
+          if (csLargeEnabled) {
+            const csLargeMergeLevels = typeof csSettings.csLargeMergeLevels === "number" ? csSettings.csLargeMergeLevels : csMergeLevels;
+            const csLargeImbalancePercent = typeof csSettings.csLargeImbalancePercent === "number" ? csSettings.csLargeImbalancePercent : csImbalancePercent;
+            const csLargeMinDelta = typeof csSettings.csLargeMinDelta === "number" ? csSettings.csLargeMinDelta : 0;
+            const csLargeLocation = csSettings.csLargeLocation || "any";
 
+            const K_large = Math.max(1, Math.min(csLargeMergeLevels, sortedCells.length));
+            for (let i = 0; i <= sortedCells.length - K_large; i++) {
+              let sumVolume = 0, sumBid = 0, sumAsk = 0;
+              for (let j = 0; j < K_large; j++) {
+                const cell = sortedCells[i + j];
+                if (cell) {
+                  sumVolume += cell.volume;
+                  sumBid += cell.bid;
+                  sumAsk += cell.ask;
+                }
+              }
+              if (sumVolume <= 0) continue;
+              if (sumVolume < csLargeMinVolume) continue;
+
+              const bidPercent = (sumBid / sumVolume) * 100;
+              const askPercent = (sumAsk / sumVolume) * 100;
+              const isBidDominant = bidPercent >= csLargeImbalancePercent;
+              const isAskDominant = askPercent >= csLargeImbalancePercent;
+              if (!isBidDominant && !isAskDominant) continue;
+
+              const absDelta = Math.abs(sumAsk - sumBid);
+              if (absDelta < csLargeMinDelta) continue;
+
+              const midPrice = (sortedCells[i].price + sortedCells[i + K_large - 1].price) / 2;
+              if (csLargeLocation === "body" && !(midPrice >= minBody && midPrice <= maxBody)) continue;
+              if (csLargeLocation === "lowerWick" && !(midPrice < minBody)) continue;
+              if (csLargeLocation === "upperWick" && !(midPrice > maxBody)) continue;
+
+              const color = isBidDominant ? csLargeColorBid : csLargeColorAsk;
+              const range = csLargeMinVolume * 2;
+              const ratio = range > 0 ? Math.min(1.0, (sumVolume - csLargeMinVolume) / range) : 0;
+              const size = csLargeMinSize + ratio * (csLargeMaxSize - csLargeMinSize);
+
+              matches.push({
+                filterType: "large",
+                sumVolume,
+                bidPercent,
+                askPercent,
+                isBidDominant,
+                isAskDominant,
+                price: midPrice,
+                size,
+                color
+              });
+            }
+          }
+
+          // Check click / hover distance on computed matches
+          for (const match of matches) {
             const screenX = centerX - visibleScrollLeft;
-            const screenY = centerY;
+            const screenY = priceToY(match.price);
 
             const dx = x - screenX;
             const dy = y - screenY;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance <= Math.max(12, size / 2 + 8)) {
-              const midPrice = (sortedCells[i].price + sortedCells[i + K - 1].price) / 2;
+            if (distance <= Math.max(12, match.size / 2 + 8)) {
               const baseAsset = activePair.symbol.split("/")[0] || "BTC";
-
               foundCS = {
                 x: screenX,
                 y: screenY,
-                sumVolume,
-                usdtVolume: sumVolume * midPrice,
-                bidPercent,
-                askPercent,
-                isBidDominant,
-                isAskDominant,
+                sumVolume: match.sumVolume,
+                usdtVolume: match.sumVolume * match.price,
+                bidPercent: match.bidPercent,
+                askPercent: match.askPercent,
+                isBidDominant: match.isBidDominant,
+                isAskDominant: match.isAskDominant,
                 baseAsset,
-                price: midPrice,
-                color,
-                filterType
+                price: match.price,
+                color: match.color,
+                filterType: match.filterType
               };
               break;
             }
@@ -1667,88 +1744,140 @@ export default function ClusterChart({
         const csLargeOpacity = typeof csSettings.csLargeOpacity === "number" ? csSettings.csLargeOpacity : 0.90;
 
         const sortedCells = [...candleCells].sort((a, b) => b.price - a.price);
-        const K = Math.max(1, Math.min(csMergeLevels, sortedCells.length));
+        const maxBody = Math.max(candle.open, candle.close);
+        const minBody = Math.min(candle.open, candle.close);
 
-        for (let i = 0; i <= sortedCells.length - K; i++) {
-          let sumVolume = 0;
-          let sumBid = 0;
-          let sumAsk = 0;
-          
-          for (let j = 0; j < K; j++) {
-            const cell = sortedCells[i + j];
-            if (cell) {
-              sumVolume += cell.volume;
-              sumBid += cell.bid;
-              sumAsk += cell.ask;
+        const itemsToDraw: Array<{
+          price: number;
+          color: string;
+          shape: "circle" | "square" | "rhombus";
+          opacity: number;
+          size: number;
+        }> = [];
+
+        // 1. Medium filter match
+        const csMedEnabled = csSettings.csMedEnabled !== false;
+        if (csMedEnabled) {
+          const csMedMergeLevels = typeof csSettings.csMedMergeLevels === "number" ? csSettings.csMedMergeLevels : csMergeLevels;
+          const csMedImbalancePercent = typeof csSettings.csMedImbalancePercent === "number" ? csSettings.csMedImbalancePercent : csImbalancePercent;
+          const csMedMinDelta = typeof csSettings.csMedMinDelta === "number" ? csSettings.csMedMinDelta : 0;
+          const csMedLocation = csSettings.csMedLocation || "any";
+
+          const K_med = Math.max(1, Math.min(csMedMergeLevels, sortedCells.length));
+          for (let i = 0; i <= sortedCells.length - K_med; i++) {
+            let sumVolume = 0, sumBid = 0, sumAsk = 0;
+            for (let j = 0; j < K_med; j++) {
+              const cell = sortedCells[i + j];
+              if (cell) {
+                sumVolume += cell.volume;
+                sumBid += cell.bid;
+                sumAsk += cell.ask;
+              }
             }
-          }
-          
-          if (sumVolume <= 0) continue;
-          
-          const bidImbalance = (sumBid / sumVolume) * 100;
-          const askImbalance = (sumAsk / sumVolume) * 100;
-          
-          const isBidDominant = bidImbalance >= csImbalancePercent;
-          const isAskDominant = askImbalance >= csImbalancePercent;
-          
-          if (!isBidDominant && !isAskDominant) {
-            continue;
-          }
-          
-          let matchedFilter: "large" | "medium" | null = null;
-          
-          if (sumVolume >= csLargeMinVolume) {
-            matchedFilter = "large";
-          } else if (sumVolume >= csMedMinVolume && sumVolume <= csMedMaxVolume) {
-            matchedFilter = "medium";
-          }
-          
-          if (!matchedFilter) continue;
-          
-          let color = "";
-          let shape: "circle" | "square" | "rhombus" = "circle";
-          let opacity = 1.0;
-          let size = 8;
-          
-          if (matchedFilter === "large") {
-            color = isBidDominant ? csLargeColorBid : csLargeColorAsk;
-            shape = csLargeShape as "circle" | "square" | "rhombus";
-            opacity = csLargeOpacity;
-            
-            const range = csLargeMinVolume * 2;
-            const ratio = range > 0 ? Math.min(1.0, (sumVolume - csLargeMinVolume) / range) : 0;
-            size = csLargeMinSize + ratio * (csLargeMaxSize - csLargeMinSize);
-          } else {
-            color = isBidDominant ? csMedColorBid : csMedColorAsk;
-            shape = csMedShape as "circle" | "square" | "rhombus";
-            opacity = csMedOpacity;
-            
+            if (sumVolume <= 0) continue;
+            if (sumVolume < csMedMinVolume || sumVolume > csMedMaxVolume) continue;
+
+            const bidPercent = (sumBid / sumVolume) * 100;
+            const askPercent = (sumAsk / sumVolume) * 100;
+            const isBidDominant = bidPercent >= csMedImbalancePercent;
+            const isAskDominant = askPercent >= csMedImbalancePercent;
+            if (!isBidDominant && !isAskDominant) continue;
+
+            const absDelta = Math.abs(sumAsk - sumBid);
+            if (absDelta < csMedMinDelta) continue;
+
+            const midPrice = (sortedCells[i].price + sortedCells[i + K_med - 1].price) / 2;
+            if (csMedLocation === "body" && !(midPrice >= minBody && midPrice <= maxBody)) continue;
+            if (csMedLocation === "lowerWick" && !(midPrice < minBody)) continue;
+            if (csMedLocation === "upperWick" && !(midPrice > maxBody)) continue;
+
+            const color = isBidDominant ? csMedColorBid : csMedColorAsk;
             const range = csMedMaxVolume - csMedMinVolume;
             const ratio = range > 0 ? Math.min(1.0, (sumVolume - csMedMinVolume) / range) : 0;
-            size = csMedMinSize + ratio * (csMedMaxSize - csMedMinSize);
+            const size = csMedMinSize + ratio * (csMedMaxSize - csMedMinSize);
+
+            itemsToDraw.push({
+              price: midPrice,
+              color,
+              shape: csMedShape as any,
+              opacity: csMedOpacity,
+              size
+            });
           }
-          
+        }
+
+        // 2. Large filter match
+        const csLargeEnabled = csSettings.csLargeEnabled !== false;
+        if (csLargeEnabled) {
+          const csLargeMergeLevels = typeof csSettings.csLargeMergeLevels === "number" ? csSettings.csLargeMergeLevels : csMergeLevels;
+          const csLargeImbalancePercent = typeof csSettings.csLargeImbalancePercent === "number" ? csSettings.csLargeImbalancePercent : csImbalancePercent;
+          const csLargeMinDelta = typeof csSettings.csLargeMinDelta === "number" ? csSettings.csLargeMinDelta : 0;
+          const csLargeLocation = csSettings.csLargeLocation || "any";
+
+          const K_large = Math.max(1, Math.min(csLargeMergeLevels, sortedCells.length));
+          for (let i = 0; i <= sortedCells.length - K_large; i++) {
+            let sumVolume = 0, sumBid = 0, sumAsk = 0;
+            for (let j = 0; j < K_large; j++) {
+              const cell = sortedCells[i + j];
+              if (cell) {
+                sumVolume += cell.volume;
+                sumBid += cell.bid;
+                sumAsk += cell.ask;
+              }
+            }
+            if (sumVolume <= 0) continue;
+            if (sumVolume < csLargeMinVolume) continue;
+
+            const bidPercent = (sumBid / sumVolume) * 100;
+            const askPercent = (sumAsk / sumVolume) * 100;
+            const isBidDominant = bidPercent >= csLargeImbalancePercent;
+            const isAskDominant = askPercent >= csLargeImbalancePercent;
+            if (!isBidDominant && !isAskDominant) continue;
+
+            const absDelta = Math.abs(sumAsk - sumBid);
+            if (absDelta < csLargeMinDelta) continue;
+
+            const midPrice = (sortedCells[i].price + sortedCells[i + K_large - 1].price) / 2;
+            if (csLargeLocation === "body" && !(midPrice >= minBody && midPrice <= maxBody)) continue;
+            if (csLargeLocation === "lowerWick" && !(midPrice < minBody)) continue;
+            if (csLargeLocation === "upperWick" && !(midPrice > maxBody)) continue;
+
+            const color = isBidDominant ? csLargeColorBid : csLargeColorAsk;
+            const range = csLargeMinVolume * 2;
+            const ratio = range > 0 ? Math.min(1.0, (sumVolume - csLargeMinVolume) / range) : 0;
+            const size = csLargeMinSize + ratio * (csLargeMaxSize - csLargeMinSize);
+
+            itemsToDraw.push({
+              price: midPrice,
+              color,
+              shape: csLargeShape as any,
+              opacity: csLargeOpacity,
+              size
+            });
+          }
+        }
+
+        // Draw items
+        itemsToDraw.forEach(item => {
           const centerX = x + candleWidth / 2;
-          const firstCellY = priceToY(sortedCells[i].price);
-          const lastCellY = priceToY(sortedCells[i + K - 1].price);
-          const centerY = (firstCellY + lastCellY) / 2;
+          const centerY = priceToY(item.price);
           
           ctx.save();
-          ctx.fillStyle = color;
-          ctx.globalAlpha = opacity;
+          ctx.fillStyle = item.color;
+          ctx.globalAlpha = item.opacity;
           ctx.beginPath();
           
-          if (shape === "square") {
-            ctx.rect(centerX - size / 2, centerY - size / 2, size, size);
+          if (item.shape === "square") {
+            ctx.rect(centerX - item.size / 2, centerY - item.size / 2, item.size, item.size);
             ctx.fill();
             ctx.strokeStyle = isLight ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.3)";
             ctx.lineWidth = 1;
             ctx.stroke();
-          } else if (shape === "rhombus") {
-            ctx.moveTo(centerX, centerY - size / 2);
-            ctx.lineTo(centerX + size / 2, centerY);
-            ctx.lineTo(centerX, centerY + size / 2);
-            ctx.lineTo(centerX - size / 2, centerY);
+          } else if (item.shape === "rhombus") {
+            ctx.moveTo(centerX, centerY - item.size / 2);
+            ctx.lineTo(centerX + item.size / 2, centerY);
+            ctx.lineTo(centerX, centerY + item.size / 2);
+            ctx.lineTo(centerX - item.size / 2, centerY);
             ctx.closePath();
             ctx.fill();
             ctx.strokeStyle = isLight ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.3)";
@@ -1756,14 +1885,14 @@ export default function ClusterChart({
             ctx.stroke();
           } else {
             // circle
-            ctx.arc(centerX, centerY, size / 2, 0, Math.PI * 2);
+            ctx.arc(centerX, centerY, item.size / 2, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = isLight ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.3)";
             ctx.lineWidth = 1;
             ctx.stroke();
           }
           ctx.restore();
-        }
+        });
       }
 
       ctx.restore(); // Restore context from candlestick main chart area clipping
