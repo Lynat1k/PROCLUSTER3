@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator } from "../types";
-import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid } from "lucide-react";
 
 interface ClusterChartProps {
   candles: ClusterCandle[];
@@ -23,6 +23,8 @@ interface ClusterChartProps {
   onRemoveIndicator?: (id: string) => void;
   onShowIndicatorsSettings?: () => void;
   language?: "RU" | "EN" | "KZ";
+  workspaceLayout?: "1" | "2h" | "2v";
+  onWorkspaceLayoutChange?: (layout: "1" | "2h" | "2v") => void;
 }
 
 export default function ClusterChart({
@@ -46,14 +48,35 @@ export default function ClusterChart({
   onToggleIndicator,
   onRemoveIndicator,
   onShowIndicatorsSettings,
-  language = "EN"
+  language = "EN",
+  workspaceLayout,
+  onWorkspaceLayoutChange
 }: ClusterChartProps) {
   
   const isLight = theme === "light";
 
+  const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
+  const [drawings, setDrawings] = useState<any[]>([]);
+  const [drawingInProgress, setDrawingInProgress] = useState<any | null>(null);
+
   const [selectedTimezone, setSelectedTimezone] = useState<string>(() => {
     return localStorage.getItem("procluster_chart_timezone") || "local";
   });
+
+  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
+  const workspaceDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (workspaceDropdownRef.current && !workspaceDropdownRef.current.contains(event.target as Node)) {
+        setShowWorkspaceMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("procluster_chart_timezone", selectedTimezone);
@@ -459,6 +482,48 @@ export default function ClusterChart({
     const target = e.target as HTMLElement;
     if (target.closest("button") || target.closest("select")) return; // skip for controls
     
+    // If drawing tool is active, handle drawing instead of panning!
+    if (activeDrawingTool) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        
+        // Skip margin zones if needed, allow drawing in main chart panel
+        if (clickY >= margin.top && clickY <= totalSvgHeight - margin.bottom && clickX >= margin.left) {
+          const scrollRelativeX = clickX + visibleScrollLeft;
+          const price = yToPrice(clickY);
+
+          if (activeDrawingTool === "horizontal") {
+            // Horizontal level is placed instantly on one click!
+            const newDrawing = {
+              id: Date.now(),
+              type: "horizontal",
+              startX: scrollRelativeX,
+              startPrice: price,
+              endX: scrollRelativeX,
+              endPrice: price,
+              text: "",
+            };
+            setDrawings(prev => [...prev, newDrawing]);
+            setActiveDrawingTool(null); // Reset drawing tool after placement
+          } else {
+            // Start a dragging drawing
+            setDrawingInProgress({
+              id: Date.now(),
+              type: activeDrawingTool,
+              startX: scrollRelativeX,
+              startPrice: price,
+              endX: scrollRelativeX,
+              endPrice: price,
+              text: "",
+            });
+          }
+          return; // Skip normal panning
+        }
+      }
+    }
+
     // Check if the click is in the timeline zone (at the bottom margin area of the canvas/container)
     const rect = containerRef.current?.getBoundingClientRect();
     if (rect) {
@@ -486,6 +551,27 @@ export default function ClusterChart({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    // If we are actively drawing
+    if (drawingInProgress && canvasRef.current) {
+      e.preventDefault();
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const scrollRelativeX = mouseX + visibleScrollLeft;
+      const price = yToPrice(mouseY);
+
+      setDrawingInProgress(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          endX: scrollRelativeX,
+          endPrice: price,
+        };
+      });
+      return; // Skip panning
+    }
+
     if (!isDragging || !containerRef.current) return;
     e.preventDefault();
     
@@ -505,6 +591,22 @@ export default function ClusterChart({
   };
 
   const handleMouseUpOrLeave = () => {
+    if (drawingInProgress) {
+      if (drawingInProgress.type === "text") {
+        // Prompt for text
+        const txt = prompt(language === "RU" ? "Введите текст для графика:" : "Enter your chart text:");
+        if (txt && txt.trim()) {
+          setDrawings(prev => [...prev, { ...drawingInProgress, text: txt }]);
+        }
+      } else {
+        // Minimum distance safe check or let all slide
+        setDrawings(prev => [...prev, drawingInProgress]);
+      }
+      setDrawingInProgress(null);
+      setActiveDrawingTool(null); // Reset tool after drawing
+      return;
+    }
+
     setIsDragging(false);
   };
 
@@ -1750,6 +1852,223 @@ export default function ClusterChart({
       ctx.restore();
     }
 
+    // -------------------------------------------------------------------------
+    // RENDER INTERACTIVE DRAWING OBJECTS
+    // -------------------------------------------------------------------------
+    const allDrawings = [...drawings, ...(drawingInProgress ? [drawingInProgress] : [])];
+    allDrawings.forEach((d) => {
+      const y1 = priceToY(d.startPrice);
+      const y2 = priceToY(d.endPrice);
+      const x1 = d.startX;
+      const x2 = d.endX;
+
+      if (d.type === "trend") {
+        ctx.beginPath();
+        ctx.strokeStyle = isLight ? "#1e293b" : "#e2e8f0";
+        ctx.lineWidth = 2.2;
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        ctx.fillStyle = "#f59e0b";
+        ctx.beginPath();
+        ctx.arc(x1, y1, 4, 0, Math.PI * 2);
+        ctx.arc(x2, y2, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      else if (d.type === "horizontal") {
+        ctx.beginPath();
+        ctx.strokeStyle = "#10b981";
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([5, 5]);
+        ctx.moveTo(visibleScrollLeft + margin.left, y1);
+        ctx.lineTo(visibleScrollLeft + viewportWidth - margin.right, y1);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = "rgba(16, 185, 129, 0.25)";
+        ctx.fillRect(visibleScrollLeft + margin.left, y1 - 8, 55, 16);
+        ctx.font = "bold 9px monospace";
+        ctx.fillStyle = "#10b981";
+        ctx.fillText(d.startPrice.toFixed(1), visibleScrollLeft + margin.left + 4, y1);
+      }
+      else if (d.type === "rect") {
+        ctx.beginPath();
+        ctx.strokeStyle = isLight ? "#3b82f6" : "#60a5fa";
+        ctx.lineWidth = 1.6;
+        ctx.fillStyle = isLight ? "rgba(59, 130, 246, 0.08)" : "rgba(96, 165, 250, 0.12)";
+        ctx.rect(x1, y1, x2 - x1, y2 - y1);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#3b82f6";
+        ctx.beginPath();
+        ctx.arc(x1, y1, 3.5, 0, Math.PI * 2);
+        ctx.arc(x2, y2, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      else if (d.type === "fibonacci") {
+        const fibLevels = [
+          { ratio: 0, label: "0.0% (Start)" },
+          { ratio: 0.236, label: "23.6%" },
+          { ratio: 0.382, label: "38.2%" },
+          { ratio: 0.5, label: "50.0%" },
+          { ratio: 0.618, label: "61.8%" },
+          { ratio: 0.786, label: "78.6%" },
+          { ratio: 1, label: "100.0% (End)" }
+        ];
+
+        const priceDiff = d.endPrice - d.startPrice;
+        ctx.lineWidth = 1.2;
+
+        fibLevels.forEach((level) => {
+          const currentLevelPrice = d.startPrice + priceDiff * level.ratio;
+          const fY = priceToY(currentLevelPrice);
+
+          ctx.beginPath();
+          if (level.ratio === 0 || level.ratio === 1) {
+            ctx.strokeStyle = "#ef4444";
+          } else if (level.ratio === 0.5 || level.ratio === 0.618) {
+            ctx.strokeStyle = "#f59e0b";
+          } else {
+            ctx.strokeStyle = isLight ? "rgba(100, 116, 139, 0.6)" : "rgba(148, 163, 184, 0.5)";
+          }
+          ctx.moveTo(x1, fY);
+          ctx.lineTo(x2, fY);
+          ctx.stroke();
+
+          ctx.font = "9px sans-serif";
+          ctx.fillStyle = isLight ? "#475569" : "#cbd5e1";
+          ctx.fillText(`${level.label} - ${currentLevelPrice.toFixed(1)}`, Math.min(x1, x2) + 5, fY - 7);
+        });
+      }
+      else if (d.type === "ruler") {
+        ctx.beginPath();
+        ctx.strokeStyle = "#0ea5e9";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 2]);
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = "rgba(14, 165, 233, 0.08)";
+        ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+
+        const pStart = d.startPrice;
+        const pEnd = d.endPrice;
+        const absDiff = pEnd - pStart;
+        const pctDiff = (pStart !== 0) ? (absDiff / pStart) * 100 : 0;
+
+        const candleWidthSpacing = candleWidth + candleSpacing;
+        const barCount = Math.max(1, Math.round(Math.abs(x2 - x1) / candleWidthSpacing));
+
+        const cardW = 142;
+        const cardH = 54;
+        const centerX = x1 + (x2 - x1) / 2;
+        const centerY = y2 - 15;
+
+        ctx.fillStyle = isLight ? "rgba(255, 255, 255, 0.95)" : "rgba(3, 7, 18, 0.88)";
+        ctx.strokeStyle = "#0ea5e9";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(centerX - cardW / 2, centerY - cardH / 2, cardW, cardH, 6);
+        } else {
+          ctx.rect(centerX - cardW / 2, centerY - cardH / 2, cardW, cardH);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = isLight ? "#0f172a" : "#ffffff";
+        ctx.font = "bold 9.5px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`${pctDiff >= 0 ? "▲" : "▼"} ${pctDiff.toFixed(2)}% (${absDiff.toFixed(1)} USDT)`, centerX, centerY - 11);
+        
+        ctx.font = "9px monospace";
+        ctx.fillStyle = "#a1a1aa";
+        ctx.fillText(`${barCount} Бар(ов)`, centerX, centerY + 3);
+        ctx.fillText(`${pStart.toFixed(1)} → ${pEnd.toFixed(1)}`, centerX, centerY + 14);
+        ctx.textAlign = "left";
+      }
+      else if (d.type === "text") {
+        ctx.fillStyle = isLight ? "#1e293b" : "#f1f5f9";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText(`💬 ${d.text || "TEXT"}`, x1, y1 - 6);
+
+        ctx.fillStyle = "#a855f7";
+        ctx.beginPath();
+        ctx.arc(x1, y1, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      else if (d.type === "volume") {
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(168, 85, 247, 0.8)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(168, 85, 247, 0.03)";
+        ctx.fill();
+
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        const candleWidthSpacing = candleWidth + candleSpacing;
+        const startIndex = Math.max(0, Math.floor((minX - margin.left) / candleWidthSpacing));
+        const endIndex = Math.min(candles.length - 1, Math.floor((maxX - margin.left) / candleWidthSpacing));
+
+        if (startIndex <= endIndex) {
+          const bucketCount = 10;
+          const bMinY = Math.min(y1, y2);
+          const bMaxY = Math.max(y1, y2);
+          const bHeight = bMaxY - bMinY;
+          const bHeightStep = bHeight / bucketCount;
+
+          const profileBins = Array.from({ length: bucketCount }, () => 0);
+          
+          for (let cIdx = startIndex; cIdx <= endIndex; cIdx++) {
+            const c = candles[cIdx];
+            if (c.cells) {
+              c.cells.forEach((cell) => {
+                const cellY = priceToY(cell.price);
+                if (cellY >= bMinY && cellY <= bMaxY) {
+                  const binIdx = Math.min(bucketCount - 1, Math.floor((cellY - bMinY) / bHeightStep));
+                  if (binIdx >= 0) {
+                    profileBins[binIdx] += cell.volume;
+                  }
+                }
+              });
+            } else {
+              const avgY = priceToY((c.open + c.close + c.high + c.low) / 4);
+              if (avgY >= bMinY && avgY <= bMaxY) {
+                const binIdx = Math.min(bucketCount - 1, Math.floor((avgY - bMinY) / bHeightStep));
+                if (binIdx >= 0) {
+                  profileBins[binIdx] += c.volume;
+                }
+              }
+            }
+          }
+
+          const maxBinVal = Math.max(1, ...profileBins);
+          const maxDrawWidth = Math.abs(x2 - x1) * 0.75;
+
+          ctx.save();
+          for (let b = 0; b < bucketCount; b++) {
+            const binVol = profileBins[b];
+            if (binVol === 0) continue;
+
+            const drawW = (binVol / maxBinVal) * maxDrawWidth;
+            const binY = bMinY + b * bHeightStep;
+
+            ctx.fillStyle = isLight ? "rgba(168, 85, 247, 0.28)" : "rgba(168, 85, 247, 0.45)";
+            ctx.fillRect(minX, binY + 1, drawW, bHeightStep - 2);
+          }
+          ctx.restore();
+        }
+      }
+    });
+
     ctx.restore(); // Undoes translation of -visibleScrollLeft for viewport-wide elements
 
     // 5.5 Draw the solid timeline footer strip and time axis labels on top of everything else (to hide overlapping candles/wicks)
@@ -1873,7 +2192,9 @@ export default function ClusterChart({
     activePair.priceStep,
     visibleScrollLeft,
     visibleClientWidth,
-    selectedTimezone
+    selectedTimezone,
+    drawings,
+    drawingInProgress
   ]);
 
   const formatCoinsVolume = (valInCoins: number, symbol: string) => {
@@ -2049,6 +2370,81 @@ export default function ClusterChart({
               </option>
             </select>
           </div>
+
+          {/* Workspace Layout Control */}
+          {workspaceLayout && onWorkspaceLayoutChange && (
+            <div className="relative font-sans" ref={workspaceDropdownRef}>
+              <button
+                onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+                className={`flex items-center justify-between gap-1.5 px-2.5 py-1 rounded-xl text-[10px] cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all min-w-[120px] h-[28px] select-none border font-bold ${
+                  isLight
+                    ? "bg-white hover:bg-slate-100 border-slate-200 text-slate-800 shadow-sm"
+                    : "bg-slate-950/60 hover:bg-white/5 border-white/5 text-slate-200"
+                }`}
+                title={language === "RU" ? "Рабочее пространство" : "Workspace Layout"}
+              >
+                <div className="flex items-center gap-1.5 leading-none">
+                  <LayoutGrid className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span className={`font-sans text-[10px] whitespace-nowrap`}>
+                    {workspaceLayout === "1"
+                      ? (language === "EN" ? "1 Chart" : language === "KZ" ? "1 график" : "1 график")
+                      : workspaceLayout === "2h"
+                      ? (language === "EN" ? "2 Horiz" : language === "KZ" ? "2 гориз" : "2 по гориз.")
+                      : (language === "EN" ? "2 Vert" : language === "KZ" ? "2 верт" : "2 по верт.")}
+                  </span>
+                </div>
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 shrink-0 ${
+                  isLight ? "text-slate-600" : "text-slate-400"
+                } ${showWorkspaceMenu ? "rotate-180" : ""}`} />
+              </button>
+
+              {showWorkspaceMenu && (
+                <div
+                  className={`absolute right-0 mt-1.5 w-44 rounded-xl p-1.5 z-50 text-left select-none shadow-2xl border ${
+                    isLight
+                      ? "bg-white border-slate-300 text-slate-900 shadow-xl"
+                      : "bg-[#090d16]/98 border border-white/10 text-slate-100"
+                  }`}
+                >
+                  <div className="flex flex-col gap-0.5">
+                    {[
+                      { id: "1", label: language === "EN" ? "1 Chart" : language === "KZ" ? "1 график" : "1 график", icon: "🔲" },
+                      { id: "2h", label: language === "EN" ? "2 Horizontal" : language === "KZ" ? "2 горизонтальді" : "2 по горизонтали", icon: "🥞" },
+                      { id: "2v", label: language === "EN" ? "2 Vertical" : language === "KZ" ? "2 вертикальді" : "2 по вертикали", icon: "🪟" }
+                    ].map((item) => {
+                      const isSelected = workspaceLayout === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            onWorkspaceLayoutChange(item.id as any);
+                            setShowWorkspaceMenu(false);
+                          }}
+                          className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-left cursor-pointer transition-all w-full ${
+                            isSelected
+                              ? isLight
+                                ? "bg-blue-50 text-blue-800 font-extrabold border border-blue-200 shadow-sm"
+                                : "bg-blue-500/10 text-blue-400 font-extrabold border border-blue-500/25"
+                              : isLight
+                                ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                                : "text-slate-300 hover:text-white hover:bg-white/5"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 select-none">
+                            <span className="text-[12px]">{item.icon}</span>
+                            <span className="font-sans text-[10px] font-bold">{item.label}</span>
+                          </div>
+                          {isSelected && (
+                            <Check className="w-3 tracking-tight ml-1 text-blue-500 shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           
           <div className={`border px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold flex items-center gap-1.5 hidden md:flex shadow-inner transition-all duration-300 ${
             isLight ? "bg-slate-100 border-slate-200/60 text-slate-600" : "bg-slate-950/60 border-white/5 text-slate-400"
@@ -2060,6 +2456,73 @@ export default function ClusterChart({
 
       {/* 2D Panning Chart Workspace */}
       <div className="flex-1 flex relative overflow-hidden">
+        {/* Drawing Tools sidebar panel */}
+        <div className={`w-11 flex-none flex flex-col items-center py-3 border-r select-none transition-all duration-300 relative z-30 ${
+          isLight 
+            ? "bg-white border-slate-200/80 text-slate-600 shadow-sm" 
+            : "bg-[#06080f]/90 border-white/5 text-slate-300 backdrop-blur-md"
+        }`}>
+          <div className="flex flex-col gap-1.5 items-center w-full grow">
+            {[
+              { id: "trend", icon: Slash, titleRU: "Трендовая линия", titleEN: "Trend Line" },
+              { id: "horizontal", icon: Minus, titleRU: "Горизонтальный уровень", titleEN: "Horizontal Level" },
+              { id: "rect", icon: Square, titleRU: "Прямоугольник", titleEN: "Rectangle" },
+              { id: "fibonacci", icon: Grid3X3, titleRU: "Уровни Фибоначчи", titleEN: "Fibonacci Retracement" },
+              { id: "ruler", icon: Ruler, titleRU: "Линейка диапазона", titleEN: "Range Ruler" },
+              { id: "text", icon: Type, titleRU: "Текстовая заметка", titleEN: "Text Annotation" },
+              { id: "volume", icon: BarChart3, titleRU: "Профиль объема диапазона", titleEN: "Range Volume Profile" },
+            ].map((tool) => {
+              const IconComp = tool.icon;
+              const isActive = activeDrawingTool === tool.id;
+              const title = language === "RU" ? tool.titleRU : tool.titleEN;
+              return (
+                <button
+                  key={tool.id}
+                  onClick={() => setActiveDrawingTool(isActive ? null : tool.id)}
+                  className={`p-2 rounded-lg transition-all duration-150 relative group cursor-pointer ${
+                    isActive
+                      ? "bg-amber-500/15 text-amber-500 border border-amber-500/30"
+                      : isLight
+                        ? "hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-transparent"
+                        : "hover:bg-white/5 text-slate-400 hover:text-white border border-transparent"
+                  }`}
+                  title={title}
+                >
+                  <IconComp className="w-4 h-4" />
+                  
+                  {/* Tooltip on Hover to the right */}
+                  <div className={`absolute left-full ml-2 top-1.2 font-sans font-semibold text-[10px] px-2 py-1 rounded bg-slate-950 text-slate-100 border border-white/10 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl`}>
+                    {title}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Delete drawings option at the bottom */}
+          {drawings.length > 0 && (
+            <button
+              onClick={() => {
+                if (confirm(language === "RU" ? "Удалить все рисунки?" : "Delete all drawings?")) {
+                  setDrawings([]);
+                }
+              }}
+              className={`p-2 rounded-lg transition-all duration-150 relative group cursor-pointer ${
+                isLight
+                  ? "hover:bg-rose-50 text-rose-600 hover:text-rose-700 hover:border-rose-100"
+                  : "hover:bg-rose-950/20 text-rose-505 hover:text-rose-455 hover:border-rose-955/35"
+              } border border-transparent`}
+              title={language === "RU" ? "Удалить все рисунки" : "Clear Drawings"}
+            >
+              <Trash2 className="w-4 h-4" />
+              
+              <div className={`absolute left-full ml-2 top-1.2 font-sans font-extrabold text-[10px] px-2 py-1 rounded bg-rose-950 text-rose-300 border border-rose-900/30 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl`}>
+                {language === "RU" ? "Удалить все рисунки" : "Clear All Drawings"}
+              </div>
+            </button>
+          )}
+        </div>
+
         {/* Main SVG/Zoom Panel */}
         <div
           ref={containerRef}
