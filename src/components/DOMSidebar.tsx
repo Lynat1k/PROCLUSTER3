@@ -538,53 +538,48 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
     }`}>
       
       {/* CRYPTO FEAR & GREED INDEX WIDGET */}
-      <div className={`rounded-xl p-3 mb-3.5 border transition-all duration-300 ${
+      <div className={`rounded-xl p-2 mb-2 border transition-all duration-300 ${
         isLight 
           ? "bg-white border-slate-200/90 shadow-sm text-slate-800" 
           : "bg-[#0c101b] border-white/5 shadow-inner text-slate-100"
       }`}>
         {/* Header with Bitcoin logo */}
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-6.5 h-6.5 rounded-full bg-[#f7931a] flex items-center justify-center shadow-sm shrink-0">
-            <span className="text-white font-extrabold text-[13px] italic transform -skew-x-6 select-none">₿</span>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <div className="w-5 h-5 rounded-full bg-[#f7931a] flex items-center justify-center shadow-sm shrink-0">
+            <span className="text-white font-extrabold text-[11px] italic transform -skew-x-6 select-none">₿</span>
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className={`text-[15px] font-bold tracking-tight leading-none ${
+            <h3 className={`text-[13px] font-bold tracking-tight leading-none ${
               isLight ? "text-slate-900" : "text-slate-100"
             }`}>
               Fear & Greed Index
             </h3>
-            <p className={`text-[8.5px] font-medium leading-normal mt-0.5 truncate uppercase tracking-tight ${
-              isLight ? "text-slate-400" : "text-slate-500"
-            }`}>
-              Multifactorial Crypto Market Sentiment Analysis
-            </p>
           </div>
         </div>
 
-        {/* Header divider */}
-        <div className={`h-[1px] w-full mb-3 ${isLight ? "bg-slate-100" : "bg-white/5"}`} />
-
         {/* Gauge and Sentiment Area */}
-        <div className="flex items-center justify-between gap-3 py-1">
+        <div className="flex items-center justify-between gap-2.5 py-0.5">
           {/* Left panel metrics */}
           <div className="flex flex-col justify-center shrink-0">
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${
-              isLight ? "text-slate-400" : "text-slate-500"
+            <span className={`text-[8px] font-black uppercase tracking-wider ${
+              isLight ? "text-slate-400" : "text-slate-550"
             }`}>
               Now:
             </span>
             <span 
-              className="text-[16px] font-extrabold tracking-tight mt-0.5 leading-snug drop-shadow-sm"
+              className="text-[13px] font-black tracking-tight mt-0.5 leading-none drop-shadow-sm"
               style={{ color: getSentimentColor(fearGreedValue) }}
             >
               {(() => {
-                if (fearGreedValue <= 25) return "Extreme Fear";
+                if (fearGreedValue <= 25) return "Ext. Fear";
                 if (fearGreedValue <= 45) return "Fear";
                 if (fearGreedValue <= 54) return "Neutral";
                 if (fearGreedValue <= 75) return "Greed";
-                return "Extreme Greed";
+                return "Ext. Greed";
               })()}
+            </span>
+            <span className={`text-[10px] font-semibold mt-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+              Score: <span className="font-extrabold">{Math.round(fearGreedValue)}</span>
             </span>
           </div>
 
@@ -593,19 +588,18 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
             {(() => {
               const angle = -180 + (fearGreedValue / 100) * 180;
               const rad = (angle * Math.PI) / 180;
-              // Semicircle arc has center (75, 80) and radius 55
               const badgeX = 75 + 55 * Math.cos(rad);
               const badgeY = 80 + 55 * Math.sin(rad);
               
               return (
-                <svg viewBox="0 0 150 90" className="w-full max-w-[145px] overflow-visible select-none">
+                <svg viewBox="0 0 150 90" className="w-full max-w-[105px] overflow-visible select-none">
                   <defs>
                     <linearGradient id="fear-greed-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#e15241" /> {/* coral/red-orange */}
-                      <stop offset="25%" stopColor="#f0af43" /> {/* amber/orange-yellow */}
-                      <stop offset="50%" stopColor="#e3cb41" /> {/* yellow-green */}
-                      <stop offset="75%" stopColor="#69cc63" /> {/* light green */}
-                      <stop offset="100%" stopColor="#4abb50" /> {/* dark green */}
+                      <stop offset="0%" stopColor="#e15241" />
+                      <stop offset="25%" stopColor="#f0af43" />
+                      <stop offset="50%" stopColor="#e3cb41" />
+                      <stop offset="75%" stopColor="#69cc63" />
+                      <stop offset="100%" stopColor="#4abb50" />
                     </linearGradient>
                     <filter id="badge-glow" x="-30%" y="-30%" width="160%" height="160%">
                       <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodOpacity={isLight ? "0.2" : "0.5"} />
@@ -632,7 +626,6 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
 
                   {/* Indicator Arrow needle rotated about (75, 80) */}
                   <g transform={`rotate(${angle}, 75, 80)`}>
-                    {/* Tapered pointer line pointing right towards (130, 80) */}
                     <path
                       d="M 75,76.5 L 122,80 L 75,83.5 Z"
                       fill={isLight ? "#5b6b7c" : "#94a3b8"}
@@ -640,7 +633,6 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
                       strokeWidth="0.8"
                     />
                     
-                    {/* Chrome center hub */}
                     <circle
                       cx="75"
                       cy="80"
@@ -649,7 +641,6 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
                       stroke={isLight ? "#94a3b8" : "#475569"}
                       strokeWidth="1"
                     />
-                    {/* Tiny embedded gold logo badge inside central needle axis */}
                     <circle
                       cx="75"
                       cy="80"
@@ -694,16 +685,10 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
           </div>
         </div>
 
-        {/* Footer divider and info */}
-        <div className={`h-[1px] w-full mt-2 mb-2 ${isLight ? "bg-slate-100" : "bg-white/5"}`} />
-
-        <div className="flex justify-between items-center text-[8.5px] font-mono select-none">
-          <span className={isLight ? "text-slate-400 font-medium" : "text-slate-600 font-semibold"}>
-            alternative.me
-          </span>
-          <span className={isLight ? "text-slate-400 font-medium" : "text-slate-600 font-semibold"}>
-            Last updated: {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-          </span>
+        {/* Info footer line */}
+        <div className="flex justify-between items-center text-[7.5px] font-mono select-none mt-1.5 opacity-60">
+          <span>alternative.me</span>
+          <span>Updated: {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
         </div>
       </div>
 

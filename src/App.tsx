@@ -2300,13 +2300,15 @@ export default function App() {
           onAddPair={handleAddPair}
         />
       ) : currentView === "profile" ? (
-        <UserProfile
-          user={profileUser}
-          onUpdateUser={setProfileUser}
-          onClose={() => setCurrentView("terminal")}
-          theme={theme}
-          language={language}
-        />
+        <div className={`flex-1 overflow-y-auto w-full relative z-40 flex flex-col ${theme === 'light' ? 'scrollbar-thin-light bg-slate-50' : 'scrollbar-thin-dark bg-[#060813]'}`}>
+          <UserProfile
+            user={profileUser}
+            onUpdateUser={setProfileUser}
+            onClose={() => setCurrentView("terminal")}
+            theme={theme}
+            language={language}
+          />
+        </div>
       ) : (
         <>
           {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}

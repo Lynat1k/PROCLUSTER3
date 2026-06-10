@@ -81,11 +81,15 @@ const LOCALIZATION = {
     paySuccessDesc: "Блокчейн успешно подтвердил транзакцию. Ваш тариф {plan} и новые лимиты активированы на 30 дней.",
     payFinish: "Завершить",
     copied: "Скопировано",
+    propsCharts: "График в окне",
     propsMaxCandles: "Максимум свечей графика",
     propsCompression: "Уровней сжатия графика",
     propsIndicators: "Индикаторов на графике",
-    propsCustomSettings: "Кастомные настройки индикаторов",
+    propsCustomSettings: "Кастомные настройки индикатора",
+    propsSaveDrawing: "Сохранение рисования на графике",
     propsTelegram: "Телеграм уведомления",
+    propsCustomCodeIndicators: "Добавление своих индикаторов",
+    allHistory: "Вся история",
     yes: "Да",
     no: "Нет"
   },
@@ -132,11 +136,15 @@ const LOCALIZATION = {
     paySuccessDesc: "Blockchain nodes confirmed the transaction. Your {plan} subscription and expanded limitations are active for 30 days.",
     payFinish: "Finish",
     copied: "Copied!",
+    propsCharts: "Charts in window",
     propsMaxCandles: "Max chart candles count",
     propsCompression: "Chart compression levels",
     propsIndicators: "Active indicators allowed",
     propsCustomSettings: "Custom indicator settings",
+    propsSaveDrawing: "Save drawings on chart",
     propsTelegram: "Telegram notifications",
+    propsCustomCodeIndicators: "Add custom indicators",
+    allHistory: "Full history",
     yes: "Yes",
     no: "No"
   },
@@ -183,13 +191,128 @@ const LOCALIZATION = {
     paySuccessDesc: "Блокчейн транзакцияны сәтті растады. Сіздің {plan} тарифіңіз және жаңа лимиттер 30 күнге белсендірілді.",
     payFinish: "Аяқтау",
     copied: "Көшірілді",
+    propsCharts: "Терезедегі графиктер",
     propsMaxCandles: "Графиктің макс свеча саны",
     propsCompression: "Графикті қысу деңгейлері",
     propsIndicators: "Графиктегі көрсеткіштер саны",
     propsCustomSettings: "Индикаторлардың жеке баптаулары",
+    propsSaveDrawing: "Сызба объектілерін сақтау",
     propsTelegram: "Телеграм хабарландырулары",
+    propsCustomCodeIndicators: "Жеке индикаторларды қосу",
+    allHistory: "Барлық тарих",
     yes: "Иә",
     no: "Жоқ"
+  }
+};
+
+const LOCALIZED_PLANS = {
+  RU: {
+    free: {
+      name: "Free",
+      billing: "Оплата ежемесячно",
+      ideal: "Подходит для индивидуальных пользователей.",
+      features: [
+        "Доступ к базовым функциям",
+        "1 пользователь",
+        "1 ГБ дискового пространства",
+        "Базовая чат-поддержка"
+      ]
+    },
+    pro: {
+      name: "Pro",
+      popularTag: "ПОПУЛЯРНО",
+      billing: "Оплата ежемесячно",
+      ideal: "Идеально для небольших команд.",
+      features: [
+        "Доступ ко всем функциям",
+        "До 10 пользователей",
+        "5 ГБ данных на пользователя",
+        "Приоритетная техподдержка"
+      ]
+    },
+    premium: {
+      name: "Premium",
+      billing: "Оплата ежемесячно",
+      ideal: "Лучший выбор для бизнеса и веб-студий.",
+      features: [
+        "Доступ ко всем возможностям",
+        "До 20 пользователей",
+        "10 ГБ данных на пользователя",
+        "Максимальный приоритет"
+      ]
+    }
+  },
+  EN: {
+    free: {
+      name: "Free",
+      billing: "Billed monthly",
+      ideal: "Ideal for individual users.",
+      features: [
+        "Access to simple features",
+        "1 user",
+        "1GB data",
+        "Basic chat and support"
+      ]
+    },
+    pro: {
+      name: "Pro",
+      popularTag: "MOST POPULAR",
+      billing: "Billed monthly",
+      ideal: "Ideal for small teams.",
+      features: [
+        "Access to all features",
+        "Up to 10 users",
+        "5GB data per user",
+        "Priority support"
+      ]
+    },
+    premium: {
+      name: "Premium",
+      billing: "Billed monthly",
+      ideal: "Best Choice for Enterprises, Agencies, and Studios.",
+      features: [
+        "Access to all features",
+        "Up to 20 users",
+        "10GB data per user",
+        "Priority support"
+      ]
+    }
+  },
+  KZ: {
+    free: {
+      name: "Free",
+      billing: "Ай сайын төленеді",
+      ideal: "Жеке пайдаланушылар үшін қолайлы.",
+      features: [
+        "Қарапайым мүмкіндіктерге рұқсат",
+        "1 пайдаланушы",
+        "1 ГБ деректер көлемі",
+        "Базалық чат қолдауы"
+      ]
+    },
+    pro: {
+      name: "Pro",
+      popularTag: "TANYMAL",
+      billing: "Ай сайын төленеді",
+      ideal: "Шағын командалар үшін тамаша.",
+      features: [
+        "Барлық мүмкіндіктерге рұқсат",
+        "10 пайдаланушыға дейін",
+        "Әр мүшеге 5 ГБ деректер",
+        "Басымдықты қолдау желісі"
+      ]
+    },
+    premium: {
+      name: "Premium",
+      billing: "Ай сайын төленеді",
+      ideal: "Бизнес пен веб-студияларға арналған таңдау.",
+      features: [
+        "Барлық мүмкіндіктерге рұқсат",
+        "20 пайдаланушыға дейін",
+        "Әр мүшеге 10 ГБ деректер",
+        "Жоғары басымдықты қолдау"
+      ]
+    }
   }
 };
 
@@ -202,6 +325,7 @@ export default function UserProfile({
 }: UserProfileProps) {
   const isLight = theme === "light";
   const t = LOCALIZATION[language] || LOCALIZATION.EN;
+  const lp = LOCALIZED_PLANS[language] || LOCALIZED_PLANS.EN;
 
   // Active form fields, with fallback if user is null
   const [nickname, setNickname] = useState(user?.name || "Guest User");
@@ -388,7 +512,7 @@ export default function UserProfile({
   };
 
   return (
-    <div className={`flex-1 w-full max-w-7xl mx-auto overflow-y-auto px-6 py-6 relative z-10 flex flex-col gap-6 ${isLight ? "scrollbar-thin-light" : "scrollbar-thin-dark"}`}>
+    <div className="w-full max-w-7xl mx-auto px-6 py-10 relative z-40 flex flex-col gap-8 select-text">
       
       {/* Navigation Header bar with Back trigger */}
       <div className="flex items-center justify-between shrink-0">
@@ -708,204 +832,386 @@ export default function UserProfile({
       </div>
 
       {/* EXPANDED PLANS COMPARISON CARDS */}
-      <div className={`p-6 sm:p-8 rounded-[32px] flex flex-col gap-6 transition-all duration-300 ${
-        isLight ? "bg-white border border-slate-200/60" : "liquid-glass-card"
+      <div className={`p-8 sm:p-12 rounded-[32px] flex flex-col gap-10 shadow-2xl relative overflow-hidden transition-all duration-300 ${
+        isLight ? "bg-white border border-slate-200/60 text-slate-800" : "liquid-glass-card text-white"
       }`}>
-        <h2 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
-          isLight ? "text-slate-800" : "text-slate-200"
-        }`}>
-          <Zap className="w-4 h-4 text-amber-500 fill-amber-500/20" />
-          {t.choosePlan}
-        </h2>
+        
+        {/* Glow backdrop effects for premium interactive layout */}
+        {!isLight && (
+          <>
+            <div className="absolute top-0 right-1/4 w-[350px] h-[350px] bg-[#1CD5A6]/5 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute bottom-0 left-1/4 w-[350px] h-[350px] bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none" />
+          </>
+        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Title area */}
+        <div className="text-center space-y-2 z-10">
+          <h2 className={`text-3xl sm:text-4xl font-extrabold tracking-tight font-sans ${
+            isLight ? "text-slate-900" : "text-white"
+          }`}>
+            {language === "RU" ? "Выберите свой план" : language === "KZ" ? "Тарифті таңдаңыз" : "Choose your Plan"}
+          </h2>
+          <p className={`text-xs sm:text-sm font-medium ${
+            isLight ? "text-slate-500" : "text-slate-450"
+          }`}>
+            {language === "RU" 
+              ? "Найдите идеальный план подписки, разработанный специально для вас." 
+              : language === "KZ" 
+                ? "Сізге арнайы жасалған тамаша жазылымды табыңыз." 
+                : "Discover the perfect plan tailored just for you."}
+          </p>
+        </div>
+
+        {/* Cards grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl mx-auto z-10">
           
-          {/* FREE PLAN */}
-          <div className={`p-6 rounded-2xl border flex flex-col justify-between gap-6 transition-transform duration-200 hover:scale-[1.01] ${
-            tier === "Free" 
-              ? "border-slate-500 bg-slate-500/5 shadow-lg shadow-slate-500/5" 
-              : isLight ? "bg-white border-slate-200/80" : "bg-white/[0.01] border-white/5"
+          {/* Card 1: Free */}
+          <div className={`p-6 rounded-[24px] border flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
+            tier === "Free"
+              ? isLight
+                ? "bg-slate-100/90 border-slate-400 shadow-md text-slate-900"
+                : "liquid-glass-card border-slate-500 shadow-[0_4px_30px_rgba(0,0,0,0.4)] scale-[1.01] text-white"
+              : isLight
+                ? "bg-white border-slate-200 hover:bg-slate-50/80 hover:border-slate-300 hover:shadow-lg hover:scale-[1.015] text-slate-800"
+                : "liquid-glass-card hover:border-white/20 hover:shadow-[0_4px_25px_rgba(0,0,0,0.4)] hover:scale-[1.015] text-white"
           }`}>
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-black text-slate-400">FREE</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-500/10 text-slate-450 uppercase">0 USDT</span>
-              </div>
+            <div className="flex flex-col gap-5">
               <div>
-                <h3 className={`text-base font-black ${isLight ? "text-slate-900" : "text-slate-100"}`}>Free Edition</h3>
-                <p className={`text-[11px] leading-snug mt-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                  {t.planFreeDesc}
+                <span className={`text-sm font-bold tracking-normal block ${isLight ? "text-slate-800" : "text-slate-300"}`}>
+                  {lp.free.name}
+                </span>
+                <p className={`text-[9px] mt-1 uppercase tracking-wider font-mono ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                  {lp.free.billing}
                 </p>
               </div>
 
-              {/* Specifications lists for FREE */}
-              <div className="flex flex-col gap-2 font-mono text-xs pt-3 border-t border-white/[0.04]">
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsMaxCandles}</span>
-                  <span className={`font-black ${isLight ? "text-slate-855" : "text-slate-200"}`}>700</span>
+              {/* Price section */}
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className={`text-4xl font-black tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
+                  $0
+                </span>
+                <span className={`text-xs font-medium ml-1 ${isLight ? "text-slate-500" : "text-[#8B949E]"}`}>
+                  / month
+                </span>
+              </div>
+
+              {/* Description phrase */}
+              <p className={`text-[11.5px] leading-relaxed min-h-[32px] ${isLight ? "text-slate-600" : "text-[#8B949E]"}`}>
+                {lp.free.ideal}
+              </p>
+
+              {/* Elegant divider */}
+              <div className={`h-[1px] w-full my-1 ${isLight ? "bg-slate-200" : "bg-white/[0.06]"}`} />
+
+              {/* Features list */}
+              <ul className="flex flex-col gap-3 pt-1">
+                {lp.free.features.map((feature, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-xs">
+                    <div className="w-4.5 h-4.5 rounded-full border border-[#2FD3B2]/30 bg-[#2FD3B2]/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check className="w-2.5 h-2.5 text-[#2FD3B2] stroke-[3]" />
+                    </div>
+                    <span className={`font-medium leading-normal ${isLight ? "text-slate-700" : "text-slate-300"}`}>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Specifications limits list (Возможности и ограничения) */}
+              <div className={`flex flex-col gap-2 font-mono text-[11px] pt-4 mt-2 border-t ${isLight ? "border-slate-200" : "border-white/[0.06]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCharts}</span>
+                  <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>1</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsCompression}</span>
-                  <span className={`font-black ${isLight ? "text-slate-855" : "text-slate-200"}`}>1</span>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsMaxCandles}</span>
+                  <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>700</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsIndicators}</span>
-                  <span className={`font-black ${isLight ? "text-slate-855" : "text-slate-200"}`}>3</span>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCompression}</span>
+                  <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>1</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsCustomSettings}</span>
-                  <span className="font-black text-rose-500">{t.no}</span>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsIndicators}</span>
+                  <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>1</span>
+                </div>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCustomSettings}</span>
+                  <span className="font-extrabold text-[#EF4444]">{t.no}</span>
+                </div>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsSaveDrawing}</span>
+                  <span className="font-extrabold text-[#EF4444]">{t.no}</span>
+                </div>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsTelegram}</span>
+                  <span className="font-extrabold text-[#EF4444]">{t.no}</span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsTelegram}</span>
-                  <span className="font-black text-rose-500">{t.no}</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCustomCodeIndicators}</span>
+                  <span className="font-extrabold text-[#EF4444]">{t.no}</span>
                 </div>
               </div>
             </div>
-            
-            {/* NO ACTIVE BUTTON FOR FREE PLAN (Empty space or static tag) */}
-            {tier === "Free" ? (
-              <div className={`w-full py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-widest text-center border ${
-                isLight ? "bg-slate-200 border-slate-300 text-slate-805" : "bg-white/5 border-white/5 text-slate-400"
-              }`}>
-                {t.currentPlan}
-              </div>
-            ) : (
-              <button
-                onClick={() => executeDirectUpgrade("Free")}
-                className={`w-full py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-widest cursor-pointer transition border hover:bg-slate-500/5 ${
-                  isLight ? "bg-white border-slate-250 text-slate-700 hover:bg-slate-100" : "bg-transparent border-white/10 text-slate-400"
-                }`}
-              >
-                Downgrade Free
-              </button>
-            )}
+
+            {/* Free Button */}
+            <div>
+              {tier === "Free" ? (
+                <div className="w-full text-center py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-500/10 text-slate-500 border border-slate-500/20">
+                  {language === "RU" ? "Текущий тариф" : language === "KZ" ? "Белсенді тариф" : "Current Plan"}
+                </div>
+              ) : (
+                <button
+                  onClick={() => executeDirectUpgrade("Free")}
+                  className={`w-full text-center py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 ${
+                    isLight 
+                      ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300" 
+                      : "bg-[#1F2228] hover:bg-[#282B33] text-white border border-white/10"
+                  }`}
+                >
+                  {language === "RU" ? "Перейти" : language === "KZ" ? "Ауысу" : "Get Free Plan"}
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* PRO PLAN */}
-          <div className={`p-6 rounded-2xl border flex flex-col justify-between gap-6 transition-transform duration-200 hover:scale-[1.01] relative ${
-            tier === "Pro" 
-              ? "border-blue-500 bg-blue-500/5 shadow-lg shadow-blue-500/5" 
-              : isLight ? "bg-white border-slate-200/80" : "bg-white/[0.01] border-white/5"
+          {/* Card 2: Pro */}
+          <div className={`p-6 rounded-[24px] border flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
+            tier === "Pro"
+              ? isLight
+                ? "bg-slate-50 border-[#2FD3B2] shadow-md shadow-[#2FD3B2]/20 scale-[1.02] text-slate-900"
+                : "liquid-glass-card border-[#2FD3B2] shadow-[0_0_35px_rgba(45,212,178,0.32)] scale-[1.035] -translate-y-1 text-white"
+              : isLight
+                ? "bg-white border-slate-200 hover:bg-slate-50 hover:border-[#2FD3B2]/60 hover:shadow-[0_10px_30px_rgba(45,212,178,0.12)] hover:scale-[1.03] hover:-translate-y-1 text-slate-800"
+                : "liquid-glass-card border-white/[0.06] hover:border-[#2FD3B2]/70 hover:shadow-[0_0_35px_rgba(45,212,178,0.28)] hover:bg-[#2FD3B2]/[0.02] hover:scale-[1.03] hover:-translate-y-1 text-white"
           }`}>
-            {tier === "Pro" && (
-              <div className="absolute -top-2.5 right-4 px-2 py-0.5 rounded-full bg-blue-500 text-[8px] font-black uppercase text-white shadow-md tracking-wider">
-                POPULAR
-              </div>
+            
+            {/* Inner Ambient Top Cyan Glow */}
+            {!isLight && (
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-20 bg-gradient-to-b from-[#2FD3B2]/15 to-transparent blur-xl pointer-events-none rounded-full transition-all duration-500 group-hover:from-[#2FD3B2]/40 group-hover:scale-130" />
             )}
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-black text-blue-400">PRO</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-450 uppercase">10 USDT</span>
-              </div>
+
+            {isLight && (
+              <div className="absolute inset-0 bg-gradient-to-br from-[#2FD3B2]/[0.015] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[24px] pointer-events-none" />
+            )}
+
+            {/* MOST POPULAR TAG */}
+            <div className="absolute -top-3 right-6 px-3 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-wider shadow-md bg-[#10191B] border border-[#2FD3B2]/30 text-[#2FD3B2]">
+              {lp.pro.popularTag || "MOST POPULAR"}
+            </div>
+
+            <div className="flex flex-col gap-5 relative z-10">
               <div>
-                <h3 className={`text-base font-black ${isLight ? "text-slate-900" : "text-slate-100"}`}>Pro Specialist</h3>
-                <p className={`text-[11px] leading-snug mt-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                  {t.planProDesc}
+                <span className={`text-sm font-bold tracking-normal block ${isLight ? "text-[#246A5C]" : "text-white"}`}>
+                  {lp.pro.name}
+                </span>
+                <p className={`text-[9px] mt-1 uppercase tracking-wider font-mono ${isLight ? "text-slate-500" : "text-[#A6E8DB]"}`}>
+                  {lp.pro.billing}
                 </p>
               </div>
 
-              {/* Specifications lists for PRO */}
-              <div className="flex flex-col gap-2 font-mono text-xs pt-3 border-t border-white/[0.04]">
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsMaxCandles}</span>
-                  <span className={`font-black ${isLight ? "text-slate-855" : "text-slate-200"}`}>1400</span>
+              {/* Price section */}
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className={`text-4xl font-black tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
+                  $19
+                </span>
+                <span className={`text-xs font-medium ml-1 ${isLight ? "text-slate-500" : "text-[#8B949E]"}`}>
+                  / month
+                </span>
+              </div>
+
+              {/* Description phrase */}
+              <p className={`text-[11.5px] leading-relaxed min-h-[32px] ${isLight ? "text-slate-600" : "text-[#8B949E]"}`}>
+                {lp.pro.ideal}
+              </p>
+
+              {/* Elegant divider */}
+              <div className={`h-[1px] w-full my-1 ${isLight ? "bg-slate-200" : "bg-white/[0.06]"}`} />
+
+              {/* Features list */}
+              <ul className="flex flex-col gap-3 pt-1">
+                {lp.pro.features.map((feature, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-xs">
+                    <div className="w-4.5 h-4.5 rounded-full border border-[#2FD3B2]/40 bg-[#2FD3B2]/25 flex items-center justify-center shrink-0 mt-0.5 animate-pulse">
+                      <Check className="w-2.5 h-2.5 text-[#2FD3B2] stroke-[3]" />
+                    </div>
+                    <span className={`font-medium leading-normal ${isLight ? "text-slate-700" : "text-slate-300"}`}>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Specifications limits list (Возможности и ограничения) */}
+              <div className={`flex flex-col gap-2 font-mono text-[11px] pt-4 mt-2 border-t ${isLight ? "border-slate-200" : "border-white/[0.06]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCharts}</span>
+                  <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>2</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsCompression}</span>
-                  <span className={`font-black ${isLight ? "text-slate-855" : "text-slate-200"}`}>2</span>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsMaxCandles}</span>
+                  <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>1400</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsIndicators}</span>
-                  <span className={`font-black ${isLight ? "text-slate-855" : "text-slate-200"}`}>5</span>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCompression}</span>
+                  <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>2</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsCustomSettings}</span>
-                  <span className="font-black text-emerald-500">{t.yes}</span>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsIndicators}</span>
+                  <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>3</span>
+                </div>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCustomSettings}</span>
+                  <span className="font-extrabold text-[#EF4444]">{t.no}</span>
+                </div>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsSaveDrawing}</span>
+                  <span className="font-extrabold text-[#EF4444]">{t.no}</span>
+                </div>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsTelegram}</span>
+                  <span className="font-extrabold text-[#EF4444]">{t.no}</span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsTelegram}</span>
-                  <span className="font-black text-rose-500">{t.no}</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCustomCodeIndicators}</span>
+                  <span className="font-extrabold text-[#EF4444]">{t.no}</span>
                 </div>
               </div>
             </div>
-            
-            {/* ACTIVATE/UPGRADE PRO WITH PAYMENT REDIRECT SIMULATION */}
-            {tier === "Pro" ? (
-              <div className="w-full py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-widest text-center bg-blue-500 text-white shadow shadow-blue-500/25">
-                {t.currentPlan}
-              </div>
-            ) : (
-              <button
-                onClick={() => startPaymentCheckout("Pro")}
-                className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-[10.5px] font-black uppercase tracking-widest cursor-pointer transition active:scale-[0.98] shadow-md shadow-blue-500/20 text-center flex items-center justify-center gap-1.5"
-              >
-                <Coins className="w-3.5 h-3.5" />
-                <span>{t.activateBtn} PRO</span>
-              </button>
-            )}
+
+            {/* Pro Button */}
+            <div className="relative z-10 w-full">
+              {tier === "Pro" ? (
+                <div className="w-full text-center py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  {language === "RU" ? "Текущий тариф" : language === "KZ" ? "Белсенді тариф" : "Current Plan"}
+                </div>
+              ) : (
+                <button
+                  onClick={() => startPaymentCheckout("Pro")}
+                  className="w-full text-center py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#1CD5A6] hover:bg-[#20ebd6] hover:scale-[1.01] text-slate-950 shadow-[0_4px_25px_rgba(28,213,166,0.3)] transition-all duration-200 cursor-pointer active:scale-95"
+                >
+                  {language === "RU" ? "Подключить" : language === "KZ" ? "Қосу" : "Get Pro Now"}
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* VIP PLAN - GOLD */}
-          <div className={`p-6 rounded-2xl border flex flex-col justify-between gap-6 transition-transform duration-200 hover:scale-[1.01] ${
-            tier === "VIP" 
-              ? "border-amber-500 bg-amber-500/5 shadow-lg shadow-amber-500/5" 
-              : isLight ? "bg-white border-slate-200/80" : "bg-white/[0.01] border-white/5"
+          {/* Card 3: Premium */}
+          <div className={`p-6 rounded-[24px] border flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
+            tier === "VIP"
+              ? isLight
+                ? "bg-slate-50 border-amber-500 shadow-md shadow-amber-500/20 scale-[1.02] text-slate-900"
+                : "liquid-glass-card border-amber-500 shadow-[0_0_35px_rgba(245,158,11,0.32)] scale-[1.035] -translate-y-1 text-white"
+              : isLight
+                ? "bg-white border-slate-200 hover:bg-slate-50 hover:border-amber-500/60 hover:shadow-[0_10px_30px_rgba(245,158,11,0.12)] hover:scale-[1.03] hover:-translate-y-1 text-slate-800"
+                : "liquid-glass-card border-white/[0.06] hover:border-amber-500/70 hover:shadow-[0_0_35px_rgba(245,158,11,0.28)] hover:bg-amber-500/[0.02] hover:scale-[1.03] hover:-translate-y-1 text-white"
           }`}>
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-black text-amber-500">VIP</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 uppercase">20 USDT</span>
-              </div>
+            
+            {/* Inner Ambient Top Amber Glow */}
+            {!isLight && (
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-20 bg-gradient-to-b from-amber-500/10 to-transparent blur-xl pointer-events-none rounded-full transition-all duration-500 group-hover:from-amber-500/35 group-hover:scale-130" />
+            )}
+
+            {isLight && (
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.015] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[24px] pointer-events-none" />
+            )}
+
+            <div className="flex flex-col gap-5">
               <div>
-                <h3 className={`text-base font-black ${isLight ? "text-slate-900" : "text-slate-100"}`}>VIP Terminal</h3>
-                <p className={`text-[11px] leading-snug mt-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                  {t.planVipDesc}
+                <span className={`text-sm font-bold tracking-normal block ${isLight ? "text-amber-700" : "text-white"}`}>
+                  {lp.premium.name}
+                </span>
+                <p className={`text-[9px] mt-1 uppercase tracking-wider font-mono ${isLight ? "text-slate-500" : "text-amber-200"}`}>
+                  {lp.premium.billing}
                 </p>
               </div>
 
-              {/* Specifications lists for VIP */}
-              <div className="flex flex-col gap-2 font-mono text-xs pt-3 border-t border-white/[0.04]">
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsMaxCandles}</span>
-                  <span className={`font-black ${isLight ? "text-slate-855" : "text-slate-200"}`}>10000</span>
+              {/* Price section */}
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className={`text-4xl font-black tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
+                  $49
+                </span>
+                <span className={`text-xs font-medium ml-1 ${isLight ? "text-slate-500" : "text-[#8B949E]"}`}>
+                  / month
+                </span>
+              </div>
+
+              {/* Description phrase */}
+              <p className={`text-[11.5px] leading-relaxed min-h-[32px] ${isLight ? "text-slate-600" : "text-[#8B949E]"}`}>
+                {lp.premium.ideal}
+              </p>
+
+              {/* Elegant divider */}
+              <div className={`h-[1px] w-full my-1 ${isLight ? "bg-slate-200" : "bg-white/[0.06]"}`} />
+
+              {/* Features list */}
+              <ul className="flex flex-col gap-3 pt-1">
+                {lp.premium.features.map((feature, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-xs">
+                    <div className="w-4.5 h-4.5 rounded-full border border-[#2FD3B2]/30 bg-[#2FD3B2]/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check className="w-2.5 h-2.5 text-[#2FD3B2] stroke-[3]" />
+                    </div>
+                    <span className={`font-medium leading-normal ${isLight ? "text-slate-700" : "text-slate-300"}`}>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Specifications limits list (Возможности и ограничения) */}
+              <div className={`flex flex-col gap-2 font-mono text-[11px] pt-4 mt-2 border-t ${isLight ? "border-slate-200" : "border-white/[0.06]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCharts}</span>
+                  <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>2</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsCompression}</span>
-                  <span className={`font-black ${isLight ? "text-slate-855" : "text-slate-200"}`}>6</span>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsMaxCandles}</span>
+                  <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>{t.allHistory}</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsIndicators}</span>
-                  <span className={`font-black ${isLight ? "text-slate-855" : "text-slate-200"}`}>15</span>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCompression}</span>
+                  <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>10</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-white/[0.02]">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsCustomSettings}</span>
-                  <span className="font-black text-emerald-500">{t.yes}</span>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsIndicators}</span>
+                  <span className={`font-black uppercase ${isLight ? "text-slate-800" : "text-white"}`}>{t.unlimited}</span>
+                </div>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCustomSettings}</span>
+                  <span className="font-extrabold text-[#10B981]">{t.yes}</span>
+                </div>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsSaveDrawing}</span>
+                  <span className="font-extrabold text-[#10B981]">{t.yes}</span>
+                </div>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsTelegram}</span>
+                  <span className="font-extrabold text-[#10B981]">{t.yes}</span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-slate-400 text-[10px] font-bold uppercase">{t.propsTelegram}</span>
-                  <span className="font-black text-emerald-500">{t.yes}</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCustomCodeIndicators}</span>
+                  <span className="font-extrabold text-[#10B981]">{t.yes}</span>
                 </div>
               </div>
             </div>
-            
-            {/* ACTIVATE/UPGRADE VIP WITH PAYMENT REDIRECT SIMULATION */}
-            {tier === "VIP" ? (
-              <div className="w-full py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-widest text-center bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/25">
-                {t.currentPlan}
-              </div>
-            ) : (
-              <button
-                onClick={() => startPaymentCheckout("VIP")}
-                className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-[10.5px] font-black uppercase tracking-widest cursor-pointer transition active:scale-[0.98] shadow-md shadow-amber-500/35 text-center flex items-center justify-center gap-1.5"
-              >
-                <Coins className="w-3.5 h-3.5" />
-                <span>{t.activateBtn} VIP</span>
-              </button>
-            )}
+
+            {/* Premium Button */}
+            <div>
+              {tier === "VIP" ? (
+                <div className="w-full text-center py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                  {language === "RU" ? "Текущий тариф" : language === "KZ" ? "Белсенді тариф" : "Current Plan"}
+                </div>
+              ) : (
+                <button
+                  onClick={() => startPaymentCheckout("VIP")}
+                  className={`w-full text-center py-2.5 rounded-full text-xs font-bold uppercase tracking-wider cursor-pointer transition-all duration-200 active-scale-95 ${
+                    isLight 
+                      ? "bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20" 
+                      : "bg-amber-500 hover:bg-amber-600 text-slate-950 font-black shadow-md shadow-amber-500/20"
+                  }`}
+                >
+                  {language === "RU" ? "Подключить" : language === "KZ" ? "Қосу" : "Get Premium Now"}
+                </button>
+              )}
+            </div>
           </div>
 
         </div>
+
       </div>
 
       {/* ULTRA LUXURY INTERACTIVE BLOCKCHAIN PAYMENT DIALOG OVERLAY */}
@@ -1038,7 +1344,7 @@ export default function UserProfile({
                     <p className={`text-xs font-medium text-left leading-relaxed ${isLight ? "text-slate-655" : "text-slate-300"}`}>
                       {t.payText1
                         .replace("{plan}", activePaymentPlan === "VIP" ? "VIP" : "PRO")
-                        .replace("{amount}", activePaymentPlan === "VIP" ? "20" : "10")}
+                        .replace("{amount}", activePaymentPlan === "VIP" ? "49" : "19")}
                     </p>
 
                     {/* Deposit card block with Clipboard */}
@@ -1140,7 +1446,7 @@ export default function UserProfile({
                     <div className="space-y-1.5">
                       <h4 className="text-sm font-black font-sans">{t.payVerifying}</h4>
                       <p className="text-[10.5px] font-mono text-slate-405 animate-pulse">
-                        {t.payHashCheck.replace("{amount}", activePaymentPlan === "VIP" ? "20" : "10")}
+                        {t.payHashCheck.replace("{amount}", activePaymentPlan === "VIP" ? "49" : "19")}
                       </p>
                     </div>
 
