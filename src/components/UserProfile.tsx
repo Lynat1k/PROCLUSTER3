@@ -514,13 +514,27 @@ export default function UserProfile({
   return (
     <div className="w-full max-w-7xl mx-auto px-6 py-10 relative z-40 flex flex-col gap-8 select-text">
       
+      {/* Liquid Glass ambient background mesh for Light Theme */}
+      {isLight && (
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none rounded-[32px]">
+          {/* Coral/Rose glow at upper left */}
+          <div className="absolute top-[5%] left-[-15%] w-[550px] h-[550px] rounded-full bg-gradient-to-tr from-rose-200/40 via-pink-150/40 to-transparent blur-[120px]" />
+          {/* Indigo/Violet glow in center right */}
+          <div className="absolute top-[35%] right-[-15%] w-[600px] h-[600px] rounded-full bg-gradient-to-br from-indigo-150/45 via-purple-100/40 to-transparent blur-[130px]" />
+          {/* Soft turquoise/emerald glow behind plans */}
+          <div className="absolute bottom-[10%] left-[-5%] w-[700px] h-[700px] rounded-full bg-gradient-to-tr from-teal-150/40 via-emerald-100/35 to-transparent blur-[140px]" />
+          {/* Amber glow */}
+          <div className="absolute bottom-[5%] right-[-5%] w-[500px] h-[500px] rounded-full bg-gradient-to-bl from-amber-100/35 via-rose-150/30 to-transparent blur-[120px]" />
+        </div>
+      )}
+
       {/* Navigation Header bar with Back trigger */}
       <div className="flex items-center justify-between shrink-0">
         <button
           onClick={onClose}
           className={`group flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wide cursor-pointer transition border hover:scale-[1.02] active:scale-[0.98] ${
             isLight
-              ? "bg-white hover:bg-slate-50 border-slate-200 text-slate-800 shadow"
+              ? "bg-white/70 backdrop-blur-md hover:bg-white border-white/50 text-slate-800 shadow-[0_4px_15px_rgba(0,0,0,0.02)]"
               : "bg-slate-950/40 hover:bg-slate-900/50 border-white/5 text-slate-300"
           }`}
         >
@@ -543,8 +557,8 @@ export default function UserProfile({
       </div>
 
       {/* Hero Section */}
-      <div className={`shrink-0 py-8 sm:py-10 px-6 sm:px-8 rounded-[24px] relative overflow-hidden flex flex-col md:flex-row items-center gap-6 shadow-sm transition-all duration-300 ${
-        isLight ? "bg-white border border-slate-200/60" : "liquid-glass-card"
+      <div className={`shrink-0 py-8 sm:py-10 px-6 sm:px-8 rounded-[24px] relative overflow-hidden flex flex-col md:flex-row items-center gap-6 shadow-xl transition-all duration-300 ${
+        isLight ? "bg-white/75 backdrop-blur-xl border border-white/60 shadow-[0_15px_35px_rgba(31,38,135,0.02)]" : "liquid-glass-card"
       }`}>
         <div className={`absolute top-0 right-0 w-85 h-64 rounded-full blur-[80px] pointer-events-none ${
           tier === "VIP" ? "bg-amber-500/10" : tier === "Pro" ? "bg-blue-500/10" : "bg-slate-500/5"
@@ -618,7 +632,7 @@ export default function UserProfile({
         
         {/* Column 1 & 2: PERSONAL INFO FORM */}
         <div className={`lg:col-span-2 p-6 rounded-[28px] flex flex-col gap-5 transition-all duration-300 ${
-          isLight ? "bg-white border border-slate-200/60" : "liquid-glass-card"
+          isLight ? "bg-white/75 backdrop-blur-xl border border-white/60 shadow-[0_15px_35px_rgba(31,38,135,0.02)]" : "liquid-glass-card"
         }`}>
           <h2 className={`text-xs font-black uppercase tracking-wider flex items-center gap-2 ${
             isLight ? "text-slate-800" : "text-slate-200"
@@ -631,7 +645,7 @@ export default function UserProfile({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className={`text-[10px] font-mono font-black block mb-1 uppercase ${
-                  isLight ? "text-slate-700" : "text-slate-400"
+                  isLight ? "text-slate-600" : "text-slate-400"
                 }`}>{t.username}</label>
                 <input
                   type="text"
@@ -640,7 +654,7 @@ export default function UserProfile({
                   onChange={(e) => setNickname(e.target.value)}
                   className={`w-full rounded-xl px-4 py-2.5 text-xs font-black ${
                     isLight 
-                      ? "bg-slate-50 border border-slate-300 text-slate-900 focus:bg-white" 
+                      ? "bg-white/45 backdrop-blur-sm border border-white/60 text-slate-900 focus:bg-white/80 focus:border-emerald-400 focus:shadow-[0_0_15px_rgba(16,185,129,0.08)]" 
                       : "bg-slate-950/60 border border-white/10 text-slate-200 focus:border-emerald-500/50 focus:bg-slate-950"
                   }`}
                 />
@@ -648,7 +662,7 @@ export default function UserProfile({
 
               <div>
                 <label className={`text-[10px] font-mono font-black block mb-1 uppercase ${
-                  isLight ? "text-slate-700" : "text-slate-400"
+                  isLight ? "text-slate-600" : "text-slate-400"
                 }`}>{t.email}</label>
                 <input
                   type="email"
@@ -657,7 +671,7 @@ export default function UserProfile({
                   onChange={(e) => setEmail(e.target.value)}
                   className={`w-full rounded-xl px-4 py-2.5 text-xs font-black ${
                     isLight 
-                      ? "bg-slate-50 border border-slate-300 text-slate-900 focus:bg-white" 
+                      ? "bg-white/45 backdrop-blur-sm border border-white/60 text-slate-900 focus:bg-white/80 focus:border-emerald-400 focus:shadow-[0_0_15px_rgba(16,185,129,0.08)]" 
                       : "bg-slate-950/60 border border-white/10 text-slate-200 focus:border-emerald-500/50 focus:bg-slate-950"
                   }`}
                 />
@@ -665,7 +679,7 @@ export default function UserProfile({
 
               <div>
                 <label className={`text-[10px] font-mono font-black block mb-1 uppercase ${
-                  isLight ? "text-slate-700" : "text-slate-400"
+                  isLight ? "text-slate-600" : "text-slate-400"
                 }`}>{t.password}</label>
                 <input
                   type="password"
@@ -674,7 +688,7 @@ export default function UserProfile({
                   onChange={(e) => setPassword(e.target.value)}
                   className={`w-full rounded-xl px-4 py-2.5 text-xs font-black ${
                     isLight 
-                      ? "bg-slate-50 border border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500" 
+                      ? "bg-white/45 backdrop-blur-sm border border-white/60 text-slate-900 focus:bg-white/80 focus:border-emerald-400 focus:shadow-[0_0_15px_rgba(16,185,129,0.08)]" 
                       : "bg-slate-950/60 border border-white/10 text-slate-200 focus:border-emerald-500/50 focus:bg-slate-950"
                   }`}
                 />
@@ -683,7 +697,7 @@ export default function UserProfile({
 
             <div>
               <label className={`text-[10px] font-mono font-black block mb-1 uppercase ${
-                isLight ? "text-slate-700" : "text-slate-400"
+                isLight ? "text-slate-600" : "text-slate-400"
               }`}>{t.avatarSelect}</label>
               
               <div className="flex flex-wrap gap-2 mb-3">
@@ -702,7 +716,7 @@ export default function UserProfile({
                       className={`relative w-12 h-12 rounded-full cursor-pointer overflow-hidden border-2 transition-transform duration-200 hover:scale-110 active:scale-95 ${
                         isSelected 
                           ? "border-emerald-500 scale-105" 
-                          : isLight ? "border-slate-200" : "border-white/10"
+                          : isLight ? "border-white/90 shadow-sm" : "border-white/10"
                       }`}
                     >
                       <img src={preset.url} alt={displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -727,7 +741,7 @@ export default function UserProfile({
                   onChange={(e) => setCustomAvatarUrl(e.target.value)}
                   className={`w-full rounded-xl px-4 py-2.5 text-xs font-semibold ${
                     isLight 
-                      ? "bg-slate-50 border border-slate-300 text-slate-900 focus:bg-white" 
+                      ? "bg-white/45 backdrop-blur-sm border border-white/60 text-slate-900 focus:bg-white/80 focus:border-emerald-400 focus:shadow-[0_0_15px_rgba(16,185,129,0.08)]" 
                       : "bg-slate-950/60 border border-white/10 text-slate-200 focus:border-emerald-500/50 focus:bg-slate-950"
                   }`}
                 />
@@ -738,7 +752,7 @@ export default function UserProfile({
               type="submit"
               className={`mt-2 py-3 px-5 rounded-xl font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 cursor-pointer border transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99] ${
                 isLight 
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-md shadow-emerald-600/10" 
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-lg shadow-emerald-600/10" 
                   : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
               }`}
             >
@@ -750,7 +764,7 @@ export default function UserProfile({
 
         {/* Column 3: SUBSCRIPTION INFO & DATES CARD */}
         <div className={`p-6 rounded-[28px] flex flex-col justify-between gap-5 relative overflow-hidden transition-all duration-300 ${
-          isLight ? "bg-white border border-slate-200/60" : "liquid-glass-card"
+          isLight ? "bg-white/75 backdrop-blur-xl border border-white/60 shadow-[0_15px_35px_rgba(31,38,135,0.02)]" : "liquid-glass-card"
         }`}>
           <div className="flex flex-col gap-5">
             <h2 className={`text-xs font-black uppercase tracking-wider flex items-center gap-2 ${
@@ -764,7 +778,7 @@ export default function UserProfile({
               
               {/* Tariff Badge */}
               <div className={`p-3.5 rounded-2xl flex items-center justify-between border ${
-                isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                isLight ? "bg-white/45 border-white/50" : "bg-white/[0.02] border-white/5"
               }`}>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t.tierStatus}</span>
                 <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wide leading-none ${
@@ -779,7 +793,7 @@ export default function UserProfile({
               </div>
 
               {/* Payment Date */}
-              <div className="flex items-center justify-between py-2 border-b border-white/[0.04]">
+              <div className={`flex items-center justify-between py-2 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t.paymentDate}</span>
                 <span className={`text-[11px] font-bold ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                   {paymentDate}
@@ -787,7 +801,7 @@ export default function UserProfile({
               </div>
 
               {/* Expiry Date */}
-              <div className="flex items-center justify-between py-2 border-b border-white/[0.04]">
+              <div className={`flex items-center justify-between py-2 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t.expirationDate}</span>
                 <span className={`text-[11px] font-bold ${
                   tier === "Free" 
@@ -799,7 +813,7 @@ export default function UserProfile({
               </div>
 
               {/* Days left */}
-              <div className="flex items-center justify-between py-2 border-b border-white/[0.04]">
+              <div className={`flex items-center justify-between py-2 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t.subRemaining}</span>
                 <span className={`text-[11px] font-black ${
                   tier === "Free" ? "text-emerald-500" : "text-amber-500"
@@ -833,7 +847,7 @@ export default function UserProfile({
 
       {/* EXPANDED PLANS COMPARISON CARDS */}
       <div className={`p-8 sm:p-12 rounded-[32px] flex flex-col gap-10 shadow-2xl relative overflow-hidden transition-all duration-300 ${
-        isLight ? "bg-white border border-slate-200/60 text-slate-800" : "liquid-glass-card text-white"
+        isLight ? "bg-white/60 backdrop-blur-xl border border-white/50 text-slate-800 shadow-[0_25px_50px_rgba(0,0,0,0.02)]" : "liquid-glass-card text-white"
       }`}>
         
         {/* Glow backdrop effects for premium interactive layout */}
@@ -869,10 +883,10 @@ export default function UserProfile({
           <div className={`p-6 rounded-[24px] border flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
             tier === "Free"
               ? isLight
-                ? "bg-slate-100/90 border-slate-400 shadow-md text-slate-900"
+                ? "bg-white border-emerald-400/35 shadow-[0_15px_40px_rgba(16,185,129,0.06)] scale-[1.01] text-slate-900"
                 : "liquid-glass-card border-slate-500 shadow-[0_4px_30px_rgba(0,0,0,0.4)] scale-[1.01] text-white"
               : isLight
-                ? "bg-white border-slate-200 hover:bg-slate-50/80 hover:border-slate-300 hover:shadow-lg hover:scale-[1.015] text-slate-800"
+                ? "bg-white/45 border-white/50 hover:bg-white hover:border-white hover:shadow-[0_15px_35px_rgba(0,0,0,0.03)] hover:scale-[1.015] text-slate-800"
                 : "liquid-glass-card hover:border-white/20 hover:shadow-[0_4px_25px_rgba(0,0,0,0.4)] hover:scale-[1.015] text-white"
           }`}>
             <div className="flex flex-col gap-5">
@@ -900,48 +914,35 @@ export default function UserProfile({
                 {lp.free.ideal}
               </p>
 
-              {/* Elegant divider */}
-              <div className={`h-[1px] w-full my-1 ${isLight ? "bg-slate-200" : "bg-white/[0.06]"}`} />
 
-              {/* Features list */}
-              <ul className="flex flex-col gap-3 pt-1">
-                {lp.free.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-2.5 text-xs">
-                    <div className="w-4.5 h-4.5 rounded-full border border-[#2FD3B2]/30 bg-[#2FD3B2]/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Check className="w-2.5 h-2.5 text-[#2FD3B2] stroke-[3]" />
-                    </div>
-                    <span className={`font-medium leading-normal ${isLight ? "text-slate-700" : "text-slate-300"}`}>{feature}</span>
-                  </li>
-                ))}
-              </ul>
 
               {/* Specifications limits list (Возможности и ограничения) */}
-              <div className={`flex flex-col gap-2 font-mono text-[11px] pt-4 mt-2 border-t ${isLight ? "border-slate-200" : "border-white/[0.06]"}`}>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+              <div className={`flex flex-col gap-2 font-mono text-[11px] pt-4 mt-2 border-t ${isLight ? "border-slate-100/70" : "border-white/[0.06]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCharts}</span>
                   <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>1</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsMaxCandles}</span>
                   <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>700</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCompression}</span>
                   <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>1</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsIndicators}</span>
                   <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>1</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCustomSettings}</span>
                   <span className="font-extrabold text-[#EF4444]">{t.no}</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsSaveDrawing}</span>
                   <span className="font-extrabold text-[#EF4444]">{t.no}</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsTelegram}</span>
                   <span className="font-extrabold text-[#EF4444]">{t.no}</span>
                 </div>
@@ -977,10 +978,10 @@ export default function UserProfile({
           <div className={`p-6 rounded-[24px] border flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
             tier === "Pro"
               ? isLight
-                ? "bg-slate-50 border-[#2FD3B2] shadow-md shadow-[#2FD3B2]/20 scale-[1.02] text-slate-900"
+                ? "bg-white border-2 border-[#1CD5A6]/60 shadow-[0_20px_45px_rgba(28,213,166,0.14)] scale-[1.03] -translate-y-1 text-slate-900"
                 : "liquid-glass-card border-[#2FD3B2] shadow-[0_0_35px_rgba(45,212,178,0.32)] scale-[1.035] -translate-y-1 text-white"
               : isLight
-                ? "bg-white border-slate-200 hover:bg-slate-50 hover:border-[#2FD3B2]/60 hover:shadow-[0_10px_30px_rgba(45,212,178,0.12)] hover:scale-[1.03] hover:-translate-y-1 text-slate-800"
+                ? "bg-white/45 border-white/55 hover:bg-white/70 hover:border-[#1CD5A6]/45 hover:shadow-[0_20px_45px_rgba(28,213,166,0.08)] hover:scale-[1.03] hover:-translate-y-1.5 text-slate-800"
                 : "liquid-glass-card border-white/[0.06] hover:border-[#2FD3B2]/70 hover:shadow-[0_0_35px_rgba(45,212,178,0.28)] hover:bg-[#2FD3B2]/[0.02] hover:scale-[1.03] hover:-translate-y-1 text-white"
           }`}>
             
@@ -1023,48 +1024,35 @@ export default function UserProfile({
                 {lp.pro.ideal}
               </p>
 
-              {/* Elegant divider */}
-              <div className={`h-[1px] w-full my-1 ${isLight ? "bg-slate-200" : "bg-white/[0.06]"}`} />
 
-              {/* Features list */}
-              <ul className="flex flex-col gap-3 pt-1">
-                {lp.pro.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-2.5 text-xs">
-                    <div className="w-4.5 h-4.5 rounded-full border border-[#2FD3B2]/40 bg-[#2FD3B2]/25 flex items-center justify-center shrink-0 mt-0.5 animate-pulse">
-                      <Check className="w-2.5 h-2.5 text-[#2FD3B2] stroke-[3]" />
-                    </div>
-                    <span className={`font-medium leading-normal ${isLight ? "text-slate-700" : "text-slate-300"}`}>{feature}</span>
-                  </li>
-                ))}
-              </ul>
 
               {/* Specifications limits list (Возможности и ограничения) */}
-              <div className={`flex flex-col gap-2 font-mono text-[11px] pt-4 mt-2 border-t ${isLight ? "border-slate-200" : "border-white/[0.06]"}`}>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+              <div className={`flex flex-col gap-2 font-mono text-[11px] pt-4 mt-2 border-t ${isLight ? "border-slate-100/70" : "border-white/[0.06]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCharts}</span>
                   <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>2</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsMaxCandles}</span>
                   <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>1400</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCompression}</span>
                   <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>2</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsIndicators}</span>
                   <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>3</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCustomSettings}</span>
                   <span className="font-extrabold text-[#EF4444]">{t.no}</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsSaveDrawing}</span>
                   <span className="font-extrabold text-[#EF4444]">{t.no}</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsTelegram}</span>
                   <span className="font-extrabold text-[#EF4444]">{t.no}</span>
                 </div>
@@ -1096,10 +1084,10 @@ export default function UserProfile({
           <div className={`p-6 rounded-[24px] border flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
             tier === "VIP"
               ? isLight
-                ? "bg-slate-50 border-amber-500 shadow-md shadow-amber-500/20 scale-[1.02] text-slate-900"
+                ? "bg-white border-2 border-amber-500/60 shadow-[0_20px_45px_rgba(245,158,11,0.14)] scale-[1.03] -translate-y-1 text-slate-900"
                 : "liquid-glass-card border-amber-500 shadow-[0_0_35px_rgba(245,158,11,0.32)] scale-[1.035] -translate-y-1 text-white"
               : isLight
-                ? "bg-white border-slate-200 hover:bg-slate-50 hover:border-amber-500/60 hover:shadow-[0_10px_30px_rgba(245,158,11,0.12)] hover:scale-[1.03] hover:-translate-y-1 text-slate-800"
+                ? "bg-white/45 border-white/55 hover:bg-white/70 hover:border-amber-500/45 hover:shadow-[0_20px_45px_rgba(245,158,11,0.08)] hover:scale-[1.03] hover:-translate-y-1.5 text-slate-800"
                 : "liquid-glass-card border-white/[0.06] hover:border-amber-500/70 hover:shadow-[0_0_35px_rgba(245,158,11,0.28)] hover:bg-amber-500/[0.02] hover:scale-[1.03] hover:-translate-y-1 text-white"
           }`}>
             
@@ -1137,48 +1125,35 @@ export default function UserProfile({
                 {lp.premium.ideal}
               </p>
 
-              {/* Elegant divider */}
-              <div className={`h-[1px] w-full my-1 ${isLight ? "bg-slate-200" : "bg-white/[0.06]"}`} />
 
-              {/* Features list */}
-              <ul className="flex flex-col gap-3 pt-1">
-                {lp.premium.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-2.5 text-xs">
-                    <div className="w-4.5 h-4.5 rounded-full border border-[#2FD3B2]/30 bg-[#2FD3B2]/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Check className="w-2.5 h-2.5 text-[#2FD3B2] stroke-[3]" />
-                    </div>
-                    <span className={`font-medium leading-normal ${isLight ? "text-slate-700" : "text-slate-300"}`}>{feature}</span>
-                  </li>
-                ))}
-              </ul>
 
               {/* Specifications limits list (Возможности и ограничения) */}
-              <div className={`flex flex-col gap-2 font-mono text-[11px] pt-4 mt-2 border-t ${isLight ? "border-slate-200" : "border-white/[0.06]"}`}>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+              <div className={`flex flex-col gap-2 font-mono text-[11px] pt-4 mt-2 border-t ${isLight ? "border-slate-100/70" : "border-white/[0.06]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCharts}</span>
                   <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>2</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsMaxCandles}</span>
                   <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>{t.allHistory}</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCompression}</span>
                   <span className={`font-black ${isLight ? "text-slate-800" : "text-white"}`}>10</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsIndicators}</span>
                   <span className={`font-black uppercase ${isLight ? "text-slate-800" : "text-white"}`}>{t.unlimited}</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsCustomSettings}</span>
                   <span className="font-extrabold text-[#10B981]">{t.yes}</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsSaveDrawing}</span>
                   <span className="font-extrabold text-[#10B981]">{t.yes}</span>
                 </div>
-                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-200" : "border-white/[0.04]"}`}>
+                <div className={`flex justify-between py-1 border-b ${isLight ? "border-slate-100/70" : "border-white/[0.04]"}`}>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t.propsTelegram}</span>
                   <span className="font-extrabold text-[#10B981]">{t.yes}</span>
                 </div>
