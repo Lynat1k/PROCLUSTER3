@@ -1666,13 +1666,25 @@ export default function ClusterChart({
 
       // Determine colors based on palette
       const useAltPalette = candlePalette === "alternative";
-      const bullFill = useAltPalette ? "#E3E3E3" : "#10b981";
-      const bullBorder = useAltPalette ? "#BCBCBC" : "#10b981";
-      const bullWick = useAltPalette ? "#BCBCBC" : "#10b981";
+      const bullFill = useAltPalette 
+        ? (isLight ? "#E3E3E3" : "#B6B2B2") 
+        : "#10b981";
+      const bullBorder = useAltPalette 
+        ? (isLight ? "#2F2F2F" : "#D5D5D5") 
+        : "#10b981";
+      const bullWick = useAltPalette 
+        ? (isLight ? "#2F2F2F" : "#9D9D9D") 
+        : "#10b981";
 
-      const bearFill = useAltPalette ? "#777777" : "#f43f5e";
-      const bearBorder = useAltPalette ? "#A3A3A3" : "#f43f5e";
-      const bearWick = useAltPalette ? "#A3A3A3" : "#f43f5e";
+      const bearFill = useAltPalette 
+        ? (isLight ? "#292929" : "#5E5E5E") 
+        : "#f43f5e";
+      const bearBorder = useAltPalette 
+        ? (isLight ? "#3A3A3A" : "#AEA7A7") 
+        : "#f43f5e";
+      const bearWick = useAltPalette 
+        ? (isLight ? "#3C3C3C" : "#7F7F7F") 
+        : "#f43f5e";
 
       const candleFillColor = isGreen ? bullFill : bearFill;
       const candleBorderColor = isGreen ? bullBorder : bearBorder;
@@ -1730,10 +1742,10 @@ export default function ClusterChart({
         
         ctx.strokeStyle = isGreen 
           ? (useAltPalette
-              ? (isLight ? "rgba(188, 188, 188, 0.45)" : "rgba(188, 188, 188, 0.55)")
+              ? (isLight ? "rgba(47, 47, 47, 0.45)" : "rgba(213, 213, 213, 0.55)")
               : (isLight ? "rgba(16, 185, 129, 0.45)" : "rgba(16, 185, 129, 0.55)"))
           : (useAltPalette
-              ? (isLight ? "rgba(163, 163, 163, 0.45)" : "rgba(163, 163, 163, 0.55)")
+              ? (isLight ? "rgba(58, 58, 58, 0.45)" : "rgba(174, 167, 167, 0.55)")
               : (isLight ? "rgba(239, 68, 68, 0.45)" : "rgba(239, 68, 68, 0.55)"));
         ctx.lineWidth = 1.0;
         ctx.strokeRect(x + 0.5, bodyTopY + 0.5, candleWidth - 1, bodyH - 1);

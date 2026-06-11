@@ -52,12 +52,21 @@ const ClustersIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const CandlePreviewIcon = ({ palette }: { palette: "default" | "alternative" }) => {
+const CandlePreviewIcon = ({ palette, theme }: { palette: "default" | "alternative"; theme?: string }) => {
   const isDefault = palette === "default";
-  const bullColor = isDefault ? "#10b981" : "#E3E3E3";
-  const bearColor = isDefault ? "#f43f5e" : "#777777";
-  const bullBorder = isDefault ? "#10b981" : "#BCBCBC";
-  const bearBorder = isDefault ? "#f43f5e" : "#A3A3A3";
+  const isLight = theme === "light";
+  const bullColor = isDefault 
+    ? "#10b981" 
+    : (isLight ? "#E3E3E3" : "#B6B2B2");
+  const bearColor = isDefault 
+    ? "#f43f5e" 
+    : (isLight ? "#292929" : "#5E5E5E");
+  const bullBorder = isDefault 
+    ? "#10b981" 
+    : (isLight ? "#2F2F2F" : "#D5D5D5");
+  const bearBorder = isDefault 
+    ? "#f43f5e" 
+    : (isLight ? "#3A3A3A" : "#AEA7A7");
 
   return (
     <svg width="22" height="18" viewBox="0 0 22 18" className="inline-block shrink-0 select-none">
@@ -2520,7 +2529,7 @@ export default function App() {
                 }`}
               >
                 <div className="flex items-center gap-1.5 leading-none">
-                  <CandlePreviewIcon palette={candlePalette} />
+                  <CandlePreviewIcon palette={candlePalette} theme={theme} />
                   <span className={`font-mono text-[10px] whitespace-nowrap ${theme === "light" ? "text-slate-700 font-black" : "text-white font-extrabold"}`}>
                     {candlePalette === "default" 
                       ? (language === "EN" ? "Default" : language === "KZ" ? "Әдепкі" : "Стандарт")
@@ -2569,7 +2578,7 @@ export default function App() {
                             }`}
                           >
                             <div className="flex items-center gap-1.5 select-none">
-                              <CandlePreviewIcon palette={item.id as any} />
+                              <CandlePreviewIcon palette={item.id as any} theme={theme} />
                               <span className="font-mono text-[10px] font-bold">{item.label}</span>
                             </div>
                             {isSelected && (
