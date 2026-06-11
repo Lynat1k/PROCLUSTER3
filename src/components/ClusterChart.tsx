@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator } from "../types";
-import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight } from "lucide-react";
 
 interface ClusterChartProps {
   candles: ClusterCandle[];
@@ -58,6 +58,8 @@ export default function ClusterChart({
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
   const [drawings, setDrawings] = useState<any[]>([]);
   const [drawingInProgress, setDrawingInProgress] = useState<any | null>(null);
+  const [selectedDrawingId, setSelectedDrawingId] = useState<number | null>(null);
+  const [drawingDragState, setDrawingDragState] = useState<any | null>(null);
 
   const [selectedTimezone, setSelectedTimezone] = useState<string>(() => {
     return localStorage.getItem("procluster_chart_timezone") || "local";
@@ -81,6 +83,30 @@ export default function ClusterChart({
   useEffect(() => {
     localStorage.setItem("procluster_chart_timezone", selectedTimezone);
   }, [selectedTimezone]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (activeEl && (
+        activeEl.tagName === "INPUT" || 
+        activeEl.tagName === "TEXTAREA" || 
+        activeEl.contentEditable === "true"
+      )) {
+        return;
+      }
+
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedDrawingId !== null) {
+        e.preventDefault();
+        setDrawings(prev => prev.filter(d => d.id !== selectedDrawingId));
+        setSelectedDrawingId(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedDrawingId]);
 
   const formatTimezoneString = (timestamp: number, isHovered: boolean) => {
     const date = new Date(timestamp);
@@ -597,6 +623,130 @@ export default function ClusterChart({
       }
     }
 
+    // If not drawing, check if click hit a drawing or handle to drag/select it
+    if (!activeDrawingTool && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      if (clickY >= margin.top && clickY <= totalSvgHeight - margin.bottom && clickX >= margin.left) {
+        let foundDrawingId: number | null = null;
+        let foundHandleIdx: number | null = null;
+
+        // 1. Check selected drawing handles first
+        if (selectedDrawingId !== null) {
+          const d = drawings.find(item => item.id === selectedDrawingId);
+          if (d) {
+            const y1 = priceToY(d.startPrice);
+            const y2 = priceToY(d.endPrice);
+            const x1 = d.startX - visibleScrollLeft;
+            const x2 = d.endX - visibleScrollLeft;
+            
+            const handles = [
+              { x: x1, y: y1, idx: 1 },
+              { x: x2, y: y2, idx: 2 },
+              { x: x2, y: y1, idx: 3 },
+              { x: x1, y: y2, idx: 4 }
+            ];
+            
+            const clickedHandle = handles.find(h => {
+              const dx = clickX - h.x;
+              const dy = clickY - h.y;
+              return Math.sqrt(dx * dx + dy * dy) <= 10;
+            });
+            
+            if (clickedHandle) {
+              foundDrawingId = d.id;
+              foundHandleIdx = clickedHandle.idx;
+            }
+          }
+        }
+
+        // 2. If no handle, check if we clicked inside any drawing
+        if (foundDrawingId === null) {
+          for (let i = drawings.length - 1; i >= 0; i--) {
+            const d = drawings[i];
+            const y1 = priceToY(d.startPrice);
+            const y2 = priceToY(d.endPrice);
+            const x1 = d.startX - visibleScrollLeft;
+            const x2 = d.endX - visibleScrollLeft;
+            
+            if (d.type === "volume" || d.type === "rect" || d.type === "ruler") {
+              const minX = Math.min(x1, x2);
+              const maxX = Math.max(x1, x2);
+              const minY = Math.min(y1, y2);
+              const maxY = Math.max(y1, y2);
+              if (clickX >= minX && clickX <= maxX && clickY >= minY && clickY <= maxY) {
+                foundDrawingId = d.id;
+                break;
+              }
+            } else if (d.type === "trend" || d.type === "arrow") {
+              const dx1 = clickX - x1;
+              const dy1 = clickY - y1;
+              const dStart = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+              
+              const dx2 = clickX - x2;
+              const dy2 = clickY - y2;
+              const dEnd = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+              
+              if (dStart <= 10 || dEnd <= 10) {
+                foundDrawingId = d.id;
+                break;
+              }
+              const lineLen = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+              if (lineLen > 0) {
+                const u = ((clickX - x1) * (x2 - x1) + (clickY - y1) * (y2 - y1)) / (lineLen * lineLen);
+                if (u >= 0 && u <= 1) {
+                  const projX = x1 + u * (x2 - x1);
+                  const projY = y1 + u * (y2 - y1);
+                  const realDist = Math.sqrt((clickX - projX) * (clickX - projX) + (clickY - projY) * (clickY - projY));
+                  if (realDist <= 8) {
+                    foundDrawingId = d.id;
+                    break;
+                  }
+                }
+              }
+            } else if (d.type === "horizontal") {
+              if (Math.abs(clickY - y1) <= 8) {
+                foundDrawingId = d.id;
+                break;
+              }
+            } else if (d.type === "text" || d.type === "fibonacci") {
+              const minX = Math.min(x1, x2) - 10;
+              const maxX = Math.max(x1, x2) + 10;
+              const minY = Math.min(y1, y2) - 10;
+              const maxY = Math.max(y1, y2) + 10;
+              if (clickX >= minX && clickX <= maxX && clickY >= minY && clickY <= maxY) {
+                foundDrawingId = d.id;
+                break;
+              }
+            }
+          }
+        }
+
+        if (foundDrawingId !== null) {
+          setSelectedDrawingId(foundDrawingId);
+          const d = drawings.find(item => item.id === foundDrawingId);
+          if (d) {
+            setDrawingDragState({
+              id: foundDrawingId,
+              type: foundHandleIdx !== null ? "handle" : "move",
+              handleIndex: foundHandleIdx || undefined,
+              initialX: clickX,
+              initialY: clickY,
+              initialStartX: d.startX,
+              initialStartPrice: d.startPrice,
+              initialEndX: d.endX,
+              initialEndPrice: d.endPrice,
+            });
+            return; // Skip normal panning
+          }
+        } else {
+          setSelectedDrawingId(null);
+        }
+      }
+    }
+
     // Check if the click is in the timeline zone (at the bottom margin area of the canvas/container)
     const rect = containerRef.current?.getBoundingClientRect();
     if (rect) {
@@ -645,6 +795,63 @@ export default function ClusterChart({
       return; // Skip panning
     }
 
+    // If dragging an existing drawing or handle
+    if (drawingDragState && canvasRef.current) {
+      e.preventDefault();
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      setDrawings(prev => prev.map(d => {
+        if (d.id === drawingDragState.id) {
+          if (drawingDragState.type === "move") {
+            const deltaX = mouseX - drawingDragState.initialX;
+            const initialPrice = yToPrice(drawingDragState.initialY);
+            const currentPrice = yToPrice(mouseY);
+            const deltaPrice = currentPrice - initialPrice;
+            return {
+              ...d,
+              startX: drawingDragState.initialStartX + deltaX,
+              endX: drawingDragState.initialEndX + deltaX,
+              startPrice: drawingDragState.initialStartPrice + deltaPrice,
+              endPrice: drawingDragState.initialEndPrice + deltaPrice,
+            };
+          } else {
+            const deltaX = mouseX - drawingDragState.initialX;
+            const currentPrice = yToPrice(mouseY);
+            let nextStartX = d.startX;
+            let nextStartPrice = d.startPrice;
+            let nextEndX = d.endX;
+            let nextEndPrice = d.endPrice;
+            
+            if (drawingDragState.handleIndex === 1) {
+              nextStartX = drawingDragState.initialStartX + deltaX;
+              nextStartPrice = currentPrice;
+            } else if (drawingDragState.handleIndex === 2) {
+              nextEndX = drawingDragState.initialEndX + deltaX;
+              nextEndPrice = currentPrice;
+            } else if (drawingDragState.handleIndex === 3) {
+              nextEndX = drawingDragState.initialEndX + deltaX;
+              nextStartPrice = currentPrice;
+            } else if (drawingDragState.handleIndex === 4) {
+              nextStartX = drawingDragState.initialStartX + deltaX;
+              nextEndPrice = currentPrice;
+            }
+            
+            return {
+              ...d,
+              startX: nextStartX,
+              startPrice: nextStartPrice,
+              endX: nextEndX,
+              endPrice: nextEndPrice
+            };
+          }
+        }
+        return d;
+      }));
+      return; // Skip panning
+    }
+
     if (!isDragging || !containerRef.current) return;
     e.preventDefault();
     
@@ -677,6 +884,11 @@ export default function ClusterChart({
       }
       setDrawingInProgress(null);
       setActiveDrawingTool(null); // Reset tool after drawing
+      return;
+    }
+
+    if (drawingDragState) {
+      setDrawingDragState(null);
       return;
     }
 
@@ -2262,6 +2474,27 @@ export default function ClusterChart({
         ctx.arc(x1, y1, 4.5, 0, Math.PI * 2);
         ctx.fill();
       }
+      else if (d.type === "arrow") {
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = isLight ? "#dc2626" : "#ef4444";
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const headLength = 12;
+        ctx.fillStyle = isLight ? "#dc2626" : "#ef4444";
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - headLength * Math.cos(angle - Math.PI / 6), y2 - headLength * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(x2 - headLength * Math.cos(angle + Math.PI / 6), y2 - headLength * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
       else if (d.type === "volume") {
         ctx.beginPath();
         ctx.strokeStyle = "rgba(168, 85, 247, 0.8)";
@@ -2280,7 +2513,12 @@ export default function ClusterChart({
         const endIndex = Math.min(candles.length - 1, Math.floor((maxX - margin.left) / candleWidthSpacing));
 
         if (startIndex <= endIndex) {
-          const bucketCount = 10;
+          const minPrice = Math.min(d.startPrice, d.endPrice);
+          const maxPrice = Math.max(d.startPrice, d.endPrice);
+          const priceDiff = maxPrice - minPrice;
+          const priceStep = activePair.priceStep || 1;
+          const bucketCount = Math.max(1, Math.round(priceDiff / priceStep));
+
           const bMinY = Math.min(y1, y2);
           const bMaxY = Math.max(y1, y2);
           const bHeight = bMaxY - bMinY;
@@ -2294,7 +2532,7 @@ export default function ClusterChart({
               c.cells.forEach((cell) => {
                 const cellY = priceToY(cell.price);
                 if (cellY >= bMinY && cellY <= bMaxY) {
-                  const binIdx = Math.min(bucketCount - 1, Math.floor((cellY - bMinY) / bHeightStep));
+                  const binIdx = Math.min(bucketCount - 1, Math.max(0, Math.floor((maxPrice - cell.price) / priceStep)));
                   if (binIdx >= 0) {
                     profileBins[binIdx] += cell.volume;
                   }
@@ -2303,7 +2541,8 @@ export default function ClusterChart({
             } else {
               const avgY = priceToY((c.open + c.close + c.high + c.low) / 4);
               if (avgY >= bMinY && avgY <= bMaxY) {
-                const binIdx = Math.min(bucketCount - 1, Math.floor((avgY - bMinY) / bHeightStep));
+                const avgPrice = (c.open + c.close + c.high + c.low) / 4;
+                const binIdx = Math.min(bucketCount - 1, Math.max(0, Math.floor((maxPrice - avgPrice) / priceStep)));
                 if (binIdx >= 0) {
                   profileBins[binIdx] += c.volume;
                 }
@@ -2311,24 +2550,172 @@ export default function ClusterChart({
             }
           }
 
-          const maxBinVal = Math.max(1, ...profileBins);
-          const maxDrawWidth = Math.abs(x2 - x1) * 0.75;
+          // Compute total volume & identify POC (Point of Control)
+          let totalVolume = 0;
+          let maxBinVal = 0;
+          let pocIdx = 0;
+          for (let b = 0; b < bucketCount; b++) {
+            const binVol = profileBins[b];
+            totalVolume += binVol;
+            if (binVol > maxBinVal) {
+              maxBinVal = binVol;
+              pocIdx = b;
+            }
+          }
+
+          // Calculate 70% Value Area (VA) around POC
+          let lowIdx = pocIdx;
+          let highIdx = pocIdx;
+          let vaVolume = profileBins[pocIdx];
+          const targetVolume = totalVolume * 0.70;
+
+          if (totalVolume > 0 && maxBinVal > 0) {
+            while (vaVolume < targetVolume && (lowIdx > 0 || highIdx < bucketCount - 1)) {
+              let addLowVol = 0;
+              let addHighVol = 0;
+              if (lowIdx > 0) addLowVol = profileBins[lowIdx - 1];
+              if (highIdx < bucketCount - 1) addHighVol = profileBins[highIdx + 1];
+
+              if (addLowVol >= addHighVol && lowIdx > 0) {
+                vaVolume += addLowVol;
+                lowIdx--;
+              } else if (highIdx < bucketCount - 1) {
+                vaVolume += addHighVol;
+                highIdx++;
+              } else if (lowIdx > 0) {
+                vaVolume += addLowVol;
+                lowIdx--;
+              } else {
+                break;
+              }
+            }
+          }
+
+          const maxDrawWidth = Math.abs(x2 - x1) * 0.82;
 
           ctx.save();
+
+          // 1. Draw a clear, styled background for the 70% Value Area Zone (Зона баланса 70%)
+          const vaY1 = bMinY + lowIdx * bHeightStep;
+          const vaY2 = bMinY + (highIdx + 1) * bHeightStep;
+          ctx.fillStyle = isLight 
+            ? "rgba(59, 130, 246, 0.02)" 
+            : "rgba(59, 130, 246, 0.03)";
+          ctx.fillRect(minX, vaY1, Math.abs(x2 - x1), vaY2 - vaY1);
+
+          // 2. Draw volume profile bars (Value Area vs Out-of-Value-Area)
           for (let b = 0; b < bucketCount; b++) {
             const binVol = profileBins[b];
             if (binVol === 0) continue;
 
-            const drawW = (binVol / maxBinVal) * maxDrawWidth;
+            const drawW = (binVol / Math.max(1, maxBinVal)) * maxDrawWidth;
             const binY = bMinY + b * bHeightStep;
+            const isInValueArea = (b >= lowIdx && b <= highIdx);
 
-            ctx.fillStyle = isLight ? "rgba(168, 85, 247, 0.28)" : "rgba(168, 85, 247, 0.45)";
-            ctx.fillRect(minX, binY + 1, drawW, bHeightStep - 2);
+            if (isInValueArea) {
+              // High contrast, clearly expressed active zone - made paler and elegant as requested
+              ctx.fillStyle = isLight 
+                ? "rgba(59, 130, 246, 0.18)" 
+                : "rgba(59, 130, 246, 0.28)";
+            } else {
+              // Less noticeable, faded out-of-value-area zones
+              ctx.fillStyle = isLight 
+                ? "rgba(148, 163, 184, 0.06)" 
+                : "rgba(148, 163, 184, 0.09)";
+            }
+            
+            ctx.fillRect(minX, binY + 0.5, drawW, bHeightStep - 1);
           }
+
+          // 3. Draw VAL and VAH dashed boundaries (subtle, less visible)
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 4]);
+          ctx.strokeStyle = isLight 
+            ? "rgba(100, 116, 139, 0.20)" 
+            : "rgba(148, 163, 184, 0.20)";
+
+          // VAH (Value Area High) line
+          ctx.beginPath();
+          ctx.moveTo(minX, vaY1);
+          ctx.lineTo(maxX, vaY1);
+          ctx.stroke();
+
+          // VAL (Value Area Low) line
+          ctx.beginPath();
+          ctx.moveTo(minX, vaY2);
+          ctx.lineTo(maxX, vaY2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // VAL/VAH Labels
+          ctx.fillStyle = isLight 
+            ? "rgba(100, 116, 139, 0.45)" 
+            : "rgba(148, 163, 184, 0.45)";
+          ctx.font = "8px 'JetBrains Mono', monospace";
+          ctx.fillText("VAH (70%)", maxX - 65, vaY1 - 3);
+          ctx.fillText("VAL (70%)", maxX - 65, vaY2 + 9);
+
+          // 4. Draw POC (Point of Control) - Brilliantly expressed bold line
+          const pocY = bMinY + (pocIdx + 0.5) * bHeightStep;
+          ctx.strokeStyle = isLight ? "#2563eb" : "#3b82f6";
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.moveTo(minX, pocY);
+          ctx.lineTo(maxX, pocY);
+          ctx.stroke();
+
+          // POC Label
+          ctx.fillStyle = isLight ? "#1d4ed8" : "#60a5fa";
+          ctx.font = "bold 9px 'JetBrains Mono', monospace";
+          ctx.fillText("POC", minX + 5, pocY - 4);
+
           ctx.restore();
         }
       }
     });
+
+    // Render Selection Highlighting & Resize Handles for the selected drawing (while still inside translated context)
+    if (selectedDrawingId !== null) {
+      const d = drawings.find(item => item.id === selectedDrawingId);
+      if (d) {
+        const y1 = priceToY(d.startPrice);
+        const y2 = priceToY(d.endPrice);
+        const x1 = d.startX;
+        const x2 = d.endX;
+
+        // Bounding dash box
+        if (d.type !== "horizontal") {
+          ctx.save();
+          ctx.strokeStyle = isLight ? "#2563eb" : "#3b82f6";
+          ctx.lineWidth = 1.2;
+          ctx.setLineDash([3, 3]);
+          ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+          ctx.restore();
+        }
+
+        // Draw 4 handles (TL, TR, BL, BR)
+        const handles = [
+          { x: x1, y: y1 },
+          { x: x2, y: y2 },
+          { x: x2, y: y1 },
+          { x: x1, y: y2 }
+        ];
+
+        handles.forEach((h) => {
+          ctx.save();
+          ctx.fillStyle = isLight ? "#2563eb" : "#60a5fa"; // high contrast theme-aware color
+          ctx.strokeStyle = "#ffffff"; // always white border for maximum contrast
+          ctx.lineWidth = 1.8;
+          ctx.shadowBlur = 5;
+          ctx.shadowColor = "rgba(37, 99, 235, 0.4)";
+          ctx.beginPath();
+          ctx.arc(h.x, h.y, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        });
+      }
+    }
 
     ctx.restore(); // Undoes translation of -visibleScrollLeft for viewport-wide elements
 
@@ -2455,7 +2842,8 @@ export default function ClusterChart({
     visibleClientWidth,
     selectedTimezone,
     drawings,
-    drawingInProgress
+    drawingInProgress,
+    selectedDrawingId
   ]);
 
   const formatCoinsVolume = (valInCoins: number, symbol: string) => {
@@ -2726,6 +3114,7 @@ export default function ClusterChart({
           <div className="flex flex-col gap-1.5 items-center w-full grow">
             {[
               { id: "trend", icon: Slash, titleRU: "Трендовая линия", titleEN: "Trend Line" },
+              { id: "arrow", icon: ArrowUpRight, titleRU: "Стрелка направления", titleEN: "Direction Arrow" },
               { id: "horizontal", icon: Minus, titleRU: "Горизонтальный уровень", titleEN: "Horizontal Level" },
               { id: "rect", icon: Square, titleRU: "Прямоугольник", titleEN: "Rectangle" },
               { id: "fibonacci", icon: Grid3X3, titleRU: "Уровни Фибоначчи", titleEN: "Fibonacci Retracement" },
@@ -2764,9 +3153,8 @@ export default function ClusterChart({
           {drawings.length > 0 && (
             <button
               onClick={() => {
-                if (confirm(language === "RU" ? "Удалить все рисунки?" : "Delete all drawings?")) {
-                  setDrawings([]);
-                }
+                setDrawings([]);
+                setSelectedDrawingId(null);
               }}
               className={`p-2 rounded-lg transition-all duration-150 relative group cursor-pointer ${
                 isLight

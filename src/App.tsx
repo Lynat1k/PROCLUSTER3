@@ -2300,7 +2300,7 @@ export default function App() {
           onAddPair={handleAddPair}
         />
       ) : currentView === "profile" ? (
-        <div className={`flex-1 overflow-y-auto w-full relative z-40 flex flex-col ${theme === 'light' ? 'scrollbar-thin-light bg-slate-50' : 'scrollbar-thin-dark bg-[#060813]'}`}>
+        <div className={`flex-1 overflow-y-auto w-full relative z-40 flex flex-col ${theme === 'light' ? 'scrollbar-thin-light bg-slate-100' : 'scrollbar-thin-dark bg-[#060813]'}`}>
           <UserProfile
             user={profileUser}
             onUpdateUser={setProfileUser}
@@ -2715,7 +2715,7 @@ export default function App() {
         };
 
         return (
-          <main className="flex-1 flex flex-col min-h-0 bg-transparent select-none relative z-10 p-3 sm:p-5 gap-3 sm:gap-5">
+          <main className="flex-1 flex flex-col min-h-0 bg-transparent select-none relative z-10 p-1 sm:p-2 gap-1 sm:gap-1.5">
             {/* Mobile/Tablet Adaptive View Switcher */}
             <div className={`flex lg:hidden justify-center items-center p-1 rounded-xl w-full max-w-sm mx-auto border transition-all duration-300 shadow-sm shrink-0 select-none ${
               theme === "light"

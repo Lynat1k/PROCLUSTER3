@@ -880,13 +880,13 @@ export default function UserProfile({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl mx-auto z-10">
           
           {/* Card 1: Free */}
-          <div className={`p-6 rounded-[24px] border flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
+          <div className={`p-6 rounded-[24px] flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
             tier === "Free"
               ? isLight
-                ? "bg-white border-emerald-400/35 shadow-[0_15px_40px_rgba(16,185,129,0.06)] scale-[1.01] text-slate-900"
-                : "liquid-glass-card border-slate-500 shadow-[0_4px_30px_rgba(0,0,0,0.4)] scale-[1.01] text-white"
+                ? "bg-white border border-emerald-400/35 shadow-[0_15px_40px_rgba(16,185,129,0.06)] scale-[1.01] text-slate-900"
+                : "liquid-glass-card border border-emerald-500/20 shadow-[0_4px_30px_rgba(0,0,0,0.4)] scale-[1.01] text-white"
               : isLight
-                ? "bg-white/45 border-white/50 hover:bg-white hover:border-white hover:shadow-[0_15px_35px_rgba(0,0,0,0.03)] hover:scale-[1.015] text-slate-800"
+                ? "bg-white/45 border border-white/50 hover:bg-white hover:border-white hover:shadow-[0_15px_35px_rgba(0,0,0,0.03)] hover:scale-[1.015] text-slate-800"
                 : "liquid-glass-card hover:border-white/20 hover:shadow-[0_4px_25px_rgba(0,0,0,0.4)] hover:scale-[1.015] text-white"
           }`}>
             <div className="flex flex-col gap-5">
@@ -975,14 +975,14 @@ export default function UserProfile({
           </div>
 
           {/* Card 2: Pro */}
-          <div className={`p-6 rounded-[24px] border flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
+          <div className={`p-6 rounded-[24px] flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
             tier === "Pro"
               ? isLight
                 ? "bg-white border-2 border-[#1CD5A6]/60 shadow-[0_20px_45px_rgba(28,213,166,0.14)] scale-[1.03] -translate-y-1 text-slate-900"
-                : "liquid-glass-card border-[#2FD3B2] shadow-[0_0_35px_rgba(45,212,178,0.32)] scale-[1.035] -translate-y-1 text-white"
+                : "liquid-glass-card border border-[#2FD3B2]/30 shadow-[0_0_35px_rgba(45,212,178,0.32)] scale-[1.035] -translate-y-1 text-white"
               : isLight
-                ? "bg-white/45 border-white/55 hover:bg-white/70 hover:border-[#1CD5A6]/45 hover:shadow-[0_20px_45px_rgba(28,213,166,0.08)] hover:scale-[1.03] hover:-translate-y-1.5 text-slate-800"
-                : "liquid-glass-card border-white/[0.06] hover:border-[#2FD3B2]/70 hover:shadow-[0_0_35px_rgba(45,212,178,0.28)] hover:bg-[#2FD3B2]/[0.02] hover:scale-[1.03] hover:-translate-y-1 text-white"
+                ? "bg-white/45 border border-white/55 hover:bg-white/70 hover:border-[#1CD5A6]/45 hover:shadow-[0_20px_45px_rgba(28,213,166,0.08)] hover:scale-[1.03] hover:-translate-y-1.5 text-slate-800"
+                : "liquid-glass-card border border-white/[0.06] hover:border-[#2FD3B2]/40 hover:shadow-[0_0_35px_rgba(45,212,178,0.28)] hover:bg-[#2FD3B2]/[0.02] hover:scale-[1.03] hover:-translate-y-1 text-white"
           }`}>
             
             {/* Inner Ambient Top Cyan Glow */}
@@ -1081,14 +1081,14 @@ export default function UserProfile({
           </div>
 
           {/* Card 3: Premium */}
-          <div className={`p-6 rounded-[24px] border flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
+          <div className={`p-6 rounded-[24px] flex flex-col justify-between gap-6 transition-all duration-300 group relative ${
             tier === "VIP"
               ? isLight
                 ? "bg-white border-2 border-amber-500/60 shadow-[0_20px_45px_rgba(245,158,11,0.14)] scale-[1.03] -translate-y-1 text-slate-900"
-                : "liquid-glass-card border-amber-500 shadow-[0_0_35px_rgba(245,158,11,0.32)] scale-[1.035] -translate-y-1 text-white"
+                : "liquid-glass-card border border-amber-500/35 shadow-[0_0_35px_rgba(245,158,11,0.32)] scale-[1.035] -translate-y-1 text-white"
               : isLight
-                ? "bg-white/45 border-white/55 hover:bg-white/70 hover:border-amber-500/45 hover:shadow-[0_20px_45px_rgba(245,158,11,0.08)] hover:scale-[1.03] hover:-translate-y-1.5 text-slate-800"
-                : "liquid-glass-card border-white/[0.06] hover:border-amber-500/70 hover:shadow-[0_0_35px_rgba(245,158,11,0.28)] hover:bg-amber-500/[0.02] hover:scale-[1.03] hover:-translate-y-1 text-white"
+                ? "bg-white/45 border border-white/55 hover:bg-white/70 hover:border-amber-500/45 hover:shadow-[0_20px_45px_rgba(245,158,11,0.08)] hover:scale-[1.03] hover:-translate-y-1.5 text-slate-800"
+                : "liquid-glass-card border border-white/[0.06] hover:border-amber-500/40 hover:shadow-[0_0_35px_rgba(245,158,11,0.28)] hover:bg-amber-500/[0.02] hover:scale-[1.03] hover:-translate-y-1 text-white"
           }`}>
             
             {/* Inner Ambient Top Amber Glow */}
