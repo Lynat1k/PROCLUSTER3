@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator } from "../types";
-import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight, TrendingUp } from "lucide-react";
 
 interface ClusterChartProps {
   candles: ClusterCandle[];
@@ -593,6 +593,24 @@ export default function ClusterChart({
           const scrollRelativeX = clickX + visibleScrollLeft;
           const price = yToPrice(clickY);
 
+          if (drawingInProgress && drawingInProgress.type === "channel" && drawingInProgress.stage === 2) {
+            // COMPLETE THE CHANNEL DRAWING!
+            const baselinePriceAtX = drawingInProgress.startPrice + (drawingInProgress.endPrice - drawingInProgress.startPrice) * 
+              (drawingInProgress.endX === drawingInProgress.startX ? 0 : (scrollRelativeX - drawingInProgress.startX) / (drawingInProgress.endX - drawingInProgress.startX));
+            const finalOffsetPrice = price - baselinePriceAtX;
+            
+            const finalDrawing = {
+              ...drawingInProgress,
+              offsetPrice: finalOffsetPrice,
+              stage: undefined
+            };
+            
+            setDrawings(prev => [...prev, finalDrawing]);
+            setDrawingInProgress(null);
+            setActiveDrawingTool(null);
+            return;
+          }
+
           if (activeDrawingTool === "horizontal") {
             // Horizontal level is placed instantly on one click!
             const newDrawing = {
@@ -608,6 +626,7 @@ export default function ClusterChart({
             setActiveDrawingTool(null); // Reset drawing tool after placement
           } else {
             // Start a dragging drawing
+            const isChannel = activeDrawingTool === "channel";
             setDrawingInProgress({
               id: Date.now(),
               type: activeDrawingTool,
@@ -615,6 +634,8 @@ export default function ClusterChart({
               startPrice: price,
               endX: scrollRelativeX,
               endPrice: price,
+              stage: isChannel ? 1 : undefined,
+              offsetPrice: isChannel ? 0 : undefined,
               text: "",
             });
           }
@@ -642,12 +663,24 @@ export default function ClusterChart({
             const x1 = d.startX - visibleScrollLeft;
             const x2 = d.endX - visibleScrollLeft;
             
-            const handles = [
+            let handles = [
               { x: x1, y: y1, idx: 1 },
               { x: x2, y: y2, idx: 2 },
               { x: x2, y: y1, idx: 3 },
               { x: x1, y: y2, idx: 4 }
             ];
+
+            if (d.type === "channel") {
+              const offset = d.offsetPrice !== undefined ? d.offsetPrice : ((activePair.priceStep || 0.1) * 20);
+              const y1_offset = priceToY(d.startPrice + offset);
+              const y2_offset = priceToY(d.endPrice + offset);
+              handles = [
+                { x: x1, y: y1, idx: 1 },
+                { x: x2, y: y2, idx: 2 },
+                { x: x2, y: y2_offset, idx: 3 },
+                { x: x1, y: y1_offset, idx: 4 }
+              ];
+            }
             
             const clickedHandle = handles.find(h => {
               const dx = clickX - h.x;
@@ -680,7 +713,7 @@ export default function ClusterChart({
                 foundDrawingId = d.id;
                 break;
               }
-            } else if (d.type === "trend" || d.type === "arrow") {
+            } else if (d.type === "trend" || d.type === "arrow" || d.type === "channel") {
               const dx1 = clickX - x1;
               const dy1 = clickY - y1;
               const dStart = Math.sqrt(dx1 * dx1 + dy1 * dy1);
@@ -689,22 +722,40 @@ export default function ClusterChart({
               const dy2 = clickY - y2;
               const dEnd = Math.sqrt(dx2 * dx2 + dy2 * dy2);
               
-              if (dStart <= 10 || dEnd <= 10) {
+              const offsetVal = d.offsetPrice !== undefined ? d.offsetPrice : ((activePair.priceStep || 0.1) * 20);
+              const y1_off = priceToY(d.startPrice + offsetVal);
+              const y2_off = priceToY(d.endPrice + offsetVal);
+              
+              const dx1_off = clickX - x1;
+              const dy1_off = clickY - y1_off;
+              const dStart_off = Math.sqrt(dx1_off * dx1_off + dy1_off * dy1_off);
+              
+              const dx2_off = clickX - x2;
+              const dy2_off = clickY - y2_off;
+              const dEnd_off = Math.sqrt(dx2_off * dx2_off + dy2_off * dy2_off);
+
+              if (dStart <= 10 || dEnd <= 10 || dStart_off <= 10 || dEnd_off <= 10) {
                 foundDrawingId = d.id;
                 break;
               }
-              const lineLen = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
-              if (lineLen > 0) {
-                const u = ((clickX - x1) * (x2 - x1) + (clickY - y1) * (y2 - y1)) / (lineLen * lineLen);
-                if (u >= 0 && u <= 1) {
-                  const projX = x1 + u * (x2 - x1);
-                  const projY = y1 + u * (y2 - y1);
-                  const realDist = Math.sqrt((clickX - projX) * (clickX - projX) + (clickY - projY) * (clickY - projY));
-                  if (realDist <= 8) {
-                    foundDrawingId = d.id;
-                    break;
+
+              const checkLine = (px1: number, py1: number, px2: number, py2: number) => {
+                const lineLen = Math.sqrt((px2 - px1) * (px2 - px1) + (py2 - py1) * (py2 - py1));
+                if (lineLen > 0) {
+                  const u = ((clickX - px1) * (px2 - px1) + (clickY - py1) * (py2 - py1)) / (lineLen * lineLen);
+                  if (u >= 0 && u <= 1) {
+                    const projX = px1 + u * (px2 - px1);
+                    const projY = py1 + u * (py2 - py1);
+                    const realDist = Math.sqrt((clickX - projX) * (clickX - projX) + (clickY - projY) * (clickY - projY));
+                    if (realDist <= 8) return true;
                   }
                 }
+                return false;
+              };
+
+              if (checkLine(x1, y1, x2, y2) || checkLine(x1, y1_off, x2, y2_off)) {
+                foundDrawingId = d.id;
+                break;
               }
             } else if (d.type === "horizontal") {
               if (Math.abs(clickY - y1) <= 8) {
@@ -786,6 +837,14 @@ export default function ClusterChart({
 
       setDrawingInProgress(prev => {
         if (!prev) return null;
+        if (prev.type === "channel" && prev.stage === 2) {
+          const baselinePriceAtX = prev.startPrice + (prev.endPrice - prev.startPrice) * (prev.endX === prev.startX ? 0 : (scrollRelativeX - prev.startX) / (prev.endX - prev.startX));
+          const offsetPrice = price - baselinePriceAtX;
+          return {
+            ...prev,
+            offsetPrice
+          };
+        }
         return {
           ...prev,
           endX: scrollRelativeX,
@@ -823,19 +882,34 @@ export default function ClusterChart({
             let nextStartPrice = d.startPrice;
             let nextEndX = d.endX;
             let nextEndPrice = d.endPrice;
+            let nextOffsetPrice = d.offsetPrice;
             
-            if (drawingDragState.handleIndex === 1) {
-              nextStartX = drawingDragState.initialStartX + deltaX;
-              nextStartPrice = currentPrice;
-            } else if (drawingDragState.handleIndex === 2) {
-              nextEndX = drawingDragState.initialEndX + deltaX;
-              nextEndPrice = currentPrice;
-            } else if (drawingDragState.handleIndex === 3) {
-              nextEndX = drawingDragState.initialEndX + deltaX;
-              nextStartPrice = currentPrice;
-            } else if (drawingDragState.handleIndex === 4) {
-              nextStartX = drawingDragState.initialStartX + deltaX;
-              nextEndPrice = currentPrice;
+            if (d.type === "channel") {
+              if (drawingDragState.handleIndex === 1) {
+                nextStartX = drawingDragState.initialStartX + deltaX;
+                nextStartPrice = currentPrice;
+              } else if (drawingDragState.handleIndex === 2) {
+                nextEndX = drawingDragState.initialEndX + deltaX;
+                nextEndPrice = currentPrice;
+              } else if (drawingDragState.handleIndex === 3) {
+                nextOffsetPrice = currentPrice - d.endPrice;
+              } else if (drawingDragState.handleIndex === 4) {
+                nextOffsetPrice = currentPrice - d.startPrice;
+              }
+            } else {
+              if (drawingDragState.handleIndex === 1) {
+                nextStartX = drawingDragState.initialStartX + deltaX;
+                nextStartPrice = currentPrice;
+              } else if (drawingDragState.handleIndex === 2) {
+                nextEndX = drawingDragState.initialEndX + deltaX;
+                nextEndPrice = currentPrice;
+              } else if (drawingDragState.handleIndex === 3) {
+                nextEndX = drawingDragState.initialEndX + deltaX;
+                nextStartPrice = currentPrice;
+              } else if (drawingDragState.handleIndex === 4) {
+                nextStartX = drawingDragState.initialStartX + deltaX;
+                nextEndPrice = currentPrice;
+              }
             }
             
             return {
@@ -843,7 +917,8 @@ export default function ClusterChart({
               startX: nextStartX,
               startPrice: nextStartPrice,
               endX: nextEndX,
-              endPrice: nextEndPrice
+              endPrice: nextEndPrice,
+              offsetPrice: nextOffsetPrice
             };
           }
         }
@@ -872,6 +947,18 @@ export default function ClusterChart({
 
   const handleMouseUpOrLeave = () => {
     if (drawingInProgress) {
+      if (drawingInProgress.type === "channel" && drawingInProgress.stage === 1) {
+        // Transition to stage 2!
+        setDrawingInProgress(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            stage: 2
+          };
+        });
+        return;
+      }
+
       if (drawingInProgress.type === "text") {
         // Prompt for text
         const txt = prompt(language === "RU" ? "Введите текст для графика:" : "Enter your chart text:");
@@ -2507,6 +2594,43 @@ export default function ClusterChart({
         ctx.fill();
         ctx.restore();
       }
+      else if (d.type === "channel") {
+        ctx.save();
+        const isStaging = d.stage === 1;
+        const offsetVal = d.offsetPrice !== undefined ? d.offsetPrice : ((activePair.priceStep || 0.1) * 20);
+        const y1_offset = priceToY(d.startPrice + offsetVal);
+        const y2_offset = priceToY(d.endPrice + offsetVal);
+        const y1_mid = priceToY(d.startPrice + offsetVal / 2);
+        const y2_mid = priceToY(d.endPrice + offsetVal / 2);
+
+        // Draw primary line
+        ctx.beginPath();
+        ctx.strokeStyle = isLight ? "#2563eb" : "#3b82f6";
+        ctx.lineWidth = 2.0;
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        if (!isStaging) {
+          // Draw parallel line
+          ctx.beginPath();
+          ctx.moveTo(x1, y1_offset);
+          ctx.lineTo(x2, y2_offset);
+          ctx.stroke();
+
+          // Draw dashed midline
+          ctx.beginPath();
+          ctx.strokeStyle = isLight ? "rgba(37, 99, 235, 0.45)" : "rgba(96, 165, 250, 0.45)";
+          ctx.lineWidth = 1.25;
+          ctx.setLineDash([6, 5]);
+          ctx.moveTo(x1, y1_mid);
+          ctx.lineTo(x2, y2_mid);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        ctx.restore();
+      }
       else if (d.type === "volume") {
         ctx.beginPath();
         ctx.strokeStyle = "rgba(168, 85, 247, 0.8)";
@@ -2696,7 +2820,7 @@ export default function ClusterChart({
         const x2 = d.endX;
 
         // Bounding dash box
-        if (d.type !== "horizontal") {
+        if (d.type !== "horizontal" && d.type !== "channel") {
           ctx.save();
           ctx.strokeStyle = isLight ? "#2563eb" : "#3b82f6";
           ctx.lineWidth = 1.2;
@@ -2706,12 +2830,24 @@ export default function ClusterChart({
         }
 
         // Draw 4 handles (TL, TR, BL, BR)
-        const handles = [
+        let handles = [
           { x: x1, y: y1 },
           { x: x2, y: y2 },
           { x: x2, y: y1 },
           { x: x1, y: y2 }
         ];
+
+        if (d.type === "channel") {
+          const offsetVal = d.offsetPrice !== undefined ? d.offsetPrice : ((activePair.priceStep || 0.1) * 20);
+          const y1_offset = priceToY(d.startPrice + offsetVal);
+          const y2_offset = priceToY(d.endPrice + offsetVal);
+          handles = [
+            { x: x1, y: y1 },
+            { x: x2, y: y2 },
+            { x: x2, y: y2_offset },
+            { x: x1, y: y1_offset }
+          ];
+        }
 
         handles.forEach((h) => {
           ctx.save();
@@ -3127,6 +3263,7 @@ export default function ClusterChart({
             {[
               { id: "trend", icon: Slash, titleRU: "Трендовая линия", titleEN: "Trend Line" },
               { id: "arrow", icon: ArrowUpRight, titleRU: "Стрелка направления", titleEN: "Direction Arrow" },
+              { id: "channel", icon: TrendingUp, titleRU: "Параллельный канал", titleEN: "Parallel Channel" },
               { id: "horizontal", icon: Minus, titleRU: "Горизонтальный уровень", titleEN: "Horizontal Level" },
               { id: "rect", icon: Square, titleRU: "Прямоугольник", titleEN: "Rectangle" },
               { id: "fibonacci", icon: Grid3X3, titleRU: "Уровни Фибоначчи", titleEN: "Fibonacci Retracement" },
