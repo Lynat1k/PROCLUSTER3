@@ -2885,51 +2885,61 @@ export default function ClusterChart({
     ctx.save();
     ctx.translate(-visibleScrollLeft, 0);
 
+    const allowedSteps = [1, 2, 5, 10, 15, 20, 30, 50, 100, 200, 500, 1000];
+    const candleSpacingTotal = candleWidth + candleSpacing;
+    const labelStep = allowedSteps.find(step => step * candleSpacingTotal >= 75) || 1000;
+
+    const hoveredCandleIdx = crosshair
+      ? Math.floor(((crosshair.x + visibleScrollLeft) - margin.left) / candleSpacingTotal)
+      : -1;
+
     // Now draw the horizontal time axis labels for visible candles cleanly on top of this background
     for (let cIdx = startIdx; cIdx <= endIdx; cIdx++) {
       const candle = candles[cIdx];
-      const x = margin.left + cIdx * (candleWidth + candleSpacing);
-      const hoveredCandleIdx = crosshair
-        ? Math.floor(((crosshair.x + visibleScrollLeft) - margin.left) / (candleWidth + candleSpacing))
-        : -1;
+      const x = margin.left + cIdx * candleSpacingTotal;
       const isHovered = crosshair && cIdx === hoveredCandleIdx;
 
-      const timeStr = formatTimezoneString(candle.timestamp, !!isHovered);
+      const shouldDrawStandard = cIdx % labelStep === 0;
+      const isTooCloseToHovered = isHovered ? false : (hoveredCandleIdx !== -1 && Math.abs(cIdx - hoveredCandleIdx) * candleSpacingTotal < 65);
 
-      ctx.save();
-      if (isHovered) {
-        ctx.font = "bold 9px 'Inter', sans-serif";
-        const textWidth = ctx.measureText(timeStr).width;
-        const padX = 6;
-        const padY = 3;
-        const rectW = textWidth + padX * 2;
-        const rectH = 15;
-        const rectX = x + candleWidth / 2 - rectW / 2;
-        const rectY = totalSvgHeight - margin.bottom + 16 - rectH / 2;
+      if (isHovered || (shouldDrawStandard && !isTooCloseToHovered)) {
+        const timeStr = formatTimezoneString(candle.timestamp, !!isHovered);
 
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(rectX, rectY, rectW, rectH, 3);
+        ctx.save();
+        if (isHovered) {
+          ctx.font = "bold 9px 'Inter', sans-serif";
+          const textWidth = ctx.measureText(timeStr).width;
+          const padX = 6;
+          const padY = 3;
+          const rectW = textWidth + padX * 2;
+          const rectH = 15;
+          const rectX = x + candleWidth / 2 - rectW / 2;
+          const rectY = totalSvgHeight - margin.bottom + 16 - rectH / 2;
+
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(rectX, rectY, rectW, rectH, 3);
+          } else {
+            ctx.rect(rectX, rectY, rectW, rectH);
+          }
+          ctx.fillStyle = isLight ? "rgba(15, 23, 42, 0.08)" : "rgba(245, 158, 11, 0.15)";
+          ctx.fill();
+
+          ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.18)" : "rgba(245, 158, 11, 0.35)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.fillStyle = isLight ? "#0f172a" : "#f59e0b";
+          ctx.textAlign = "center";
+          ctx.fillText(timeStr, x + candleWidth / 2, totalSvgHeight - margin.bottom + 16);
         } else {
-          ctx.rect(rectX, rectY, rectW, rectH);
+          ctx.font = "bold 9px 'Inter', sans-serif";
+          ctx.fillStyle = "#475569";
+          ctx.textAlign = "center";
+          ctx.fillText(timeStr, x + candleWidth / 2, totalSvgHeight - margin.bottom + 16);
         }
-        ctx.fillStyle = isLight ? "rgba(15, 23, 42, 0.08)" : "rgba(245, 158, 11, 0.15)";
-        ctx.fill();
-
-        ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.18)" : "rgba(245, 158, 11, 0.35)";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        ctx.fillStyle = isLight ? "#0f172a" : "#f59e0b";
-        ctx.textAlign = "center";
-        ctx.fillText(timeStr, x + candleWidth / 2, totalSvgHeight - margin.bottom + 16);
-      } else {
-        ctx.font = "bold 9px 'Inter', sans-serif";
-        ctx.fillStyle = "#475569";
-        ctx.textAlign = "center";
-        ctx.fillText(timeStr, x + candleWidth / 2, totalSvgHeight - margin.bottom + 16);
+        ctx.restore();
       }
-      ctx.restore();
     }
 
     ctx.restore(); // Undoes translation for the label drawing
