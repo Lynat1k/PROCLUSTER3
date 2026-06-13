@@ -699,4 +699,59 @@ html, body, #root {
   scrollbar-width: none !important;  /* Firefox */
 }
 
+/* Highly visible and premium scrollbar for the cluster chart */
+.chart-scroll-container::-webkit-scrollbar {
+  height: 11px; /* Thicker and extremely easy to grab/drag */
+}
+
+/* Light Theme styles */
+.light .chart-scroll-container::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.04);
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+.light .chart-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.38); /* Crisp and highly contrast */
+  border-radius: 9999px;
+  border: 2px solid #f8fafc; /* Inset effect */
+}
+.light .chart-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.65);
+}
+.light .chart-scroll-container::-webkit-scrollbar-thumb:active {
+  background: rgba(15, 23, 42, 0.85);
+}
+
+/* Dark Theme styles (Default) */
+.chart-scroll-container::-webkit-scrollbar-track {
+  background: rgba(3, 4, 7, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.chart-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.45); /* Golden amber thumb matching PROCLUSTER visual colors */
+  border-radius: 9999px;
+  border: 2.5px solid #06080f; /* High-contrast crisp inset effect */
+  box-shadow: inset 0 0 4px rgba(245, 158, 11, 0.2);
+}
+.chart-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.75);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+.chart-scroll-container::-webkit-scrollbar-thumb:active {
+  background: rgba(245, 158, 11, 0.95);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+}
+
+/* Fallback for Firefox */
+@supports (scrollbar-color: auto) {
+  .chart-scroll-container {
+    scrollbar-width: auto;
+  }
+  .light .chart-scroll-container {
+    scrollbar-color: rgba(15, 23, 42, 0.38) rgba(15, 23, 42, 0.04);
+  }
+  .chart-scroll-container {
+    scrollbar-color: rgba(245, 158, 11, 0.45) rgba(3, 4, 7, 0.95);
+  }
+}
+
 

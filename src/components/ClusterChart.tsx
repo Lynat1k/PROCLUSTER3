@@ -25,6 +25,7 @@ interface ClusterChartProps {
   language?: "RU" | "EN" | "KZ";
   workspaceLayout?: "1" | "2h" | "2v";
   onWorkspaceLayoutChange?: (layout: "1" | "2h" | "2v") => void;
+  workspacesCount?: number;
 }
 
 export default function ClusterChart({
@@ -50,7 +51,8 @@ export default function ClusterChart({
   onShowIndicatorsSettings,
   language = "EN",
   workspaceLayout,
-  onWorkspaceLayoutChange
+  onWorkspaceLayoutChange,
+  workspacesCount = 1
 }: ClusterChartProps) {
   
   const isLight = theme === "light";
@@ -3220,15 +3222,20 @@ export default function ClusterChart({
                       { id: "2v", label: language === "EN" ? "2 Vertical" : language === "KZ" ? "2 вертикальді" : "2 по вертикали", icon: "🪟" }
                     ].map((item) => {
                       const isSelected = workspaceLayout === item.id;
+                      const isLocked = workspacesCount < 2 && item.id !== "1";
                       return (
                         <button
                           key={item.id}
+                          disabled={isLocked}
                           onClick={() => {
+                            if (isLocked) return;
                             onWorkspaceLayoutChange(item.id as any);
                             setShowWorkspaceMenu(false);
                           }}
-                          className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-left cursor-pointer transition-all w-full ${
-                            isSelected
+                          className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-all w-full ${
+                            isLocked
+                              ? "opacity-50 cursor-not-allowed text-slate-500"
+                              : isSelected
                               ? isLight
                                 ? "bg-blue-50 text-blue-800 font-extrabold border border-blue-200 shadow-sm"
                                 : "bg-blue-500/10 text-blue-400 font-extrabold border border-blue-500/25"
@@ -3237,11 +3244,13 @@ export default function ClusterChart({
                                 : "text-slate-300 hover:text-white hover:bg-white/5"
                           }`}
                         >
-                          <div className="flex items-center gap-1.5 select-none">
-                            <span className="text-[12px]">{item.icon}</span>
-                            <span className="font-sans text-[10px] font-bold">{item.label}</span>
+                          <div className="flex items-center gap-1.5 select-none text-left">
+                            <span className="text-[12px]">{isLocked ? "🔒" : item.icon}</span>
+                            <span className="font-sans text-[10px] font-bold">
+                              {item.label}
+                            </span>
                           </div>
-                          {isSelected && (
+                          {isSelected && !isLocked && (
                             <Check className="w-3 tracking-tight ml-1 text-blue-500 shrink-0" />
                           )}
                         </button>
@@ -3342,7 +3351,7 @@ export default function ClusterChart({
             setVisibleScrollLeft(e.currentTarget.scrollLeft);
             setVisibleClientWidth(e.currentTarget.clientWidth);
           }}
-          className={`flex-1 overflow-x-auto overflow-y-hidden select-none terminal-grid relative transition-all duration-300 ${
+          className={`flex-1 overflow-x-auto overflow-y-hidden select-none terminal-grid relative transition-all duration-300 chart-scroll-container ${
             isLight ? "bg-[#f8fafc]" : "bg-[#06080f]"
           } ${isDraggingTimeScale ? "cursor-ew-resize" : (isDragging ? "cursor-grabbing" : "cursor-grab")}`}
           style={{ scrollBehavior: "auto" }}

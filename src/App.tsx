@@ -19,7 +19,7 @@ import AdminPanel from "./components/AdminPanel";
 import UserProfile from "./components/UserProfile";
 import RoadmapModal from "./components/RoadmapModal";
 import defaultAvatar from "./assets/images/trump_avatar_1780681677035.png";
-import { TrendingUp, TrendingDown, Layers, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid } from "lucide-react";
+import { TrendingUp, TrendingDown, Layers, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 const AutoIcon = ({ className }: { className?: string }) => (
@@ -563,6 +563,39 @@ export default function App() {
     }
     return AVAILABLE_PAIRS;
   });
+
+  // Persistent favorite pairs per market type
+  const [favorites, setFavorites] = useState<{ SPOT: string[]; FUTURES: string[] }>(() => {
+    const saved = localStorage.getItem("procluster_favorites");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") {
+          return {
+            SPOT: Array.isArray(parsed.SPOT) ? parsed.SPOT : [],
+            FUTURES: Array.isArray(parsed.FUTURES) ? parsed.FUTURES : [],
+          };
+        }
+      } catch (e) {}
+    }
+    return { SPOT: [], FUTURES: [] };
+  });
+
+  const toggleFavorite = (symbol: string, market: "SPOT" | "FUTURES") => {
+    setFavorites(prev => {
+      const currentList = prev[market] || [];
+      const isFav = currentList.includes(symbol);
+      const updatedList = isFav
+        ? currentList.filter(s => s !== symbol)
+        : [...currentList, symbol];
+      const updated = {
+        ...prev,
+        [market]: updatedList
+      };
+      localStorage.setItem("procluster_favorites", JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   const [workspaceLayout, setWorkspaceLayout] = useState<"1" | "2h" | "2v">("1");
   const [activeChartIndex, setActiveChartIndex] = useState<number>(0);
@@ -1227,22 +1260,31 @@ export default function App() {
       maxIndicators: number;
       customIndicatorSettings: boolean;
       telegramNotifications: boolean;
+      historyDays_1m: number;
+      historyDays_5m: number;
+      historyDays_15m: number;
+      historyDays_30m: number;
+      historyDays_1h: number;
+      historyDays_4h: number;
+      workspacesCount: number;
     }> = {
-      guest: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
-      free: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
-      pro: { maxHistory: 1400, compressionLevels: 2, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
-      vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
-      admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true }
+      guest: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false, historyDays_1m: 1, historyDays_5m: 3, historyDays_15m: 7, historyDays_30m: 14, historyDays_1h: 30, historyDays_4h: 90, workspacesCount: 1 },
+      free: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false, historyDays_1m: 1, historyDays_5m: 3, historyDays_15m: 7, historyDays_30m: 14, historyDays_1h: 30, historyDays_4h: 90, workspacesCount: 1 },
+      pro: { maxHistory: 1400, compressionLevels: 2, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false, historyDays_1m: 3, historyDays_5m: 7, historyDays_15m: 14, historyDays_30m: 30, historyDays_1h: 60, historyDays_4h: 180, workspacesCount: 2 },
+      vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 7, historyDays_5m: 14, historyDays_15m: 30, historyDays_30m: 60, historyDays_1h: 120, historyDays_4h: 360, workspacesCount: 2 },
+      admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 14, historyDays_5m: 30, historyDays_15m: 60, historyDays_30m: 120, historyDays_1h: 240, historyDays_4h: 720, workspacesCount: 2 }
     };
     const savedSettings = localStorage.getItem("procluster_tier_settings");
     if (savedSettings) {
       try {
         const parsed = JSON.parse(savedSettings);
         if (parsed) {
-          if (!parsed.guest) {
-            parsed.guest = { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false };
-          }
-          for (const k of Object.keys(parsed)) {
+          for (const k of ["guest", "free", "pro", "vip", "admin"] as const) {
+            if (!parsed[k]) {
+              parsed[k] = { ...settings[k] };
+            } else {
+              parsed[k] = { ...settings[k], ...parsed[k] };
+            }
             const s = parsed[k];
             if (s && typeof s.compressionLevels === "number") {
               s.compressionLevels = Math.min(6, Math.max(1, s.compressionLevels));
@@ -1255,6 +1297,33 @@ export default function App() {
       }
     }
     return settings[group] || settings.free;
+  };
+
+  const getMaxCandlesForInterval = (interval: string) => {
+    const limits = getActiveGroupLimits();
+    let days = 1;
+    switch (interval) {
+      case "1m":
+        days = limits.historyDays_1m ?? 1;
+        return (days * 24 * 60); // 1440 candles per day
+      case "5m":
+        days = limits.historyDays_5m ?? 3;
+        return (days * 24 * 12); // 288 candles per day
+      case "15m":
+        days = limits.historyDays_15m ?? 7;
+        return (days * 24 * 4); // 96 candles per day
+      case "30m":
+        days = limits.historyDays_30m ?? 14;
+        return (days * 24 * 2); // 48 candles per day
+      case "1h":
+        days = limits.historyDays_1h ?? 30;
+        return (days * 24); // 24 candles per day
+      case "4h":
+        days = limits.historyDays_4h ?? 90;
+        return (days * 6); // 6 candles per day
+      default:
+        return limits.maxHistory || 700;
+    }
   };
 
   // Click outside to close custom menus
@@ -1334,11 +1403,9 @@ export default function App() {
 
     const isFutures = marketType0 === "FUTURES";
     const isBtc = activePair0.symbol.toUpperCase().includes("BTC");
-    const baseTickStep = activePair0.minTickStep !== undefined
-      ? activePair0.minTickStep
-      : (isBtc 
-        ? (isFutures ? 0.1 : 0.01) 
-        : getBaseTickSize(activePair0.symbol));
+    const baseTickStep = isFutures
+      ? (activePair0.minTickStepFutures ?? activePair0.minTickStep ?? (isBtc ? 0.1 : getBaseTickSize(activePair0.symbol)))
+      : (activePair0.minTickStepSpot ?? activePair0.minTickStep ?? (isBtc ? 0.01 : getBaseTickSize(activePair0.symbol)));
     
     const baseCompression = isBtc
       ? (isFutures ? 25 : 500)
@@ -1360,7 +1427,7 @@ export default function App() {
         }
         if (!active) return;
         const limits = getActiveGroupLimits();
-        setCandles0(realCandles.slice(-limits.maxHistory));
+        setCandles0(realCandles.slice(-getMaxCandlesForInterval(interval0)));
 
         if (realCandles.length > 0) {
           const lastCandle = realCandles[realCandles.length - 1];
@@ -1401,7 +1468,7 @@ export default function App() {
         if (!active) return;
 
         const limits = getActiveGroupLimits();
-        const histCandles = generateHistoricalCandles({ ...activePair0, priceStep: tickStep }, Math.min(120, limits.maxHistory), parseInterval(interval0));
+        const histCandles = generateHistoricalCandles({ ...activePair0, priceStep: tickStep }, Math.min(120, getMaxCandlesForInterval(interval0)), parseInterval(interval0));
         if (interval0 === "50t") {
           histCandles.forEach(c => {
             c.tickCount = 50;
@@ -1437,11 +1504,9 @@ export default function App() {
 
     const isFutures = marketType1 === "FUTURES";
     const isBtc = activePair1.symbol.toUpperCase().includes("BTC");
-    const baseTickStep = activePair1.minTickStep !== undefined
-      ? activePair1.minTickStep
-      : (isBtc 
-        ? (isFutures ? 0.1 : 0.01) 
-        : getBaseTickSize(activePair1.symbol));
+    const baseTickStep = isFutures
+      ? (activePair1.minTickStepFutures ?? activePair1.minTickStep ?? (isBtc ? 0.1 : getBaseTickSize(activePair1.symbol)))
+      : (activePair1.minTickStepSpot ?? activePair1.minTickStep ?? (isBtc ? 0.01 : getBaseTickSize(activePair1.symbol)));
     
     const baseCompression = isBtc
       ? (isFutures ? 25 : 500)
@@ -1463,7 +1528,7 @@ export default function App() {
         }
         if (!active) return;
         const limits = getActiveGroupLimits();
-        setCandles1(realCandles.slice(-limits.maxHistory));
+        setCandles1(realCandles.slice(-getMaxCandlesForInterval(interval1)));
 
         if (realCandles.length > 0) {
           const lastCandle = realCandles[realCandles.length - 1];
@@ -1504,7 +1569,7 @@ export default function App() {
         if (!active) return;
 
         const limits = getActiveGroupLimits();
-        const histCandles = generateHistoricalCandles({ ...activePair1, priceStep: tickStep }, Math.min(120, limits.maxHistory), parseInterval(interval1));
+        const histCandles = generateHistoricalCandles({ ...activePair1, priceStep: tickStep }, Math.min(120, getMaxCandlesForInterval(interval1)), parseInterval(interval1));
         if (interval1 === "50t") {
           histCandles.forEach(c => {
             c.tickCount = 50;
@@ -1654,8 +1719,7 @@ export default function App() {
             val: parseFloat(cellPrice.toFixed(4))
           };
 
-          const limits = getActiveGroupLimits();
-          nextCandles = [...nextCandles, newCandle].slice(-limits.maxHistory);
+          nextCandles = [...nextCandles, newCandle].slice(-getMaxCandlesForInterval(intervalRefLocal.current));
         } else {
           // Update the current last candle
           lastCandle.close = tick.price;
@@ -2344,7 +2408,6 @@ export default function App() {
                 }`}
               >
                 <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10b981]" />
                   <span className={`font-mono tracking-tight font-extrabold text-xs sm:text-sm ${theme === "light" ? "text-slate-800" : "text-white"}`}>{activePair.symbol}</span>
                 </div>
                 <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${
@@ -2369,30 +2432,67 @@ export default function App() {
                     }`}>
                       {language === "EN" ? "Available Pairs" : language === "KZ" ? "Қолжетімді жұптар" : "Доступные пары"}
                     </div>
-                    <div className="flex flex-col gap-0.5">
-                      {pairs.map((p) => (
-                        <button
-                          key={p.symbol}
-                          onClick={() => {
-                            setActivePair(p);
-                            setShowTickerMenu(false);
-                          }}
-                          className={`flex items-center justify-between px-2 py-1 rounded-lg text-left cursor-pointer transition-all ${
-                            activePair.symbol === p.symbol
-                              ? theme === "light"
-                                ? "bg-amber-50 text-amber-700 font-extrabold border border-amber-200 shadow-sm"
-                                : "bg-yellow-500/10 text-yellow-500 font-extrabold border border-yellow-500/25"
-                              : theme === "light"
-                                ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                                : "text-slate-300 hover:text-white hover:bg-white/5"
-                          }`}
-                        >
-                          <span className="font-mono text-xs font-bold">{p.symbol}</span>
-                          {activePair.symbol === p.symbol && (
-                            <Check className="w-3" />
-                          )}
-                        </button>
-                      ))}
+                    <div className="flex flex-col gap-0.5 max-h-[300px] overflow-y-auto pr-1">
+                      {[...pairs]
+                        .sort((a, b) => {
+                          const aFav = favorites[marketType]?.includes(a.symbol) ? 1 : 0;
+                          const bFav = favorites[marketType]?.includes(b.symbol) ? 1 : 0;
+                          if (aFav !== bFav) return bFav - aFav; // Favorites at the top
+                          return a.symbol.localeCompare(b.symbol); // Alphabetical secondary
+                        })
+                        .map((p) => {
+                          const isFav = favorites[marketType]?.includes(p.symbol);
+                          const isActive = activePair.symbol === p.symbol;
+                          return (
+                            <div
+                              key={p.symbol}
+                              className={`flex items-center justify-between px-2 py-1 rounded-lg transition-all ${
+                                isActive
+                                  ? theme === "light"
+                                    ? "bg-amber-50 text-amber-700 font-extrabold border border-amber-200/50 shadow-sm"
+                                    : "bg-yellow-500/10 text-yellow-500 font-extrabold border border-yellow-500/25"
+                                  : theme === "light"
+                                    ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                                    : "text-slate-300 hover:text-white hover:bg-white/5"
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFavorite(p.symbol, marketType);
+                                  }}
+                                  className={`p-0.5 rounded cursor-pointer transition-all duration-100 active:scale-90 ${
+                                    isFav
+                                      ? "text-yellow-400 hover:text-yellow-500"
+                                      : theme === "light"
+                                      ? "text-slate-300 hover:text-slate-500"
+                                      : "text-slate-600 hover:text-slate-400"
+                                  }`}
+                                  title={language === "EN" ? "Toggle favorite" : "В избранное"}
+                                >
+                                  <Star
+                                    className={`w-3.5 h-3.5 ${isFav ? "fill-current" : ""}`}
+                                  />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActivePair(p);
+                                    setShowTickerMenu(false);
+                                  }}
+                                  className="flex-1 text-left font-mono text-xs font-bold truncate cursor-pointer bg-transparent border-none p-0 outline-none"
+                                >
+                                  {p.symbol}
+                                </button>
+                              </div>
+                              {isActive && (
+                                <Check className="w-3 h-3 shrink-0 ml-1" />
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
                   </motion.div>
                 )}
@@ -2819,6 +2919,7 @@ export default function App() {
                     language={language}
                     workspaceLayout={workspaceLayout}
                     onWorkspaceLayoutChange={setWorkspaceLayout}
+                    workspacesCount={getActiveGroupLimits().workspacesCount}
                   />
                 </div>
 
@@ -2894,6 +2995,7 @@ export default function App() {
                       language={language}
                       workspaceLayout={workspaceLayout}
                       onWorkspaceLayoutChange={setWorkspaceLayout}
+                      workspacesCount={getActiveGroupLimits().workspacesCount}
                     />
                   </div>
                 )}

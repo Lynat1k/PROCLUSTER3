@@ -60,6 +60,8 @@ export interface CryptoPair {
   compressionSpot?: number;
   compressionFutures?: number;
   minTickStep?: number;
+  minTickStepSpot?: number;
+  minTickStepFutures?: number;
 }
 
 export interface AIAnalysis {

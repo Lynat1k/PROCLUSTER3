@@ -85,7 +85,7 @@ export default function AdminPanel({
   const isLight = theme === "light";
 
   // Active view tabs
-  const [activeTab, setActiveTab] = useState<"server" | "database" | "users">("server");
+  const [activeTab, setActiveTab] = useState<"server" | "database" | "users" | "stats">("server");
 
   // State sections
   const [activeTokenParam, setActiveTokenParam] = useState<string>(activePair.symbol);
@@ -117,16 +117,32 @@ export default function AdminPanel({
     maxIndicators: number;
     customIndicatorSettings: boolean;
     telegramNotifications: boolean;
+    historyDays_1m: number;
+    historyDays_5m: number;
+    historyDays_15m: number;
+    historyDays_30m: number;
+    historyDays_1h: number;
+    historyDays_4h: number;
+    workspacesCount: number;
   }>>(() => {
+    const defaultSettings = {
+      guest: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false, historyDays_1m: 1, historyDays_5m: 3, historyDays_15m: 7, historyDays_30m: 14, historyDays_1h: 30, historyDays_4h: 90, workspacesCount: 1 },
+      free: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false, historyDays_1m: 1, historyDays_5m: 3, historyDays_15m: 7, historyDays_30m: 14, historyDays_1h: 30, historyDays_4h: 90, workspacesCount: 1 },
+      pro: { maxHistory: 1400, compressionLevels: 2, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false, historyDays_1m: 3, historyDays_5m: 7, historyDays_15m: 14, historyDays_30m: 30, historyDays_1h: 60, historyDays_4h: 180, workspacesCount: 2 },
+      vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 7, historyDays_5m: 14, historyDays_15m: 30, historyDays_30m: 60, historyDays_1h: 120, historyDays_4h: 360, workspacesCount: 2 },
+      admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 14, historyDays_5m: 30, historyDays_15m: 60, historyDays_30m: 120, historyDays_1h: 240, historyDays_4h: 720, workspacesCount: 2 }
+    };
     const saved = localStorage.getItem("procluster_tier_settings");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed) {
-          if (!parsed.guest) {
-            parsed.guest = { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false };
-          }
-          for (const k of Object.keys(parsed)) {
+          for (const k of ["guest", "free", "pro", "vip", "admin"] as const) {
+            if (!parsed[k]) {
+              parsed[k] = { ...defaultSettings[k] };
+            } else {
+              parsed[k] = { ...defaultSettings[k], ...parsed[k] };
+            }
             const s = parsed[k];
             if (s && typeof s.compressionLevels === "number") {
               s.compressionLevels = Math.min(6, Math.max(1, s.compressionLevels));
@@ -138,13 +154,7 @@ export default function AdminPanel({
         console.error("Failed to parse tier settings", e);
       }
     }
-    return {
-      guest: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
-      free: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
-      pro: { maxHistory: 1400, compressionLevels: 2, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
-      vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
-      admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true }
-    };
+    return defaultSettings;
   });
 
   const [policySuccessMsg, setPolicySuccessMsg] = useState("");
@@ -218,14 +228,15 @@ export default function AdminPanel({
     subscriptionLevel: "free" | "RPO" | "VIP";
     ip: string;
     country: string;
+    password?: string;
   }
 
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([
-    { id: "usr_001", nickname: "@cryptomaster", registerDate: "2026-05-24", subscriptionLevel: "free", ip: "185.220.101.5", country: "Germany 🇩🇪" },
-    { id: "usr_002", nickname: "@whale_hunter", registerDate: "2026-04-12", subscriptionLevel: "VIP", ip: "91.198.174.19", country: "Japan 🇯🇵" },
-    { id: "usr_003", nickname: "@scalper_pro", registerDate: "2026-03-20", subscriptionLevel: "RPO", ip: "104.244.42.1", country: "USA 🇺🇸" },
-    { id: "usr_004", nickname: "@moonwalker", registerDate: "2025-12-14", subscriptionLevel: "free", ip: "8.8.8.8", country: "United Kingdom 🇬🇧" },
-    { id: "usr_005", nickname: "@kzt_trader", registerDate: "2026-02-18", subscriptionLevel: "RPO", ip: "178.90.220.44", country: "Kazakhstan 🇰🇿" },
+    { id: "usr_001", nickname: "@cryptomaster", registerDate: "2026-05-24", subscriptionLevel: "free", ip: "185.220.101.5", country: "Germany 🇩🇪", password: "•••••" },
+    { id: "usr_002", nickname: "@whale_hunter", registerDate: "2026-04-12", subscriptionLevel: "VIP", ip: "91.198.174.19", country: "Japan 🇯🇵", password: "•••••" },
+    { id: "usr_003", nickname: "@scalper_pro", registerDate: "2026-03-20", subscriptionLevel: "RPO", ip: "104.244.42.1", country: "USA 🇺🇸", password: "•••••" },
+    { id: "usr_004", nickname: "@moonwalker", registerDate: "2025-12-14", subscriptionLevel: "free", ip: "8.8.8.8", country: "United Kingdom 🇬🇧", password: "•••••" },
+    { id: "usr_005", nickname: "@kzt_trader", registerDate: "2026-02-18", subscriptionLevel: "RPO", ip: "178.90.220.44", country: "Kazakhstan 🇰🇿", password: "•••••" },
   ]);
 
   // Editing and dynamic additions state for Users Tab
@@ -235,9 +246,50 @@ export default function AdminPanel({
 
   const [newNickInput, setNewNickInput] = useState("");
   const [newLevelInput, setNewLevelInput] = useState<"free" | "RPO" | "VIP">("free");
-  const [newIpInput, setNewIpInput] = useState("");
-  const [newCountryInput, setNewCountryInput] = useState("");
+  const [newPasswordInput, setNewPasswordInput] = useState("");
   const [userSuccessMsg, setUserSuccessMsg] = useState("");
+
+  // Statistics Billing dataset of paid subscriptions
+  interface PaidSubscriptionRecord {
+    id: string;
+    userId: string;
+    nickname: string;
+    subscriptionLevel: "RPO" | "VIP";
+    status: "active" | "expired" | "waiting"; // активная | закончилась | ожидание
+    lastPaidAmount: number; // Стоимость последней оплаченной подписки
+    totalSpent: number; // Суммарно потрачено за все время
+    paymentDate: string;
+  }
+
+  const [paidRecords, setPaidRecords] = useState<PaidSubscriptionRecord[]>(() => {
+    const saved = localStorage.getItem("procluster_paid_subscriptions");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse paid subscriptions", e);
+      }
+    }
+    return [
+      { id: "tx_101", userId: "usr_002", nickname: "@whale_hunter", subscriptionLevel: "VIP", status: "active", lastPaidAmount: 199, totalSpent: 597, paymentDate: "2026-06-10" },
+      { id: "tx_102", userId: "usr_003", nickname: "@scalper_pro", subscriptionLevel: "RPO", status: "active", lastPaidAmount: 49, totalSpent: 147, paymentDate: "2026-05-18" },
+      { id: "tx_103", userId: "usr_005", nickname: "@kzt_trader", subscriptionLevel: "RPO", status: "waiting", lastPaidAmount: 49, totalSpent: 98, paymentDate: "2026-06-11" },
+      { id: "tx_104", userId: "usr_004", nickname: "@moonwalker", subscriptionLevel: "RPO", status: "expired", lastPaidAmount: 49, totalSpent: 49, paymentDate: "2026-02-15" }
+    ];
+  });
+
+  // Save billing records to localStorage
+  useEffect(() => {
+    localStorage.setItem("procluster_paid_subscriptions", JSON.stringify(paidRecords));
+  }, [paidRecords]);
+
+  // Form states for managing paid transactions inside Statistics Tab
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [editRecUserId, setEditRecUserId] = useState("");
+  const [editRecLevel, setEditRecLevel] = useState<"RPO" | "VIP">("RPO");
+  const [editRecStatus, setEditRecStatus] = useState<"active" | "expired" | "waiting">("active");
+  const [editRecAmount, setEditRecAmount] = useState("49");
+  const [editRecTotal, setEditRecTotal] = useState("147");
 
   // Live connections simulation
   const [clients, setClients] = useState<ClientConnection[]>([
@@ -250,10 +302,8 @@ export default function AdminPanel({
 
   // New Ticker Form state
   const [newSymbol, setNewSymbol] = useState("");
-  const [newName, setNewName] = useState("");
-  const [newPrice, setNewPrice] = useState("");
-  const [newPriceStep, setNewPriceStep] = useState("1");
-  const [newMinTickStep, setNewMinTickStep] = useState("0.01");
+  const [newMinTickStepSpot, setNewMinTickStepSpot] = useState("0.01");
+  const [newMinTickStepFutures, setNewMinTickStepFutures] = useState("0.1");
   const [compressionSpotVal, setCompressionSpotVal] = useState("2");
   const [compressionFuturesVal, setCompressionFuturesVal] = useState("5");
   
@@ -437,28 +487,30 @@ export default function AdminPanel({
   // Add Dynamic Ticker Form
   const handleAddNewTicker = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSymbol || !newName) {
+    if (!newSymbol) {
       alert("Заполните базовые поля!");
       return;
     }
 
     const priceNum = 100.0;
-    const stepNum = parseFloat(newPriceStep);
-    const tickStepNum = parseFloat(newMinTickStep);
+    const defaultName = newSymbol.trim().split("/")[0] || newSymbol.trim();
+    const tickStepSpotNum = parseFloat(newMinTickStepSpot);
+    const tickStepFuturesNum = parseFloat(newMinTickStepFutures);
     const compSpot = parseInt(compressionSpotVal) || 2;
     const compFut = parseInt(compressionFuturesVal) || 5;
 
     const addedPair: CryptoPair = {
       symbol: newSymbol.toUpperCase().trim(),
-      name: newName.trim(),
+      name: defaultName,
       price: priceNum,
       change24h: 0.0,
       volume24h: 0,
       delta24h: 0.0,
-      priceStep: isNaN(stepNum) || stepNum <= 0 ? 1 : stepNum,
+      priceStep: 1,
       compressionSpot: compSpot,
       compressionFutures: compFut,
-      minTickStep: isNaN(tickStepNum) || tickStepNum <= 0 ? 0.01 : tickStepNum
+      minTickStepSpot: isNaN(tickStepSpotNum) || tickStepSpotNum <= 0 ? 0.01 : tickStepSpotNum,
+      minTickStepFutures: isNaN(tickStepFuturesNum) || tickStepFuturesNum <= 0 ? 0.1 : tickStepFuturesNum
     };
 
     if (onAddPair) {
@@ -471,7 +523,8 @@ export default function AdminPanel({
       
       // Reset form
       setNewSymbol("");
-      setNewName("");
+      setNewMinTickStepSpot("0.01");
+      setNewMinTickStepFutures("0.1");
       setTimeout(() => setTickerSuccessMsg(""), 505);
     } else {
       alert("Система динамических тикеров не подключена!");
@@ -510,27 +563,6 @@ export default function AdminPanel({
             }`}>
               CORE MODE
             </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className={`text-xs font-mono ${isLight ? "text-slate-600 font-bold" : "text-slate-400"}`}>Состояние Симулятора:</span>
-          <div className="flex gap-1.5 p-0.5 rounded-lg border bg-slate-950/20 border-white/5">
-            <button
-              onClick={onToggleTicking}
-              className={`px-3 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                isTickingAll
-                  ? isLight 
-                    ? "bg-emerald-600 text-white shadow-sm font-extrabold" 
-                    : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20"
-                  : isLight 
-                    ? "bg-rose-600 text-white shadow-sm font-extrabold" 
-                    : "bg-rose-500/20 text-rose-400 border border-rose-500/20"
-              }`}
-            >
-              <Zap className={`w-3 h-3 ${isTickingAll ? "animate-bounce" : ""}`} />
-              {isTickingAll ? "Тики Идут" : "Генерация Пауза"}
-            </button>
           </div>
         </div>
       </div>
@@ -584,6 +616,22 @@ export default function AdminPanel({
           <Users className="w-4 h-4 text-amber-500" />
           <span>Пользователи</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab("stats")}
+          className={`px-5 py-2.5 rounded-t-xl text-xs font-bold tracking-wider uppercase flex items-center gap-2 border-t-2 border-x transition-all duration-150 cursor-pointer ${
+            activeTab === "stats"
+              ? isLight
+                ? "bg-white border-t-purple-500 border-x-slate-200 text-slate-900 shadow-sm" 
+                : "bg-slate-900 border-t-purple-500 border-x-white/5 text-white"
+              : isLight
+                ? "bg-transparent border-t-transparent border-x-transparent text-slate-600 hover:bg-slate-200/40 hover:text-slate-800"
+                : "bg-transparent border-t-transparent border-x-transparent text-slate-400 hover:bg-white/[0.02] hover:text-white"
+          }`}
+        >
+          <BarChart2 className="w-4 h-4 text-purple-500" />
+          <span>Статистика</span>
+        </button>
       </div>
 
       {/* RENDER ACTIVE TAB */}
@@ -599,20 +647,20 @@ export default function AdminPanel({
           
           {/* TAB 1: SERVER CONTROLS & MONITORING */}
           {activeTab === "server" && (
-            <div className="flex-1 flex flex-col gap-6 min-h-0">
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
               
-              {/* SERVER METRICS ROW */}
-              <div className={`p-5 rounded-2xl border ${
+              {/* SERVER METRICS COL (LEFT HALF) */}
+              <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
                 isLight ? "bg-white border-slate-200" : "liquid-glass-card"
               }`}>
-                <h3 className="text-xs font-bold font-mono text-slate-400 mb-4 flex items-center gap-2 justify-start uppercase">
+                <h3 className="text-xs font-bold font-mono text-slate-400 flex items-center gap-2 justify-start uppercase shrink-0">
                   <Cpu className="w-4 h-4 text-slate-400 animate-pulse" /> Мониторинг ресурсов & Спецификации веб-сервера
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="flex-1 flex flex-col gap-3 lg:min-h-0 justify-between">
                   
                   {/* --- CARD 1: CPU GRAPH --- */}
-                  <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
+                  <div className={`flex-1 min-h-0 p-3 rounded-xl border flex flex-col justify-between gap-1.5 transition-all ${
                     isLight ? "bg-slate-50/40 border-slate-200/80" : "bg-white/[0.01] border-white/5"
                   }`}>
                     <div className="flex justify-between items-center text-xs">
@@ -636,20 +684,20 @@ export default function AdminPanel({
                     </div>
 
                     {/* CPU Chart View */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 min-h-0">
                       <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">График загрузки CPU (30 сек)</span>
                       {(() => {
                         const width = 300;
-                        const height = 55;
+                        const height = 40;
                         const points = cpuHistory.map((val, idx) => {
                           const x = idx * (width / (cpuHistory.length - 1 || 1));
-                          const y = height - (val / 100) * (height - 10) - 5;
+                          const y = height - (val / 100) * (height - 8) - 4;
                           return { x, y };
                         });
                         const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
                         const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
                         return (
-                          <div className="h-14 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
+                          <div className="h-11 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
                             <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
                               <defs>
                                 <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
@@ -660,7 +708,7 @@ export default function AdminPanel({
                               <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className="text-slate-200/10 dark:text-white/[0.03]" strokeDasharray="3 3" />
                               <path d={areaD} fill="url(#cpuGrad)" />
                               <path d={pathD} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2.5" fill="#f59e0b" />}
+                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2" fill="#f59e0b" />}
                             </svg>
                           </div>
                         );
@@ -669,7 +717,7 @@ export default function AdminPanel({
                   </div>
 
                   {/* --- CARD 2: RAM GRAPH WITH ALL BUSY SERVER MEMORY --- */}
-                  <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
+                  <div className={`flex-1 min-h-0 p-3 rounded-xl border flex flex-col justify-between gap-1.5 transition-all ${
                     isLight ? "bg-slate-50/40 border-slate-200/80" : "bg-white/[0.01] border-white/5"
                   }`}>
                     <div className="flex justify-between items-center text-xs">
@@ -688,25 +736,25 @@ export default function AdminPanel({
                     </div>
                     
                     <div className="text-[10px] text-slate-400 font-mono flex justify-between">
-                      <span>Использование памяти процессовми Node</span>
+                      <span>Использование памяти процессами Node</span>
                       <span>Свободно: {(16 - ramUsageGB).toFixed(2)} GB</span>
                     </div>
 
                     {/* RAM Chart View */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 min-h-0">
                       <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">График загрузки ОЗУ (RAM)</span>
                       {(() => {
                         const width = 300;
-                        const height = 55;
+                        const height = 40;
                         const points = ramHistory.map((val, idx) => {
                           const x = idx * (width / (ramHistory.length - 1 || 1));
-                          const y = height - (val / 16) * (height - 10) - 5;
+                          const y = height - (val / 16) * (height - 8) - 4;
                           return { x, y };
                         });
                         const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
                         const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
                         return (
-                          <div className="h-14 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
+                          <div className="h-11 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
                             <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
                               <defs>
                                 <linearGradient id="ramGrad" x1="0" y1="0" x2="0" y2="1">
@@ -717,7 +765,7 @@ export default function AdminPanel({
                               <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className="text-slate-200/10 dark:text-white/[0.03]" strokeDasharray="3 3" />
                               <path d={areaD} fill="url(#ramGrad)" />
                               <path d={pathD} fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2.5" fill="#10b981" />}
+                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2" fill="#10b981" />}
                             </svg>
                           </div>
                         );
@@ -726,11 +774,11 @@ export default function AdminPanel({
                   </div>
 
                   {/* --- CARD 3: DISK GRAPH & DATABASE VOLUME --- */}
-                  <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
+                  <div className={`flex-1 min-h-0 p-3 rounded-xl border flex flex-col justify-between gap-1.5 transition-all ${
                     isLight ? "bg-slate-50/40 border-slate-200/80" : "bg-white/[0.01] border-white/5"
                   }`}>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold flex items-center gap-1.5">
+                      <span className="font-semibold flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                         <span>Нагрузка Диска & Объем Базы Данных</span>
                       </span>
@@ -750,20 +798,20 @@ export default function AdminPanel({
                     </div>
 
                     {/* Disk Chart View */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 min-h-0">
                       <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">График нагрузки на диск (I/O)</span>
                       {(() => {
                         const width = 300;
-                        const height = 55;
+                        const height = 40;
                         const points = diskHistory.map((val, idx) => {
                           const x = idx * (width / (diskHistory.length - 1 || 1));
-                          const y = height - (val / 100) * (height - 10) - 5;
+                          const y = height - (val / 100) * (height - 8) - 4;
                           return { x, y };
                         });
                         const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
                         const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
                         return (
-                          <div className="h-14 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
+                          <div className="h-11 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
                             <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
                               <defs>
                                 <linearGradient id="diskGrad" x1="0" y1="0" x2="0" y2="1">
@@ -774,7 +822,7 @@ export default function AdminPanel({
                               <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className="text-slate-200/10 dark:text-white/[0.03]" strokeDasharray="3 3" />
                               <path d={areaD} fill="url(#diskGrad)" />
                               <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2.5" fill="#3b82f6" />}
+                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2" fill="#3b82f6" />}
                             </svg>
                           </div>
                         );
@@ -786,7 +834,7 @@ export default function AdminPanel({
               </div>
 
               {/* SERVER TERMINAL DIAGNOSTICS LOGS CONSOLE */}
-              <div className={`flex-1 flex flex-col min-h-[300px] rounded-2xl p-5 border gap-3 ${
+              <div className={`flex-1 flex flex-col min-h-[400px] lg:min-h-0 rounded-2xl p-5 border gap-3 ${
                 isLight ? "bg-white border-slate-200" : "liquid-glass-card"
               }`}>
                 <div className="flex justify-between items-center text-xs">
@@ -879,17 +927,18 @@ export default function AdminPanel({
                     <div>
                       <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
                         isLight ? "text-slate-700" : "text-slate-400"
-                      }`}>Название Проекта (Solana)</label>
+                      }`}>Минимальный Шаг Тика SPOT (Tick Size)</label>
                       <input
-                        type="text"
+                        type="number"
+                        step="any"
                         required
-                        placeholder="Solana"
-                        value={newName}
-                        onChange={(e) => setNewName(e.target.value)}
-                        className={`w-full text-xs font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                        placeholder="0.01"
+                        value={newMinTickStepSpot}
+                        onChange={(e) => setNewMinTickStepSpot(e.target.value)}
+                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
                           isLight 
                             ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
-                            : "bg-slate-900 border-white/5 text-white focus:border-emerald-500"
+                            : "bg-slate-900 border-white/10 text-white focus:border-emerald-500"
                         }`}
                       />
                     </div>
@@ -897,36 +946,14 @@ export default function AdminPanel({
                     <div>
                       <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
                         isLight ? "text-slate-700" : "text-slate-400"
-                      }`}>Базовый Шаг Стакана (Price Step)</label>
-                      <select
-                        value={newPriceStep}
-                        onChange={(e) => setNewPriceStep(e.target.value)}
-                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
-                          isLight 
-                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
-                            : "bg-slate-900 border-white/10 text-white focus:border-emerald-500"
-                        }`}
-                      >
-                        <option value="10">10 (Например Bitcoin)</option>
-                        <option value="1">1 (Например Ethereum)</option>
-                        <option value="0.5">0.5 (Средний шаг)</option>
-                        <option value="0.1">0.1 (Например Solana)</option>
-                        <option value="0.01">0.01 (Мелкие токены)</option>
-                        <option value="0.001">0.001 (Ripple)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
-                        isLight ? "text-slate-700" : "text-slate-400"
-                      }`}>Минимальный Шаг Тика (Tick Size)</label>
+                      }`}>Минимальный Шаг Тика FUTURES (Tick Size)</label>
                       <input
                         type="number"
                         step="any"
                         required
-                        placeholder="0.01"
-                        value={newMinTickStep}
-                        onChange={(e) => setNewMinTickStep(e.target.value)}
+                        placeholder="0.1"
+                        value={newMinTickStepFutures}
+                        onChange={(e) => setNewMinTickStepFutures(e.target.value)}
                         className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
                           isLight 
                             ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
@@ -1273,7 +1300,7 @@ export default function AdminPanel({
             <div className="flex-1 flex flex-col gap-6 min-h-0">
               
               {/* METRICS ROW */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* 1. Host Counter */}
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
                   isLight ? "bg-white border-slate-200/80 shadow-sm" : "liquid-glass-card"
@@ -1316,34 +1343,6 @@ export default function AdminPanel({
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping inline-block" />
                     </div>
                     <span className="text-[9.5px] text-slate-450 font-sans">Прямое WebSocket соединение</span>
-                  </div>
-                </div>
-
-                {/* 4. WebSocket Link Stat */}
-                <div className={`p-4 rounded-xl border flex items-center gap-4 ${
-                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "liquid-glass-card"
-                }`}>
-                  <div className="p-3 rounded-lg bg-purple-500/10 text-purple-500">
-                    <Server className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-mono font-extrabold text-slate-450 block uppercase">Стрим Котировок</span>
-                    <div className="text-sm font-bold capitalize select-none mt-1">
-                      <select
-                        value={connectionStatus}
-                        onChange={(e) => onSetConnectionStatus(e.target.value as any)}
-                        className={`text-xs font-mono font-bold rounded-lg px-2 py-1 focus:outline-none border cursor-pointer ${
-                          isLight 
-                            ? "bg-slate-100 border-slate-250 text-slate-800" 
-                            : "bg-slate-900 border-white/10 text-slate-100"
-                        }`}
-                      >
-                        <option value="connected">● Connected (Стабилен)</option>
-                        <option value="syncing">⟳ Syncing (Переподключение)</option>
-                        <option value="stale">✗ Offline (Имитация сбоя)</option>
-                      </select>
-                    </div>
-                    <span className="text-[9.5px] text-slate-450 font-mono">Биржа: Binance Futures/Spot</span>
                   </div>
                 </div>
               </div>
@@ -1410,50 +1409,41 @@ export default function AdminPanel({
                 {/* FORM CONTROLS FOR THE CHOSEN TIER */}
                 <form onSubmit={handleSavePolicies} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 font-sans mt-2">
                   
-                  {/* METRIC 1: MAX CHART HISTORY */}
-                  <div className={`p-4 rounded-xl border flex flex-col justify-between gap-3 ${
+                  {/* METRIC 1: MAX CHART HISTORY IN DAYS FOR 6 TIMEFRAMES */}
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between gap-3 md:col-span-2 lg:col-span-3 ${
                     isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
                   }`}>
                     <div>
                       <span className={`text-[10px] font-mono font-black uppercase block tracking-wider ${isLight ? "text-slate-600" : "text-slate-300"}`}>
-                        1. Максимальная история графика
+                        1. Максимальная история графика (в днях, по таймфреймам)
                       </span>
                       <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
-                        Лимит отображаемых исторических свечей/тиков в сессии трейдера.
+                        Лимит отображаемой истории свечей в днях для каждого из 6 таймфреймов.
                       </p>
                     </div>
 
-                    <div className="flex flex-col gap-2 mt-2">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="number"
-                          min="50"
-                          max="50000"
-                          value={tierSettings[selectedGroup].maxHistory}
-                          onChange={(e) => updateTierSetting(selectedGroup, "maxHistory", parseInt(e.target.value) || 200)}
-                          className={`w-full max-w-[120px] rounded-lg px-3 py-1.5 font-mono font-black text-xs border ${
-                            isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/10 text-white"
-                          }`}
-                        />
-                        <span className="text-[11px] font-mono font-bold text-sky-400">свечей</span>
-                      </div>
-                      
-                      <div className="flex gap-1 flex-wrap">
-                        {[100, 500, 1000, 5000, 10000].map(val => (
-                          <button
-                            type="button"
-                            key={val}
-                            onClick={() => updateTierSetting(selectedGroup, "maxHistory", val)}
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border transition ${
-                              tierSettings[selectedGroup].maxHistory === val
-                                ? "bg-blue-500/15 border-blue-500 text-blue-400"
-                                : isLight ? "bg-white hover:bg-slate-100 border-slate-200 text-slate-600 shadow-sm" : "bg-slate-900 hover:bg-slate-800 border-white/5 text-slate-400"
-                            }`}
-                          >
-                            {val}
-                          </button>
-                        ))}
-                      </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3.5 mt-2">
+                      {(["1m", "5m", "15m", "30m", "1h", "4h"] as const).map(tf => {
+                        const key = `historyDays_${tf}` as const;
+                        return (
+                          <div key={tf} className="flex flex-col gap-1">
+                            <span className="text-[10px] font-mono font-bold text-amber-500 uppercase">{tf}</span>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min="1"
+                                max="10000"
+                                value={tierSettings[selectedGroup][key] ?? 1}
+                                onChange={(e) => updateTierSetting(selectedGroup, key, parseInt(e.target.value) || 1)}
+                                className={`w-full rounded-lg px-2.5 py-1.5 font-mono font-black text-xs border ${
+                                  isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/10 text-white"
+                                }`}
+                              />
+                              <span className="text-[9px] font-mono text-slate-450">дн.</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1609,6 +1599,37 @@ export default function AdminPanel({
                     </label>
                   </div>
 
+                  {/* METRIC 6: WORKSPACES */}
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between gap-3 ${
+                    isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                  }`}>
+                    <div>
+                      <span className={`text-[10px] font-mono font-black uppercase block tracking-wider ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+                        6. Рабочие пространства (Workspaces)
+                      </span>
+                      <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
+                        Допустимое количество одновременно открытых рабочих пространств.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2.5 mt-2">
+                      {[1, 2].map(val => (
+                        <button
+                          type="button"
+                          key={val}
+                          onClick={() => updateTierSetting(selectedGroup, "workspacesCount", val)}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition ${
+                            tierSettings[selectedGroup].workspacesCount === val
+                              ? "bg-blue-500/15 border-blue-500 text-blue-400"
+                              : isLight ? "bg-white hover:bg-slate-100 border-slate-200 text-slate-600 shadow-sm" : "bg-slate-900 hover:bg-slate-800 border-white/5 text-slate-400"
+                          }`}
+                        >
+                          {val} {val === 1 ? "пространство" : "пространства"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* SAVE BUTTON FOR ALL POLICIES */}
                   <div className="flex items-end justify-start">
                     <button
@@ -1648,7 +1669,7 @@ export default function AdminPanel({
                   isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/40 border-white/10"
                 }`}>
                   <h4 className="text-xs font-bold tracking-wider uppercase text-slate-400">Добавить нового пользователя</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <input
                         type="text"
@@ -1661,11 +1682,22 @@ export default function AdminPanel({
                       />
                     </div>
                     <div>
+                      <input
+                        type="password"
+                        placeholder="Пароль"
+                        value={newPasswordInput}
+                        onChange={(e) => setNewPasswordInput(e.target.value)}
+                        className={`text-xs w-full rounded-lg px-2.5 py-1.5 focus:outline-none border ${
+                          isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-101"
+                        }`}
+                      />
+                    </div>
+                    <div>
                       <select
                         value={newLevelInput}
                         onChange={(e) => setNewLevelInput(e.target.value as any)}
                         className={`text-xs w-full rounded-lg px-2.5 py-1.5 focus:outline-none border ${
-                          isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
+                          isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-101"
                         }`}
                       >
                         <option value="free">free (Бесплатный)</option>
@@ -1673,35 +1705,13 @@ export default function AdminPanel({
                         <option value="VIP">VIP (Привилегированный)</option>
                       </select>
                     </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="IP-адрес"
-                        value={newIpInput}
-                        onChange={(e) => setNewIpInput(e.target.value)}
-                        className={`text-xs w-full rounded-lg px-2.5 py-1.5 focus:outline-none border ${
-                          isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Страна & Флаг (e.g. Kazakhstan 🇰🇿)"
-                        value={newCountryInput}
-                        onChange={(e) => setNewCountryInput(e.target.value)}
-                        className={`text-xs w-full rounded-lg px-2.5 py-1.5 focus:outline-none border ${
-                          isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
-                        }`}
-                      />
-                    </div>
                   </div>
                   <div className="flex justify-between items-center mt-1">
                     <button
                       onClick={() => {
                         if (!newNickInput) return;
-                        const defaultIp = newIpInput || `${Math.floor(Math.random() * 200 + 40)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
-                        const defaultCountry = newCountryInput || "Kazakhstan 🇰🇿";
+                        const defaultIp = `${Math.floor(Math.random() * 200 + 40)}.${Math.floor(Math.random() * 205 + 10)}.${Math.floor(Math.random() * 240 + 10)}.${Math.floor(Math.random() * 240 + 10)}`;
+                        const defaultCountry = "Kazakhstan 🇰🇿";
                         const registerDate = new Date().toISOString().split("T")[0];
                         const newUser: AdminUser = {
                           id: `usr_${Math.floor(Math.random() * 900 + 100)}`,
@@ -1709,13 +1719,13 @@ export default function AdminPanel({
                           registerDate,
                           subscriptionLevel: newLevelInput,
                           ip: defaultIp,
-                          country: defaultCountry
+                          country: defaultCountry,
+                          password: newPasswordInput || "•••••"
                         };
                         setAdminUsers(prev => [newUser, ...prev]);
                         setRegisteredUsersCount(prev => prev + 1);
                         setNewNickInput("");
-                        setNewIpInput("");
-                        setNewCountryInput("");
+                        setNewPasswordInput("");
                         setUserSuccessMsg("Пользователь успешно зарегистрирован!");
                         setTimeout(() => setUserSuccessMsg(""), 3000);
                       }}
@@ -1793,7 +1803,7 @@ export default function AdminPanel({
                 <div className="overflow-x-auto">
                   <table className="w-full text-left font-sans text-xs border-collapse">
                     <thead>
-                      <tr className={`border-b text-[10px] font-mono text-slate-450 ${
+                      <tr className={`border-b text-[10px] font-mono text-slate-455 ${
                         isLight ? "border-slate-200" : "border-white/5"
                       }`}>
                         <th className="py-2.5 px-3">Идентификатор</th>
@@ -1862,53 +1872,357 @@ export default function AdminPanel({
                 </div>
               </div>
 
-              {/* CONNECTION TABLE */}
-              <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
-                isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
-              }`}>
-                <div className="flex justify-between items-center">
-                  <h3 className="text-xs font-bold font-mono text-slate-400 flex items-center gap-2 uppercase">
-                    <Radio className="w-4 h-4 text-emerald-500 animate-pulse" />
-                    Активные сессии Live WebSocket Трейдеров
-                  </h3>
-                  <span className="font-mono text-[9px] text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
-                    SESSIONS NOMINAL
-                  </span>
+            </div>
+          )}
+
+          {/* TAB 4: STATISTICS & BILLING */}
+          {activeTab === "stats" && (
+            <div className="flex-1 flex flex-col gap-6 min-h-0 overflow-y-auto pr-1">
+              
+              {/* TOP STATS CARDS */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className={`p-4 rounded-xl border flex items-center gap-4 ${
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950 border-white/5 shadow-inner"
+                }`}>
+                  <div className="p-3 rounded-lg bg-emerald-500/10 text-emerald-500">
+                    <DollarSign className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-mono font-extrabold text-slate-400 block uppercase">Общая Выручка</span>
+                    <span className="text-sm font-black font-mono tracking-tight mt-1 block">
+                      {paidRecords.reduce((acc, r) => acc + r.totalSpent, 0).toLocaleString()} USDT
+                    </span>
+                  </div>
                 </div>
 
+                {/* Выручка за текущий месяц */}
+                <div className={`p-4 rounded-xl border flex items-center gap-4 ${
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950 border-white/5 shadow-inner"
+                }`}>
+                  <div className="p-3 rounded-lg bg-teal-500/10 text-teal-400">
+                    <Calendar className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-mono font-extrabold text-slate-400 block uppercase">Выручка за Тек. Месяц</span>
+                    <span className="text-sm font-black font-mono tracking-tight mt-1 block text-teal-400">
+                      {paidRecords
+                        .filter(r => r.paymentDate.startsWith(new Date().toISOString().slice(0, 7)))
+                        .reduce((acc, r) => acc + r.lastPaidAmount, 0).toLocaleString()} USDT
+                    </span>
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-xl border flex items-center gap-4 ${
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950 border-white/5 shadow-inner"
+                }`}>
+                  <div className="p-3 rounded-lg bg-blue-500/10 text-blue-500">
+                    <Check className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-mono font-extrabold text-slate-400 block uppercase">Активные подписки</span>
+                    <span className="text-sm font-black font-mono tracking-tight mt-1 block text-emerald-500">
+                      {paidRecords.filter(r => r.status === "active").length}
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-mono block mt-0.5 whitespace-nowrap">
+                      (PRO: {paidRecords.filter(r => r.status === "active" && r.subscriptionLevel === "RPO").length} | VIP: {paidRecords.filter(r => r.status === "active" && r.subscriptionLevel === "VIP").length})
+                    </span>
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-xl border flex items-center gap-4 ${
+                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950 border-white/5 shadow-inner"
+                }`}>
+                  <div className="p-3 rounded-lg bg-amber-500/10 text-amber-500">
+                    <RefreshCw className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-mono font-extrabold text-slate-400 block uppercase">В ожидании оплаты</span>
+                    <span className="text-sm font-black font-mono tracking-tight mt-1 block text-amber-500">
+                      {paidRecords.filter(r => r.status === "waiting").length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* MAIN CONTENT WORKSPACE: LIST & FORM */}
+              <div className={`p-5 rounded-2xl border ${
+                isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-900/60 border-white/5"
+              }`}>
+                
+                {/* HEADER ROW WITH ACTION BUTTONS */}
+                <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200/10 dark:border-white/5">
+                  <div>
+                    <h3 className={`text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-2 ${
+                      isLight ? "text-slate-800" : "text-slate-200"
+                    }`}>
+                      <DollarSign className="w-4 h-4 text-emerald-500" />
+                      База платных подписчиков и биллинг
+                    </h3>
+                    <p className="text-[10.5px] text-slate-400 mt-0.5 font-sans leading-snug">
+                      Учет пользователей, оплачивавших подписку, текущий статус их подписки и финансовая аналитика.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setEditingRecordId(editingRecordId === "new" ? null : "new");
+                      setEditRecUserId(adminUsers[0]?.id || "");
+                      setEditRecLevel("RPO");
+                      setEditRecStatus("active");
+                      setEditRecAmount("49");
+                      setEditRecTotal("147");
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-[10px] uppercase font-mono flex items-center gap-1 cursor-pointer transition active:scale-95"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Зарегистрировать транзакцию
+                  </button>
+                </div>
+
+                {/* FORM PANEL FOR CREATION / EDITION */}
+                {(editingRecordId) && (
+                  <div className={`p-4 rounded-xl border mb-5 transition-all ${
+                    isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.01] border-white/5"
+                  }`}>
+                    <h4 className="text-[10px] font-black font-mono uppercase text-slate-400 mb-3 flex items-center gap-1.5">
+                      <Settings className="w-3.5 h-3.5" />
+                      {editingRecordId === "new" ? "Новая транзакция" : "Редактирование записи биллинга"}
+                    </h4>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                      
+                      {/* USER SELECT OR INPUT */}
+                      <div>
+                        <label className="text-[9px] text-slate-400 block uppercase mb-1 font-mono">Никнейм пользователя</label>
+                        {editingRecordId === "new" ? (
+                          <select
+                            value={editRecUserId}
+                            onChange={(e) => setEditRecUserId(e.target.value)}
+                            className={`text-xs w-full rounded px-2.5 py-1.5 focus:outline-none border ${
+                              isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
+                            }`}
+                          >
+                            {adminUsers.map(u => (
+                              <option key={u.id} value={u.id}>{u.nickname} ({u.id})</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            disabled
+                            value={paidRecords.find(r => r.id === editingRecordId)?.nickname || ""}
+                            className={`text-xs w-full rounded px-2.5 py-1.5 font-bold border opacity-60 ${
+                              isLight ? "bg-slate-100 border-slate-300 text-slate-700" : "bg-slate-950 border-white/5 text-slate-300"
+                            }`}
+                          />
+                        )}
+                      </div>
+
+                      {/* LEVEL */}
+                      <div>
+                        <label className="text-[9px] text-slate-400 block uppercase mb-1 font-mono">Тарифный план</label>
+                        <select
+                          value={editRecLevel}
+                          onChange={(e) => setEditRecLevel(e.target.value as any)}
+                          className={`text-xs w-full rounded px-2.5 py-1.5 focus:outline-none border ${
+                            isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
+                          }`}
+                        >
+                          <option value="RPO">RPO</option>
+                          <option value="VIP">VIP</option>
+                        </select>
+                      </div>
+
+                      {/* STATUS */}
+                      <div>
+                        <label className="text-[9px] text-slate-400 block uppercase mb-1 font-mono">Статус подписки</label>
+                        <select
+                          value={editRecStatus}
+                          onChange={(e) => setEditRecStatus(e.target.value as any)}
+                          className={`text-xs w-full rounded px-2.5 py-1.5 focus:outline-none border ${
+                            isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/5 text-slate-100"
+                          }`}
+                        >
+                          <option value="active">Активная</option>
+                          <option value="expired">Закончилась</option>
+                          <option value="waiting">В ожидании</option>
+                        </select>
+                      </div>
+
+                      {/* LAST PAID PRICE */}
+                      <div>
+                        <label className="text-[9px] text-slate-400 block uppercase mb-1 font-mono">Последняя оплата (USDT)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editRecAmount}
+                          onChange={(e) => setEditRecAmount(e.target.value)}
+                          className={`text-xs w-full rounded px-2.5 py-1.5 focus:outline-none border font-mono ${
+                            isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/10 text-slate-100"
+                          }`}
+                        />
+                      </div>
+
+                      {/* TOTAL SPENT */}
+                      <div>
+                        <label className="text-[9px] text-slate-400 block uppercase mb-1 font-mono font-bold">Суммарно потрачено</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editRecTotal}
+                          onChange={(e) => setEditRecTotal(e.target.value)}
+                          className={`text-xs w-full rounded px-2.5 py-1.5 focus:outline-none border font-mono font-bold ${
+                            isLight ? "bg-white border-slate-300 text-slate-950" : "bg-slate-950 border-white/15 text-white"
+                          }`}
+                        />
+                      </div>
+
+                    </div>
+
+                    {/* FORM BUTTONS */}
+                    <div className="flex gap-2 justify-end mt-4">
+                      <button
+                        onClick={() => setEditingRecordId(null)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer font-sans transition-all opacity-80 hover:opacity-100 ${
+                          isLight ? "bg-slate-200 text-slate-700" : "bg-slate-900 text-slate-350"
+                        }`}
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        onClick={() => {
+                          const amountVal = parseFloat(editRecAmount) || 0;
+                          const totalVal = parseFloat(editRecTotal) || 0;
+
+                          if (editingRecordId === "new") {
+                            const usr = adminUsers.find(u => u.id === editRecUserId);
+                            const nick = usr ? usr.nickname : "@unknown";
+                            const newRec: PaidSubscriptionRecord = {
+                              id: `tx_${Date.now().toString().slice(-4)}`,
+                              userId: editRecUserId,
+                              nickname: nick,
+                              subscriptionLevel: editRecLevel,
+                              status: editRecStatus,
+                              lastPaidAmount: amountVal,
+                              totalSpent: totalVal,
+                              paymentDate: new Date().toISOString().split('T')[0]
+                            };
+                            setPaidRecords(prev => [newRec, ...prev]);
+                            setUserSuccessMsg("Транзакция успешно добавлена!");
+                          } else {
+                            setPaidRecords(prev => prev.map(rec => {
+                              if (rec.id === editingRecordId) {
+                                return {
+                                  ...rec,
+                                  subscriptionLevel: editRecLevel,
+                                  status: editRecStatus,
+                                  lastPaidAmount: amountVal,
+                                  totalSpent: totalVal
+                                };
+                              }
+                              return rec;
+                            }));
+                            setUserSuccessMsg("Успешно обновлено!");
+                          }
+                          setEditingRecordId(null);
+                          setTimeout(() => {
+                            setUserSuccessMsg("");
+                          }, 3000);
+                        }}
+                        className="px-4 py-1.5 rounded-lg bg-emerald-650 hover:bg-emerald-550 text-white font-extrabold text-xs font-sans cursor-pointer active:scale-95 transition-all"
+                      >
+                        Сохранить
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* USER SUCCESS MESSAGE */}
+                {userSuccessMsg && (
+                  <div className="p-2 ml-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-center text-[11px] font-mono font-bold mb-4 animate-pulse">
+                    {userSuccessMsg}
+                  </div>
+                )}
+
+                {/* BILLING BASE TABLE */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-left font-sans text-xs border-collapse">
                     <thead>
-                      <tr className={`border-b text-[10px] font-mono text-slate-450 ${
+                      <tr className={`border-b text-[10px] font-mono text-slate-400 ${
                         isLight ? "border-slate-200" : "border-white/5"
                       }`}>
-                        <th className="py-2.5 px-3">Идентификатор</th>
-                        <th className="py-2.5 px-3">IP-адрес</th>
-                        <th className="py-2.5 px-3">Геолокация</th>
-                        <th className="py-2.5 px-3">Конечный Узел</th>
-                        <th className="py-2.5 px-3">Подписка Ticker (WebSocket)</th>
-                        <th className="py-2.5 px-3 text-right">Задержка (Latency)</th>
+                        <th className="py-2 px-3">Код</th>
+                        <th className="py-2 px-3">ID Трейдера</th>
+                        <th className="py-2 px-3">Пользователь</th>
+                        <th className="py-2 px-3">Тариф</th>
+                        <th className="py-2 px-3">Статус подписки</th>
+                        <th className="py-2 px-3 text-right">Последняя оплата</th>
+                        <th className="py-2 px-3 text-right">Всего внесено</th>
+                        <th className="py-2 px-3">Дата платежа</th>
+                        <th className="py-2 px-3 text-right">Действия</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-500/5 font-mono">
-                      {clients.map(cli => (
-                        <tr key={cli.id} className={`hover:bg-slate-500/5 transition-colors ${
+                      {paidRecords.map(rec => (
+                        <tr key={rec.id} className={`hover:bg-slate-500/5 transition-colors ${
                           isLight ? "text-slate-800" : "text-slate-200"
                         }`}>
-                          <td className="py-3 px-3 font-semibold text-amber-500">{cli.id}</td>
-                          <td className="py-3 px-3">{cli.ip}</td>
-                          <td className="py-3 px-3 flex items-center gap-1.5 font-sans">
-                            <Wifi className="w-3.5 h-3.5 text-blue-500" />
-                            <span>{cli.geo}</span>
-                          </td>
-                          <td className="py-3 px-3 font-sans text-slate-400">{cli.origin}</td>
-                          <td className="py-3 px-3"><span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold">{cli.sub}</span></td>
-                          <td className="py-3 px-3 text-right">
-                            <span className={`font-bold ${
-                              cli.ping < 40 ? "text-emerald-500" : cli.ping < 120 ? "text-yellow-500" : "text-red-500"
+                          <td className="py-2 px-3 font-semibold text-slate-500 text-[11px]">{rec.id}</td>
+                          <td className="py-2 px-3 font-mono text-slate-400 text-[10.5px]">{rec.userId}</td>
+                          <td className="py-2 px-3 font-bold text-amber-500">{rec.nickname}</td>
+                          <td className="py-2 px-3">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${
+                              rec.subscriptionLevel === "RPO"
+                                ? isLight ? "bg-orange-50 border-orange-300 text-orange-700" : "bg-orange-500/10 border-orange-500/25 text-orange-400"
+                                : isLight ? "bg-yellow-50 border-yellow-300 text-yellow-850" : "bg-yellow-500/10 border-yellow-500/25 text-yellow-450 font-bold"
                             }`}>
-                              {cli.ping} ms
+                              {rec.subscriptionLevel}
                             </span>
+                          </td>
+                          <td className="py-2 px-3">
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${
+                              rec.status === "active"
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : rec.status === "waiting"
+                                ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                            }`}>
+                              {rec.status === "active" ? "Активная" : rec.status === "waiting" ? "Ожидание" : "Закончилась"}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-right font-bold text-slate-350">{rec.lastPaidAmount} USDT</td>
+                          <td className="py-2 px-3 text-right font-bold text-emerald-400">{rec.totalSpent} USDT</td>
+                          <td className="py-2 px-3 text-slate-400 text-[10.5px]">{rec.paymentDate}</td>
+                          <td className="py-2 px-3 text-right">
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <button
+                                onClick={() => {
+                                  setEditingRecordId(rec.id);
+                                  setEditRecUserId(rec.userId);
+                                  setEditRecLevel(rec.subscriptionLevel);
+                                  setEditRecStatus(rec.status);
+                                  setEditRecAmount(rec.lastPaidAmount.toString());
+                                  setEditRecTotal(rec.totalSpent.toString());
+                                }}
+                                className="p-1 rounded bg-blue-500/15 text-blue-400 hover:text-blue-300 cursor-pointer active:scale-95 transition-all"
+                                title="Редактировать запись"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Вы действительно хотите удалить финансовую запись для ${rec.nickname}?`)) {
+                                    setPaidRecords(prev => prev.filter(r => r.id !== rec.id));
+                                    setUserSuccessMsg(`Запись биллинга для ${rec.nickname} удалена`);
+                                    setTimeout(() => setUserSuccessMsg(""), 3000);
+                                  }
+                                }}
+                                className="p-1 rounded bg-rose-500/15 text-rose-500 hover:text-rose-400 cursor-pointer active:scale-95 transition-all"
+                                title="Удалить"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1916,9 +2230,6 @@ export default function AdminPanel({
                   </table>
                 </div>
 
-                <div className="text-[10px] text-slate-500 italic mt-2">
-                  * Таблица сетей автоматически транслирует активный WebSocket фреймрейт. Нажмите симуляцию задержки вверху для имитации сбоя связи.
-                </div>
               </div>
 
             </div>
