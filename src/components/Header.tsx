@@ -7,6 +7,17 @@ import React, { useState, useRef, useEffect } from "react";
 import { CryptoPair } from "../types";
 import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { authTexts, headerUiTexts } from "../i18n/header";
+import { 
+  getCurrentUser, 
+  seedAdminAccount, 
+  loginUser, 
+  registerUser, 
+  authenticateWithGoogle, 
+  authenticateWithAdmin, 
+  logoutUser,
+  AuthUser
+} from "../auth/mockAuth";
 
 interface HeaderProps {
   isTickingAll: boolean;
@@ -41,32 +52,14 @@ export default function Header({
 }: HeaderProps) {
   
   const isLight = theme === "light";
+  
   // Real-time simulated authorized profile state matching email/name from request, loading from localStorage
-  const [user, setUser] = useState<{ name: string; email: string; avatar: string } | null>(() => {
-    const saved = localStorage.getItem("procluster_user");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  });
+  const [user, setUser] = useState<AuthUser | null>(() => getCurrentUser());
 
   // Listen for external profile updates from local storage or profile page
   useEffect(() => {
     const handleUpdate = () => {
-      const saved = localStorage.getItem("procluster_user");
-      if (saved) {
-        try {
-          setUser(JSON.parse(saved));
-        } catch (e) {
-          // ignore
-        }
-      } else {
-        setUser(null);
-      }
+      setUser(getCurrentUser());
     };
     window.addEventListener("procluster_user_updated", handleUpdate);
     window.addEventListener("storage", handleUpdate);
@@ -91,91 +84,9 @@ export default function Header({
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Localization Dictionary for Authorization Modal
-  const authTexts = {
-    RU: {
-      title: "Авторизация Терминала",
-      subtitle: "Войдите, чтобы сохранять лимитные ордера и синхронизировать настройки footprint на устройствах.",
-      loginTab: "Вход",
-      registerTab: "Регистрация",
-      usernameLabel: "Логин / Никнейм",
-      emailLabel: "Электронная почта",
-      passwordLabel: "Пароль",
-      confirmPasswordLabel: "Повторите пароль",
-      cancelBtn: "Отмена",
-      authBtn: "Войти",
-      regBtn: "Зарегистрироваться",
-      orInstant: "Или моментальный вход",
-      autoLogin: "Войти авто-сессией как admin",
-      googleAuth: "Войти через Google",
-      errorUserNotFound: "Пользователь не найден или неверный пароль",
-      errorPasswordMismatch: "Пароли не совпадают!",
-      errorUsernameExists: "Этот логин уже занят!",
-      errorEmptyFields: "Пожалуйста, заполните все обязательные поля."
-    },
-    EN: {
-      title: "Terminal Authorization",
-      subtitle: "Sign in to save custom limit orders and sync footprint layouts across devices.",
-      loginTab: "Log In",
-      registerTab: "Register",
-      usernameLabel: "Username / Login",
-      emailLabel: "Email Address",
-      passwordLabel: "Password",
-      confirmPasswordLabel: "Confirm Password",
-      cancelBtn: "Cancel",
-      authBtn: "Log In",
-      regBtn: "Sign Up",
-      orInstant: "Or Instant Authorization",
-      autoLogin: "Auto-login as admin",
-      googleAuth: "Continue with Google",
-      errorUserNotFound: "User not found or invalid password",
-      errorPasswordMismatch: "Passwords do not match!",
-      errorUsernameExists: "Username is already taken!",
-      errorEmptyFields: "Please fill in all required fields."
-    },
-    KZ: {
-      title: "Терминал авторизациясы",
-      subtitle: "Лимиттік тапсырыстарды сақтау және құрылғылар арасында footprint баптауларын синхрондау үшін кіріңіз.",
-      loginTab: "Кіру",
-      registerTab: "Тіркелу",
-      usernameLabel: "Логин / Никнейм",
-      emailLabel: "Электрондық пошта",
-      passwordLabel: "Құпия сөз",
-      confirmPasswordLabel: "Құпия сөзді растаңыз",
-      cancelBtn: "Бас тарту",
-      authBtn: "Кіру",
-      regBtn: "Тіркелу",
-      orInstant: "Немесе жылдам кіру",
-      autoLogin: "admin ретінде жылдам кіру",
-      googleAuth: "Google арқылы кіру",
-      errorUserNotFound: "Пайдаланушы табылмады немесе құпия сөз қате",
-      errorPasswordMismatch: "Құпия сөздер сәйкес келмейді!",
-      errorUsernameExists: "Бұл логин бос емес!",
-      errorEmptyFields: "Барлық өрістерді толтырыңыз."
-    }
-  };
-
   // Seed default admin account on startup so the user can test login immediately
   useEffect(() => {
-    const accountsKey = "procluster_accounts";
-    let accounts = [];
-    try {
-      const saved = localStorage.getItem(accountsKey);
-      if (saved) accounts = JSON.parse(saved);
-    } catch (e) {
-      accounts = [];
-    }
-    
-    const adminExists = accounts.some((acc: any) => acc.login === "admin");
-    if (!adminExists) {
-      accounts.push({
-        login: "admin",
-        email: "admin@procluster.io",
-        password: "lynat1k286450",
-        name: "Admin"
-      });
-      localStorage.setItem(accountsKey, JSON.stringify(accounts));
-    }
+    seedAdminAccount();
   }, []);
 
   // Close dropdown on click outside
@@ -191,121 +102,51 @@ export default function Header({
 
   // Sync logout
   const handleLogout = () => {
+    logoutUser();
     setUser(null);
-    localStorage.removeItem("procluster_user");
     setDropdownOpen(false);
-    window.dispatchEvent(new Event("procluster_user_updated"));
   };
 
   const handleAuthSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
     
-    const accountsKey = "procluster_accounts";
-    let accounts = [];
-    try {
-      const saved = localStorage.getItem(accountsKey);
-      if (saved) accounts = JSON.parse(saved);
-    } catch (err) {
-      accounts = [];
-    }
-
-    // Always guarantee admin exists
-    const adminExists = accounts.some((acc: any) => acc.login === "admin");
-    if (!adminExists) {
-      accounts.push({
-        login: "admin",
-        email: "admin@procluster.io",
-        password: "lynat1k286450",
-        name: "Admin"
-      });
-      localStorage.setItem(accountsKey, JSON.stringify(accounts));
-    }
-
     const langTexts = authTexts[language] || authTexts.EN;
 
     if (authTab === "login") {
-      // Find account by login or email
-      const matched = accounts.find((acc: any) => 
-        (acc.login.toLowerCase() === loginName.trim().toLowerCase() || acc.email.toLowerCase() === loginName.trim().toLowerCase()) &&
-        acc.password === loginPassword
-      );
-      
-      if (matched) {
-        const loggedUser = {
-          name: matched.login === "admin" ? "Admin" : matched.login,
-          email: matched.email,
-          avatar: matched.login === "admin" 
-            ? "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
-            : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
-        };
-        setUser(loggedUser);
-        localStorage.setItem("procluster_user", JSON.stringify(loggedUser));
+      const result = loginUser(loginName, loginPassword, langTexts);
+      if (result.success && result.user) {
+        setUser(result.user);
         setShowLoginModal(false);
-        window.dispatchEvent(new Event("procluster_user_updated"));
         // Clear fields
         setLoginName("");
         setLoginPassword("");
         setLoginEmail("");
         setConfirmPassword("");
       } else {
-        setAuthError(langTexts.errorUserNotFound);
+        setAuthError(result.error || "");
       }
     } else {
-      // Register logic
-      if (!loginName.trim() || !loginEmail.trim() || !loginPassword || !confirmPassword) {
-        setAuthError(langTexts.errorEmptyFields);
-        return;
+      const result = registerUser(loginName, loginEmail, loginPassword, confirmPassword, langTexts);
+      if (result.success && result.user) {
+        setUser(result.user);
+        setShowLoginModal(false);
+        // Clear fields
+        setLoginName("");
+        setLoginPassword("");
+        setLoginEmail("");
+        setConfirmPassword("");
+      } else {
+        setAuthError(result.error || "");
       }
-      if (loginPassword !== confirmPassword) {
-        setAuthError(langTexts.errorPasswordMismatch);
-        return;
-      }
-      
-      const usernameExists = accounts.some((acc: any) => acc.login.toLowerCase() === loginName.trim().toLowerCase());
-      if (usernameExists) {
-        setAuthError(langTexts.errorUsernameExists);
-        return;
-      }
-      
-      const newAcc = {
-        login: loginName.trim(),
-        email: loginEmail.trim(),
-        password: loginPassword,
-        name: loginName.trim()
-      };
-      accounts.push(newAcc);
-      localStorage.setItem(accountsKey, JSON.stringify(accounts));
-      
-      const loggedUser = {
-        name: newAcc.login,
-        email: newAcc.email,
-        avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80"
-      };
-      setUser(loggedUser);
-      localStorage.setItem("procluster_user", JSON.stringify(loggedUser));
-      setShowLoginModal(false);
-      window.dispatchEvent(new Event("procluster_user_updated"));
-      
-      // Clear fields
-      setLoginName("");
-      setLoginPassword("");
-      setLoginEmail("");
-      setConfirmPassword("");
     }
   };
 
   // Google Authentication Simulation with primary email
   const handleGoogleAuth = () => {
-    const gAccount = {
-      name: "Lynat1k",
-      email: "xxLynat1kxx@gmail.com",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
-    };
-    setUser(gAccount);
-    localStorage.setItem("procluster_user", JSON.stringify(gAccount));
+    const gUser = authenticateWithGoogle();
+    setUser(gUser);
     setShowLoginModal(false);
-    window.dispatchEvent(new Event("procluster_user_updated"));
   };
 
   // Custom stenciled PROCLUSTER Logo - responsive Vector SVG / Typography design
@@ -354,7 +195,7 @@ export default function Header({
               : "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-500 shadow-md shadow-amber-500/5 animate-pulse"
           }`}
           style={{ animationDuration: "2.5s" }}
-          title={language === "RU" ? "Открыть дорожную карту проекта" : language === "KZ" ? "Жобаның жол картасын ашу" : "Open Project Roadmap"}
+          title={headerUiTexts[language].roadmapTooltip}
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-500 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
           <span>BETA</span>
@@ -372,11 +213,11 @@ export default function Header({
                 ? "bg-red-50 hover:bg-red-105 border-red-200 text-red-700 shadow-sm"
                 : "bg-red-950/20 hover:bg-red-900/40 border-red-900/30 text-red-400 shadow-inner hover:text-red-300"
             }`}
-            title={language === "EN" ? "Admin Panel" : language === "KZ" ? "Әкімшілік панелі" : "Панель администратора"}
+            title={headerUiTexts[language].adminPanelTooltip}
           >
             <Sliders className="w-3.5 h-3.5 animate-pulse" />
             <span className="hidden sm:inline">
-              {language === "EN" ? "Admin" : language === "KZ" ? "Әкімшілік" : "Админка"}
+              {headerUiTexts[language].adminLabel}
             </span>
           </button>
         )}
@@ -390,8 +231,8 @@ export default function Header({
               : "bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-yellow-400 hover:text-yellow-300 shadow-inner"
           }`}
           title={isLight 
-            ? language === "EN" ? "Enable Dark Theme" : language === "KZ" ? "Түнгі режим" : "Включить темную тему"
-            : language === "EN" ? "Enable Light Theme" : language === "KZ" ? "Күндізгі режим" : "Включить светлую тему"
+            ? headerUiTexts[language].enableDarkTheme
+            : headerUiTexts[language].enableLightTheme
           }
         >
           {isLight ? (
@@ -488,7 +329,7 @@ export default function Header({
                       isLight ? "text-slate-700 hover:text-slate-900 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-white/5"
                     }`}>
                       <User className="w-4 h-4 text-slate-500" />
-                      <span>{language === "EN" ? "Profile & avatar" : language === "KZ" ? "Профиль және аватар" : "Профиль и аватар"}</span>
+                      <span>{headerUiTexts[language].profileAvatar}</span>
                     </button>
 
                     <button 
@@ -500,14 +341,14 @@ export default function Header({
                       isLight ? "text-slate-700 hover:text-slate-900 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-white/5"
                     }`}>
                       <Home className="w-4 h-4 text-slate-500" />
-                      <span>{language === "EN" ? "Home" : language === "KZ" ? "Басты бет" : "Главная"}</span>
+                      <span>{headerUiTexts[language].home}</span>
                     </button>
 
                     <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[12px] font-bold cursor-pointer transition text-left ${
                       isLight ? "text-slate-700 hover:bg-red-50 hover:text-rose-600" : "text-slate-300 hover:text-white hover:bg-white/5"
                     }`}>
                       <Bug className="w-4 h-4 text-rose-500" />
-                      <span>{language === "EN" ? "Found an error?" : language === "KZ" ? "Қате таптыңыз ба?" : "Нашли ошибку?"}</span>
+                      <span>{headerUiTexts[language].foundError}</span>
                     </button>
 
                     {/* Copyable Workspace Segment */}
@@ -531,7 +372,7 @@ export default function Header({
                         <span className={`text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border ${
                           isLight ? "bg-slate-200 border-slate-300 text-slate-700" : "bg-white/5 border-white/5 text-slate-500"
                         }`}>
-                          {language === "EN" ? "COPY" : language === "KZ" ? "КӨШІРУ" : "КОПИРОВАТЬ"}
+                          {headerUiTexts[language].copy}
                         </span>
                       )}
                     </button>
@@ -542,7 +383,7 @@ export default function Header({
                     <span className={`text-[9px] font-mono font-extrabold tracking-widest uppercase block mb-2 px-1 ${
                       isLight ? "text-slate-500" : "text-slate-400"
                     }`}>
-                      {language === "EN" ? "LANGUAGE" : language === "KZ" ? "ТІЛ" : "ЯЗЫК"}
+                      {headerUiTexts[language].language}
                     </span>
                     <div className={`grid grid-cols-3 gap-1.5 p-[3px] rounded-2xl border shadow-inner ${
                       isLight ? "bg-slate-100/80 border-slate-200/50" : "bg-slate-950/60 border-white/5"
@@ -586,7 +427,7 @@ export default function Header({
                       <span className={`text-[9px] font-mono font-extrabold tracking-widest uppercase block mb-2 px-1 ${
                         isLight ? "text-slate-500" : "text-slate-400"
                       }`}>
-                        {language === "EN" ? "SUBSCRIPTION ROLE" : language === "KZ" ? "ТІРКЕЛГІ ДӘРЕЖЕСІ" : "РОЛЬ И ДОСТУП"}
+                        {headerUiTexts[language].subRole}
                       </span>
                       <div className={`grid ${
                         user && (user.name === "Admin" || user.email === "admin@procluster.io") ? "grid-cols-5" : "grid-cols-3"
@@ -655,7 +496,7 @@ export default function Header({
                       className="flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[11px] font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50/55 cursor-pointer transition duration-150 text-left"
                     >
                       <LogOut className="w-4 h-4" />
-                      <span>{language === "EN" ? "Logout" : language === "KZ" ? "Шығу" : "Выйти"}</span>
+                      <span>{headerUiTexts[language].logout}</span>
                     </button>
                   </div>
                 </motion.div>
@@ -920,18 +761,9 @@ export default function Header({
                 <button
                   type="button"
                   onClick={() => {
-                    setUser({
-                      name: "Admin",
-                      email: "admin@procluster.io",
-                      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
-                    });
-                    localStorage.setItem("procluster_user", JSON.stringify({
-                      name: "Admin",
-                      email: "admin@procluster.io",
-                      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
-                    }));
+                    const adminUser = authenticateWithAdmin();
+                    setUser(adminUser);
                     setShowLoginModal(false);
-                    window.dispatchEvent(new Event("procluster_user_updated"));
                   }}
                   className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold cursor-pointer transition-all border ${
                     isLight 

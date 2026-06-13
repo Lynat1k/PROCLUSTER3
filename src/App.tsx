@@ -22,501 +22,21 @@ import defaultAvatar from "./assets/images/trump_avatar_1780681677035.png";
 import { TrendingUp, TrendingDown, Layers, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-const AutoIcon = ({ className }: { className?: string }) => (
-  <span className={`font-sans text-xs font-black select-none ${className || ""}`}>A</span>
-);
-
-const JapaneseIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="8" y1="3" x2="8" y2="21" strokeWidth="2" />
-    <rect x="5" y="7" width="6" height="10" rx="1" fill="currentColor" fillOpacity="0.3" strokeWidth="2" />
-    <line x1="16" y1="3" x2="16" y2="21" strokeWidth="2" />
-    <rect x="13" y="5" width="6" height="12" rx="1" fill="currentColor" fillOpacity="0.3" strokeWidth="2" />
-  </svg>
-);
-
-const FootprintIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="4" y1="6" x2="16" y2="6" strokeWidth="2.8" />
-    <line x1="4" y1="12" x2="20" y2="12" strokeWidth="2.8" />
-    <line x1="4" y1="18" x2="12" y2="18" strokeWidth="2.8" />
-  </svg>
-);
-
-const ClustersIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="5" y="3" width="14" height="18" rx="2" strokeWidth="2" />
-    <line x1="5" y1="9" x2="19" y2="9" strokeWidth="1.5" />
-    <line x1="5" y1="15" x2="19" y2="15" strokeWidth="1.5" />
-    <line x1="12" y1="3" x2="12" y2="21" strokeWidth="1.2" strokeDasharray="2,2" />
-  </svg>
-);
-
-const CandlePreviewIcon = ({ palette, theme }: { palette: "default" | "alternative"; theme?: string }) => {
-  const isDefault = palette === "default";
-  const isLight = theme === "light";
-  const bullColor = isDefault 
-    ? "#10b981" 
-    : (isLight ? "#E3E3E3" : "#B6B2B2");
-  const bearColor = isDefault 
-    ? "#f43f5e" 
-    : (isLight ? "#292929" : "#5E5E5E");
-  const bullBorder = isDefault 
-    ? "#10b981" 
-    : (isLight ? "#2F2F2F" : "#D5D5D5");
-  const bearBorder = isDefault 
-    ? "#f43f5e" 
-    : (isLight ? "#3A3A3A" : "#AEA7A7");
-
-  return (
-    <svg width="22" height="18" viewBox="0 0 22 18" className="inline-block shrink-0 select-none">
-      {/* Bullish Candle (Green or Light Alt) */}
-      <line x1="6" y1="2" x2="6" y2="16" stroke={bullBorder} strokeWidth="1.5" strokeLinecap="round" />
-      <rect x="3.5" y="5" width="5" height="8" fill={bullColor} stroke={bullBorder} strokeWidth="1" rx="0.5" />
-
-      {/* Bearish Candle (Red or Dark Alt) */}
-      <line x1="16" y1="2" x2="16" y2="16" stroke={bearBorder} strokeWidth="1.5" strokeLinecap="round" />
-      <rect x="13.5" y="7" width="5" height="7" fill={bearColor} stroke={bearBorder} strokeWidth="1" rx="0.5" />
-    </svg>
-  );
-};
-
-export const getBaseTickSize = (symbol: string): number => {
-  const norm = symbol.toUpperCase().replace("/", "");
-  if (norm.includes("BTC")) return 0.1;
-  if (norm.includes("ETH")) return 0.01;
-  if (norm.includes("SOL")) return 0.01;
-  if (norm.includes("BNB")) return 0.01;
-  if (norm.includes("XRP")) return 0.0001;
-  return 0.01; // default fallback
-};
-
-export async function fetchBinanceTicksAndAggregate(
-  symbol: string,
-  isFutures: boolean,
-  priceStep: number,
-  compressionTicks: number = 50
-): Promise<ClusterCandle[]> {
-  try {
-    const binanceSymbol = symbol.toUpperCase().replace("/", "");
-    const res = await fetch(`/api/binance-vision-ticks?symbol=${binanceSymbol}&priceStep=${priceStep}&compression=${compressionTicks}&isFutures=${isFutures}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.status === "ok" && Array.isArray(data.candles) && data.candles.length > 0) {
-        console.log(`[PROCLUSTER Vision Client] Successfully loaded ${data.candles.length} real 24h aggregated tick candles from server.`);
-        return data.candles;
-      }
-    }
-  } catch (err) {
-    console.warn("[PROCLUSTER Vision Client] Server API fetch failed, falling back to direct public REST API:", err);
-  }
-
-  const binanceSymbol = symbol.toUpperCase().replace("/", "");
-  const baseUrl = isFutures ? "https://fapi.binance.com" : "https://api.binance.com";
-  
-  // Fetch initial batch
-  const limit = 1000;
-  const initialUrl = isFutures
-    ? `${baseUrl}/fapi/v1/aggTrades?symbol=${binanceSymbol}&limit=${limit}`
-    : `${baseUrl}/api/v3/aggTrades?symbol=${binanceSymbol}&limit=${limit}`;
-
-  const res = await fetch(initialUrl);
-  if (!res.ok) {
-    throw new Error(`Binance API response status: ${res.status}`);
-  }
-  const latestTrades = await res.json();
-  if (!Array.isArray(latestTrades) || latestTrades.length === 0) {
-    return [];
-  }
-
-  let allTrades = [...latestTrades];
-  const firstId = latestTrades[0].a;
-
-  // Fetch older trade blocks to get a continuous chain of trades / ticks
-  const pages = 3;
-  const fetchPromises: Promise<any[]>[] = [];
-
-  for (let i = 1; i <= pages; i++) {
-    const targetFromId = Math.max(1, firstId - i * 1000);
-    const pageUrl = isFutures
-      ? `${baseUrl}/fapi/v1/aggTrades?symbol=${binanceSymbol}&limit=1000&fromId=${targetFromId}`
-      : `${baseUrl}/api/v3/aggTrades?symbol=${binanceSymbol}&limit=1000&fromId=${targetFromId}`;
-
-    fetchPromises.push(
-      fetch(pageUrl)
-        .then(async (r) => {
-          if (!r.ok) return [];
-          const data = await r.json();
-          return Array.isArray(data) ? data : [];
-        })
-        .catch(() => [])
-    );
-  }
-
-  const results = await Promise.all(fetchPromises);
-  results.forEach(batch => {
-    allTrades = [...allTrades, ...batch];
-  });
-
-  // Sort chronologically by trade agg ID
-  allTrades.sort((a, b) => a.a - b.a);
-
-  // Split into chunks of exactly 50 ticks and aggregate volumes
-  const candles: ClusterCandle[] = [];
-  
-  for (let i = 0; i < allTrades.length; i += compressionTicks) {
-    const chunk = allTrades.slice(i, i + compressionTicks);
-    if (chunk.length < 5) continue; // Skip trailing fragments
-
-    const prices = chunk.map(t => parseFloat(t.p));
-    const open = prices[0];
-    const close = prices[prices.length - 1];
-    const high = Math.max(...prices);
-    const low = Math.min(...prices);
-    const timestamp = chunk[chunk.length - 1].T;
-
-    const totalVolume = chunk.reduce((sum, t) => sum + parseFloat(t.q), 0);
-    const cellMap: { [price: number]: { bid: number; ask: number; volume: number } } = {};
-
-    chunk.forEach(t => {
-      const pVal = parseFloat(t.p);
-      const stepPrice = Math.floor(pVal / priceStep) * priceStep;
-      const roundedPrice = parseFloat(stepPrice.toFixed(4));
-
-      if (!cellMap[roundedPrice]) {
-        cellMap[roundedPrice] = { bid: 0, ask: 0, volume: 0 };
-      }
-
-      const qty = parseFloat(t.q);
-      // t.m represents buy/sell side logic (isBuyerMaker)
-      if (t.m) {
-        cellMap[roundedPrice].bid += qty;
-      } else {
-        cellMap[roundedPrice].ask += qty;
-      }
-      cellMap[roundedPrice].volume += qty;
-    });
-
-    const cells: ClusterCell[] = [];
-    let maxCellVol = 0;
-    let pocPrice = (open + close) / 2;
-
-    Object.keys(cellMap).forEach(pStr => {
-      const pNum = parseFloat(pStr);
-      const data = cellMap[pNum];
-
-      cells.push({
-        price: pNum,
-        bid: parseFloat(data.bid.toFixed(4)),
-        ask: parseFloat(data.ask.toFixed(4)),
-        volume: parseFloat(data.volume.toFixed(4)),
-        isPoc: false,
-        isBuyImbalance: false,
-        isSellImbalance: false
-      });
-    });
-
-    cells.forEach(c => {
-      if (c.volume > maxCellVol) {
-        maxCellVol = c.volume;
-        pocPrice = c.price;
-      }
-    });
-
-    cells.forEach(c => {
-      if (c.price === pocPrice) {
-        c.isPoc = true;
-      }
-      c.isBuyImbalance = c.ask > c.bid * 1.8 && c.volume > (totalVolume / cells.length) * 0.4;
-      c.isSellImbalance = c.bid > c.ask * 1.8 && c.volume > (totalVolume / cells.length) * 0.4;
-    });
-
-    cells.sort((a, b) => b.price - a.price);
-
-    const sortedByVol = [...cells].sort((a, b) => b.volume - a.volume);
-    const targetVol = totalVolume * 0.7;
-    let runningSum = 0;
-    const vaPrices: number[] = [];
-    for (const itemC of sortedByVol) {
-      runningSum += itemC.volume;
-      vaPrices.push(itemC.price);
-      if (runningSum >= targetVol) break;
-    }
-
-    const val = vaPrices.length > 0 ? Math.min(...vaPrices) : low;
-    const vah = vaPrices.length > 0 ? Math.max(...vaPrices) : high;
-
-    const totalBid = cells.reduce((sum, c) => sum + c.bid, 0);
-    const totalAsk = cells.reduce((sum, c) => sum + c.ask, 0);
-
-    candles.push({
-      timestamp,
-      open: parseFloat(open.toFixed(4)),
-      high: parseFloat(high.toFixed(4)),
-      low: parseFloat(low.toFixed(4)),
-      close: parseFloat(close.toFixed(4)),
-      volume: parseFloat(totalVolume.toFixed(4)),
-      delta: parseFloat((totalAsk - totalBid).toFixed(4)),
-      pocPrice: parseFloat(pocPrice.toFixed(4)),
-      cells,
-      vah: parseFloat(vah.toFixed(4)),
-      val: parseFloat(val.toFixed(4)),
-      tickCount: chunk.length
-    });
-  }
-
-  return candles;
-}
-
-export async function fetchBinanceKlines(symbol: string, interval: string, isFutures: boolean, priceStep: number): Promise<ClusterCandle[]> {
-  const binanceSymbol = symbol.toUpperCase().replace("/", "");
-  
-  // Try server proxy first to bypass browser CORS in iframe previews
-  try {
-    const proxyUrl = `/api/binance-klines?symbol=${binanceSymbol}&interval=${interval}&isFutures=${isFutures}&priceStep=${priceStep}`;
-    const proxyRes = await fetch(proxyUrl);
-    if (proxyRes.ok) {
-      const resultObj = await proxyRes.json();
-      if (resultObj.status === "ok" && Array.isArray(resultObj.candles) && resultObj.candles.length > 0) {
-        console.log(`[PROCLUSTER REST] Successfully fetched ${resultObj.candles.length} klines via server-side proxy.`);
-        return resultObj.candles;
-      }
-    }
-  } catch (proxyErr) {
-    console.warn("[PROCLUSTER Client] Server proxy kline fetch failed, attempting direct public API fallback:", proxyErr);
-  }
-
-  const endpoint = isFutures
-    ? `https://fapi.binance.com/fapi/v1/klines?symbol=${binanceSymbol}&interval=${interval}&limit=1000`
-    : `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=1000`;
-
-  try {
-    const res = await fetch(endpoint);
-    if (!res.ok) {
-      throw new Error(`STATUS ${res.status}`);
-    }
-    const data = await res.json();
-    if (!Array.isArray(data)) {
-      throw new Error("Invalid format from Binance");
-    }
-
-    const candles: ClusterCandle[] = data.map((item: any) => {
-      const timestamp = Number(item[0]);
-      const open = parseFloat(item[1]);
-      const high = parseFloat(item[2]);
-      const low = parseFloat(item[3]);
-      const close = parseFloat(item[4]);
-      const volume = parseFloat(item[5]);
-      // Taker buy base asset volume is element 9 in the kline array
-      const takerBuyVol = parseFloat(item[9]);
-      const takerSellVol = Math.max(0, volume - takerBuyVol);
-
-      // Create cells based on high/low and priceStep
-      const cells: ClusterCell[] = [];
-      const startPrice = Math.floor(low / priceStep) * priceStep;
-      const endPrice = Math.ceil(high / priceStep) * priceStep;
-
-      // Centered Gaussian approximation to distribute volumes across price levels
-      const centerPrice = (open + close) / 2;
-      const maxPriceDistance = Math.max(endPrice - startPrice, priceStep);
-
-      const tempCells: { price: number; bid: number; ask: number; volume: number }[] = [];
-      let maxCellVol = 0;
-      let pocIndex = -1;
-
-      // Safe guard against cell count exploding on bad precision parameters
-      let activePriceStep = priceStep;
-      let rangeUnits = Math.round((endPrice - startPrice) / activePriceStep);
-      if (rangeUnits > 250) {
-        const scaleFactor = Math.ceil(rangeUnits / 250);
-        activePriceStep = priceStep * scaleFactor;
-      }
-
-      let cellCount = 0;
-      for (let price = startPrice; price <= endPrice; price += activePriceStep) {
-        cellCount++;
-        if (cellCount > 250) break;
-      }
-
-      let currentPriceLevel = startPrice;
-      const parsedLevels: number[] = [];
-      for (let i = 0; i < cellCount; i++) {
-        parsedLevels.push(parseFloat(currentPriceLevel.toFixed(4)));
-        currentPriceLevel += activePriceStep;
-      }
-
-      const weights = parsedLevels.map(p => {
-        const dist = Math.abs(p - centerPrice);
-        return Math.max(0.01, Math.exp(-Math.pow(dist / (maxPriceDistance * 0.45), 2)));
-      });
-      const sumWeights = weights.reduce((s, w) => s + w, 0) || 1;
-
-      parsedLevels.forEach((priceLevel, idx) => {
-        const weight = weights[idx] / sumWeights;
-        const levelVol = volume * weight;
-        const takerRatio = volume > 0 ? takerBuyVol / volume : 0.5;
-        const ask = levelVol * takerRatio;
-        const bid = levelVol * (1 - takerRatio);
-
-        tempCells.push({
-          price: priceLevel,
-          bid,
-          ask,
-          volume: levelVol
-        });
-      });
-
-      // Locate Point of Control (POC) index
-      tempCells.forEach((c, idx) => {
-        if (c.volume > maxCellVol) {
-          maxCellVol = c.volume;
-          pocIndex = idx;
-        }
-      });
-
-      const finalCells: ClusterCell[] = tempCells.map((c, idx) => {
-        const isPoc = idx === pocIndex;
-        // Standard high ratio diagonal/direct cell imbalances
-        const isBuyImbalance = c.ask > c.bid * 1.8 && c.volume > (volume / tempCells.length) * 0.4;
-        const isSellImbalance = c.bid > c.ask * 1.8 && c.volume > (volume / tempCells.length) * 0.4;
-
-        return {
-          price: c.price,
-          bid: parseFloat(c.bid.toFixed(4)),
-          ask: parseFloat(c.ask.toFixed(4)),
-          volume: parseFloat(c.volume.toFixed(4)),
-          isPoc,
-          isBuyImbalance,
-          isSellImbalance
-        };
-      });
-
-      const sortedCells = finalCells.sort((a, b) => b.price - a.price);
-      const pocCell = sortedCells.find(c => c.isPoc);
-
-      // Estimate Value Area (vah, val) and return candle
-      const sortedByVol = [...sortedCells].sort((a, b) => b.volume - a.volume);
-      const targetVolSurround = volume * 0.7;
-      let runningSum = 0;
-      const vahValPrices: number[] = [];
-      for (const itemC of sortedByVol) {
-        runningSum += itemC.volume;
-        vahValPrices.push(itemC.price);
-        if (runningSum >= targetVolSurround) break;
-      }
-
-      return {
-        timestamp,
-        open: parseFloat(open.toFixed(4)),
-        high: parseFloat(high.toFixed(4)),
-        low: parseFloat(low.toFixed(4)),
-        close: parseFloat(close.toFixed(4)),
-        volume: parseFloat(volume.toFixed(4)),
-        delta: parseFloat((takerBuyVol - takerSellVol).toFixed(4)),
-        pocPrice: pocCell ? pocCell.price : parseFloat(((open + close) / 2).toFixed(4)),
-        cells: sortedCells,
-        vah: vahValPrices.length > 0 ? parseFloat(Math.max(...vahValPrices).toFixed(4)) : parseFloat(high.toFixed(4)),
-        val: vahValPrices.length > 0 ? parseFloat(Math.min(...vahValPrices).toFixed(4)) : parseFloat(low.toFixed(4))
-      };
-    });
-
-    return candles;
-  } catch (err) {
-    console.error("[Binance REST] Fetching historical klines failed! Falling back to simulation.", err);
-    throw err;
-  }
-}
-
-export async function fetchBinanceDepth(symbol: string, isFutures: boolean, priceStep: number): Promise<{ bids: OrderBookRow[]; asks: OrderBookRow[] } | null> {
-  const binanceSymbol = symbol.toUpperCase().replace("/", "");
-  const endpoint = isFutures
-    ? `https://fapi.binance.com/fapi/v1/depth?symbol=${binanceSymbol}&limit=1000`
-    : `https://api.binance.com/api/v3/depth?symbol=${binanceSymbol}&limit=1000`;
-
-  try {
-    const res = await fetch(endpoint);
-    if (!res.ok) throw new Error(`depth status ${res.status}`);
-    const data = await res.json();
-    if (!data || !Array.isArray(data.bids) || !Array.isArray(data.asks)) {
-      throw new Error("Invalid raw depth");
-    }
-
-    // Since Binance depth has narrow micro-price ticks, bucket them into 25-tick priceStep
-    const aggBids: Record<number, number> = {};
-    const aggAsks: Record<number, number> = {};
-
-    data.bids.forEach((item: any) => {
-      const p = parseFloat(item[0]);
-      const q = parseFloat(item[1]);
-      const bucketPrice = parseFloat((Math.floor(p / priceStep) * priceStep).toFixed(4));
-      aggBids[bucketPrice] = (aggBids[bucketPrice] || 0) + q;
-    });
-
-    data.asks.forEach((item: any) => {
-      const p = parseFloat(item[0]);
-      const q = parseFloat(item[1]);
-      const bucketPrice = parseFloat((Math.ceil(p / priceStep) * priceStep).toFixed(4));
-      aggAsks[bucketPrice] = (aggAsks[bucketPrice] || 0) + q;
-    });
-
-    const bidsArr: OrderBookRow[] = [];
-    let cumulativeBid = 0;
-    Object.keys(aggBids)
-      .map(Number)
-      .sort((a, b) => b - a)
-      .slice(0, 250)
-      .forEach((price) => {
-        const amount = aggBids[price];
-        cumulativeBid += amount;
-        bidsArr.push({
-          price,
-          amount,
-          total: cumulativeBid,
-          percentage: 0
-        });
-      });
-
-    const asksArr: OrderBookRow[] = [];
-    let cumulativeAsk = 0;
-    Object.keys(aggAsks)
-      .map(Number)
-      .sort((a, b) => a - b)
-      .slice(0, 250)
-      .forEach((price) => {
-        const amount = aggAsks[price];
-        cumulativeAsk += amount;
-        asksArr.push({
-          price,
-          amount,
-          total: cumulativeAsk,
-          percentage: 0
-        });
-      });
-
-    const maxTotal = Math.max(
-      bidsArr.length > 0 ? bidsArr[bidsArr.length - 1].total : 1,
-      asksArr.length > 0 ? asksArr[asksArr.length - 1].total : 1
-    );
-
-    bidsArr.forEach(b => b.percentage = (b.total / maxTotal) * 100);
-    asksArr.forEach(a => a.percentage = (a.total / maxTotal) * 100);
-
-    return { bids: bidsArr, asks: asksArr };
-  } catch (err) {
-    console.error("[Binance Depth] Failed to fetch. Falling back.", err);
-    return null;
-  }
-}
+import { AutoIcon, JapaneseIcon, FootprintIcon, ClustersIcon, CandlePreviewIcon } from "./components/icons";
+import { getBaseTickSize } from "./lib/symbols";
+import { getClusterCandles, fetchBinanceDepth } from "./lib/marketData";
+import { getActiveGroupLimits as getActiveGroupLimitsFromTier } from "./lib/tierLimits";
+import { storage } from "./lib/storage";
 
 export default function App() {
   // Theme management state
   const [theme, setTheme] = useState<"dark" | "light">(() => {
-    return (localStorage.getItem("procluster_theme") as "dark" | "light") || "dark";
+    return (storage.get("procluster_theme") as "dark" | "light") || "dark";
   });
 
   // Language management state
   const [language, setLanguage] = useState<"RU" | "EN" | "KZ">(() => {
-    return (localStorage.getItem("procluster_lang") as "RU" | "EN" | "KZ") || "RU";
+    return (storage.get("procluster_lang") as "RU" | "EN" | "KZ") || "RU";
   });
 
   // Responsive mobile view tab selection
@@ -524,41 +44,38 @@ export default function App() {
 
   const handleLanguageChange = (lang: "RU" | "EN" | "KZ") => {
     setLanguage(lang);
-    localStorage.setItem("procluster_lang", lang);
+    storage.set("procluster_lang", lang);
   };
 
   const toggleTheme = () => {
     setTheme(prev => {
       const next = prev === "dark" ? "light" : "dark";
-      localStorage.setItem("procluster_theme", next);
+      storage.set("procluster_theme", next);
       return next;
     });
   };
 
   // Master Crypto Pairs (ticking prices)
   const [pairs, setPairs] = useState<CryptoPair[]>(() => {
-    const saved = localStorage.getItem("procluster_pairs");
-    if (saved) {
+    const parsed = storage.getJson<any[] | null>("procluster_pairs", null);
+    if (parsed && Array.isArray(parsed)) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const filtered = parsed.filter((p: any) => AVAILABLE_PAIRS.some(ap => ap.symbol === p.symbol));
-          const sanitized = filtered.map(p => {
-            const original = AVAILABLE_PAIRS.find(ap => ap.symbol === p.symbol);
-            if (original) {
-              const isReasonablePrice = p.price > original.price * 0.1 && p.price < original.price * 10 && !isNaN(p.price);
-              const isReasonableStep = p.priceStep > 0 && !isNaN(p.priceStep) && typeof p.priceStep === "number";
-              if (!isReasonablePrice) {
-                p.price = original.price;
-              }
-              if (!isReasonableStep) {
-                p.priceStep = original.priceStep;
-              }
+        const filtered = parsed.filter((p: any) => AVAILABLE_PAIRS.some(ap => ap.symbol === p.symbol));
+        const sanitized = filtered.map(p => {
+          const original = AVAILABLE_PAIRS.find(ap => ap.symbol === p.symbol);
+          if (original) {
+            const isReasonablePrice = p.price > original.price * 0.1 && p.price < original.price * 10 && !isNaN(p.price);
+            const isReasonableStep = p.priceStep > 0 && !isNaN(p.priceStep) && typeof p.priceStep === "number";
+            if (!isReasonablePrice) {
+              p.price = original.price;
             }
-            return p;
-          });
-          if (sanitized.length > 0) return sanitized;
-        }
+            if (!isReasonableStep) {
+              p.priceStep = original.priceStep;
+            }
+          }
+          return p;
+        });
+        if (sanitized.length > 0) return sanitized;
       } catch (e) {}
     }
     return AVAILABLE_PAIRS;
@@ -566,16 +83,13 @@ export default function App() {
 
   // Persistent favorite pairs per market type
   const [favorites, setFavorites] = useState<{ SPOT: string[]; FUTURES: string[] }>(() => {
-    const saved = localStorage.getItem("procluster_favorites");
-    if (saved) {
+    const parsed = storage.getJson<any>("procluster_favorites", null);
+    if (parsed && typeof parsed === "object") {
       try {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === "object") {
-          return {
-            SPOT: Array.isArray(parsed.SPOT) ? parsed.SPOT : [],
-            FUTURES: Array.isArray(parsed.FUTURES) ? parsed.FUTURES : [],
-          };
-        }
+        return {
+          SPOT: Array.isArray(parsed.SPOT) ? parsed.SPOT : [],
+          FUTURES: Array.isArray(parsed.FUTURES) ? parsed.FUTURES : [],
+        };
       } catch (e) {}
     }
     return { SPOT: [], FUTURES: [] };
@@ -586,13 +100,13 @@ export default function App() {
       const currentList = prev[market] || [];
       const isFav = currentList.includes(symbol);
       const updatedList = isFav
-        ? currentList.filter(s => s !== symbol)
-        : [...currentList, symbol];
+          ? currentList.filter(s => s !== symbol)
+          : [...currentList, symbol];
       const updated = {
         ...prev,
         [market]: updatedList
       };
-      localStorage.setItem("procluster_favorites", JSON.stringify(updated));
+      storage.setJson("procluster_favorites", updated);
       return updated;
     });
   };
@@ -659,7 +173,7 @@ export default function App() {
   };
 
   const [activePair0, setActivePair0] = useState<CryptoPair>(() => {
-    const savedSymbol = localStorage.getItem("procluster_active_symbol_0") || localStorage.getItem("procluster_active_symbol");
+    const savedSymbol = storage.get("procluster_active_symbol_0") || storage.get("procluster_active_symbol");
     const initialPairs = AVAILABLE_PAIRS;
     if (savedSymbol) {
       const found = initialPairs.find((p: CryptoPair) => p.symbol === savedSymbol);
@@ -669,7 +183,7 @@ export default function App() {
   });
 
   const [activePair1, setActivePair1] = useState<CryptoPair>(() => {
-    const savedSymbol = localStorage.getItem("procluster_active_symbol_1");
+    const savedSymbol = storage.get("procluster_active_symbol_1");
     const initialPairs = AVAILABLE_PAIRS;
     if (savedSymbol) {
       const found = initialPairs.find((p: CryptoPair) => p.symbol === savedSymbol);
@@ -680,46 +194,46 @@ export default function App() {
 
   // Dual-chart config states
   const [interval0, setInterval0] = useState<string>(() => {
-    return localStorage.getItem("procluster_interval_0") || localStorage.getItem("procluster_interval") || "15m";
+    return storage.get("procluster_interval_0") || storage.get("procluster_interval") || "15m";
   });
   const [interval1, setInterval1] = useState<string>(() => {
-    return localStorage.getItem("procluster_interval_1") || "15m";
+    return storage.get("procluster_interval_1") || "15m";
   });
 
   const [marketType0, setMarketType0] = useState<"SPOT" | "FUTURES">(() => {
-    return (localStorage.getItem("procluster_market_type_0") as any) || (localStorage.getItem("procluster_market_type") as any) || "SPOT";
+    return (storage.get("procluster_market_type_0") as any) || (storage.get("procluster_market_type") as any) || "SPOT";
   });
   const [marketType1, setMarketType1] = useState<"SPOT" | "FUTURES">(() => {
-    return (localStorage.getItem("procluster_market_type_1") as any) || "SPOT";
+    return (storage.get("procluster_market_type_1") as any) || "SPOT";
   });
 
   const [candleType0, setCandleType0] = useState<"auto" | "japanese" | "footprint" | "clusters">(() => {
-    return (localStorage.getItem("procluster_candle_type_0") as any) || (localStorage.getItem("procluster_candle_type") as any) || "auto";
+    return (storage.get("procluster_candle_type_0") as any) || (storage.get("procluster_candle_type") as any) || "auto";
   });
   const [candleType1, setCandleType1] = useState<"auto" | "japanese" | "footprint" | "clusters">(() => {
-    return (localStorage.getItem("procluster_candle_type_1") as any) || "auto";
+    return (storage.get("procluster_candle_type_1") as any) || "auto";
   });
 
   const [candleDataType0, setCandleDataType0] = useState<"bid_ask" | "delta" | "volume">(() => {
-    return (localStorage.getItem("procluster_candle_data_type_0") as any) || (localStorage.getItem("procluster_candle_data_type") as any) || "bid_ask";
+    return (storage.get("procluster_candle_data_type_0") as any) || (storage.get("procluster_candle_data_type") as any) || "bid_ask";
   });
   const [candleDataType1, setCandleDataType1] = useState<"bid_ask" | "delta" | "volume">(() => {
-    return (localStorage.getItem("procluster_candle_data_type_1") as any) || "bid_ask";
+    return (storage.get("procluster_candle_data_type_1") as any) || "bid_ask";
   });
 
   const [candlePalette0, setCandlePalette0] = useState<"default" | "alternative">(() => {
-    return (localStorage.getItem("procluster_candle_palette_0") as any) || (localStorage.getItem("procluster_candle_palette") as any) || "default";
+    return (storage.get("procluster_candle_palette_0") as any) || (storage.get("procluster_candle_palette") as any) || "default";
   });
   const [candlePalette1, setCandlePalette1] = useState<"default" | "alternative">(() => {
-    return (localStorage.getItem("procluster_candle_palette_1") as any) || "default";
+    return (storage.get("procluster_candle_palette_1") as any) || "default";
   });
 
   const [compressionMultiplier0, setCompressionMultiplier0] = useState<number>(() => {
-    const saved = localStorage.getItem("procluster_compression_multiplier_0") || localStorage.getItem("procluster_compression_multiplier");
+    const saved = storage.get("procluster_compression_multiplier_0") || storage.get("procluster_compression_multiplier");
     return saved ? parseInt(saved, 10) || 1 : 1;
   });
   const [compressionMultiplier1, setCompressionMultiplier1] = useState<number>(() => {
-    const saved = localStorage.getItem("procluster_compression_multiplier_1");
+    const saved = storage.get("procluster_compression_multiplier_1");
     return saved ? parseInt(saved, 10) || 1 : 1;
   });
 
@@ -728,52 +242,52 @@ export default function App() {
 
   // Keep localStorage synchronizer effects
   useEffect(() => {
-    localStorage.setItem("procluster_compression_multiplier_0", compressionMultiplier0.toString());
+    storage.set("procluster_compression_multiplier_0", compressionMultiplier0.toString());
   }, [compressionMultiplier0]);
   useEffect(() => {
-    localStorage.setItem("procluster_compression_multiplier_1", compressionMultiplier1.toString());
+    storage.set("procluster_compression_multiplier_1", compressionMultiplier1.toString());
   }, [compressionMultiplier1]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_interval_0", interval0);
+    storage.set("procluster_interval_0", interval0);
   }, [interval0]);
   useEffect(() => {
-    localStorage.setItem("procluster_interval_1", interval1);
+    storage.set("procluster_interval_1", interval1);
   }, [interval1]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_market_type_0", marketType0);
+    storage.set("procluster_market_type_0", marketType0);
   }, [marketType0]);
   useEffect(() => {
-    localStorage.setItem("procluster_market_type_1", marketType1);
+    storage.set("procluster_market_type_1", marketType1);
   }, [marketType1]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_candle_type_0", candleType0);
+    storage.set("procluster_candle_type_0", candleType0);
   }, [candleType0]);
   useEffect(() => {
-    localStorage.setItem("procluster_candle_type_1", candleType1);
+    storage.set("procluster_candle_type_1", candleType1);
   }, [candleType1]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_candle_data_type_0", candleDataType0);
+    storage.set("procluster_candle_data_type_0", candleDataType0);
   }, [candleDataType0]);
   useEffect(() => {
-    localStorage.setItem("procluster_candle_data_type_1", candleDataType1);
+    storage.set("procluster_candle_data_type_1", candleDataType1);
   }, [candleDataType1]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_candle_palette_0", candlePalette0);
+    storage.set("procluster_candle_palette_0", candlePalette0);
   }, [candlePalette0]);
   useEffect(() => {
-    localStorage.setItem("procluster_candle_palette_1", candlePalette1);
+    storage.set("procluster_candle_palette_1", candlePalette1);
   }, [candlePalette1]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_active_symbol_0", activePair0.symbol);
+    storage.set("procluster_active_symbol_0", activePair0.symbol);
   }, [activePair0.symbol]);
   useEffect(() => {
-    localStorage.setItem("procluster_active_symbol_1", activePair1.symbol);
+    storage.set("procluster_active_symbol_1", activePair1.symbol);
   }, [activePair1.symbol]);
 
   // Getter derived configs base on activeChartIndex
@@ -837,19 +351,18 @@ export default function App() {
   };
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
-    return localStorage.getItem("procluster_sidebar_collapsed") === "true";
+    return storage.get("procluster_sidebar_collapsed") === "true";
   });
 
   useEffect(() => {
-    localStorage.setItem("procluster_sidebar_collapsed", isSidebarCollapsed ? "true" : "false");
+    storage.set("procluster_sidebar_collapsed", isSidebarCollapsed ? "true" : "false");
   }, [isSidebarCollapsed]);
 
   // Helper to load default compression configured for active ticker + interval or fallback globally
   const loadDefaultCompressionForPair = (pairSymbol: string, currentInterval: string, currentMarketType: "SPOT" | "FUTURES"): number => {
     try {
-      const savedMap = localStorage.getItem("procluster_default_compressions");
-      if (savedMap) {
-        const parsed = JSON.parse(savedMap);
+      const parsed = storage.getJson<any>("procluster_default_compressions", null);
+      if (parsed) {
         const tickerData = parsed[pairSymbol];
         if (tickerData) {
           // Check separate SPOT/FUTURES setting for the active ticker + interval
@@ -882,19 +395,19 @@ export default function App() {
 
   // Persists states when they change
   useEffect(() => {
-    localStorage.setItem("procluster_pairs", JSON.stringify(pairs));
+    storage.setJson("procluster_pairs", pairs);
   }, [pairs]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_active_symbol", activePair.symbol);
+    storage.set("procluster_active_symbol", activePair.symbol);
   }, [activePair.symbol]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_interval", interval);
+    storage.set("procluster_interval", interval);
   }, [interval]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_market_type", marketType);
+    storage.set("procluster_market_type", marketType);
     const val = loadDefaultCompressionForPair(activePair.symbol, interval, marketType);
     setCompressionMultiplier(val);
     if (marketType === "SPOT") {
@@ -914,32 +427,31 @@ export default function App() {
   }, [activePair.symbol, interval, marketType]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_candle_type", candleType);
+    storage.set("procluster_candle_type", candleType);
   }, [candleType]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_candle_data_type", candleDataType);
+    storage.set("procluster_candle_data_type", candleDataType);
   }, [candleDataType]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_candle_palette", candlePalette);
+    storage.set("procluster_candle_palette", candlePalette);
   }, [candlePalette]);
 
   // Active User Role state (Guest, Free, Pro, VIP, or Admin) for Telegram notification gating
   const [userRole, setUserRole] = useState<"Guest" | "Free" | "Pro" | "VIP" | "Admin">(() => {
-    const savedRole = localStorage.getItem("procluster_role");
+    const savedRole = storage.get("procluster_role");
     if (savedRole === "Guest" || savedRole === "Free" || savedRole === "Pro" || savedRole === "VIP" || savedRole === "Admin") return savedRole as any;
     
     // Fallback to procluster_user tier if it exists!
-    const savedUser = localStorage.getItem("procluster_user");
+    const savedUser = storage.getJson<any>("procluster_user", null);
     if (savedUser) {
       try {
-        const parsed = JSON.parse(savedUser);
-        const tier = (parsed.tier || "Free").toLowerCase();
-        if (tier === "admin" || parsed.role === "Admin" || parsed.subscriptionLevel === "Admin") return "Admin";
-        if (tier === "vip" || parsed.subscriptionLevel === "VIP") return "VIP";
-        if (tier === "pro" || parsed.subscriptionLevel === "Pro") return "Pro";
-        if (tier === "free" || parsed.subscriptionLevel === "Free") return "Free";
+        const tier = (savedUser.tier || "Free").toLowerCase();
+        if (tier === "admin" || savedUser.role === "Admin" || savedUser.subscriptionLevel === "Admin") return "Admin";
+        if (tier === "vip" || savedUser.subscriptionLevel === "VIP") return "VIP";
+        if (tier === "pro" || savedUser.subscriptionLevel === "Pro") return "Pro";
+        if (tier === "free" || savedUser.subscriptionLevel === "Free") return "Free";
         return "Guest";
       } catch (e) {}
     }
@@ -949,7 +461,7 @@ export default function App() {
   // Keep saved role synchronous with local storage
   const handleUserRoleChange = (role: "Guest" | "Free" | "Pro" | "VIP" | "Admin") => {
     setUserRole(role);
-    localStorage.setItem("procluster_role", role);
+    storage.set("procluster_role", role);
 
     // Keep profileUser and localStorage "procluster_user" synchronized
     setProfileUser((prev) => {
@@ -977,7 +489,7 @@ export default function App() {
             role: role,
             subscriptionLevel: role
           };
-      localStorage.setItem("procluster_user", JSON.stringify(updated));
+      storage.setJson("procluster_user", updated);
       return updated;
     });
 
@@ -1120,24 +632,21 @@ export default function App() {
       }
     ];
 
-    const saved = localStorage.getItem("procluster_indicators");
-    if (saved) {
+    const parsed = storage.getJson<any[]>("procluster_indicators", null);
+    if (parsed && Array.isArray(parsed)) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return defaultList.map(defl => {
-            const matched = parsed.find(item => item && item.id === defl.id);
-            if (matched) {
-              return {
-                ...defl,
-                isActive: matched.isActive,
-                isFavorite: matched.isFavorite !== undefined ? matched.isFavorite : defl.isFavorite,
-                settings: matched.settings ? { ...defl.settings, ...matched.settings } : defl.settings
-              };
-            }
-            return defl;
-          });
-        }
+        return defaultList.map(defl => {
+          const matched = parsed.find(item => item && item.id === defl.id);
+          if (matched) {
+            return {
+              ...defl,
+              isActive: matched.isActive,
+              isFavorite: matched.isFavorite !== undefined ? matched.isFavorite : defl.isFavorite,
+              settings: matched.settings ? { ...defl.settings, ...matched.settings } : defl.settings
+            };
+          }
+          return defl;
+        });
       } catch (err) {
         console.error("Error loading indicators:", err);
       }
@@ -1147,7 +656,7 @@ export default function App() {
 
   // Auto-save indicators to localStorage on modification
   useEffect(() => {
-    localStorage.setItem("procluster_indicators", JSON.stringify(indicators));
+    storage.setJson("procluster_indicators", indicators);
   }, [indicators]);
 
   const [isIndicatorsModalOpen, setIsIndicatorsModalOpen] = useState<boolean>(false);
@@ -1159,15 +668,11 @@ export default function App() {
   const paletteMenuRef = useRef<HTMLDivElement>(null);
 
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(() => {
-    const saved = localStorage.getItem("procluster_user");
+    const saved = storage.getJson<any>("procluster_user", null);
     if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return null;
-      }
+      return saved;
     }
-    const savedRole = localStorage.getItem("procluster_role") || "Admin";
+    const savedRole = storage.get("procluster_role") || "Admin";
     const tierMap: Record<string, string> = {
       Guest: "Guest",
       Free: "Free",
@@ -1187,29 +692,28 @@ export default function App() {
   // Listen for the local storage changes or custom updates to sync profileUser inside App as well
   useEffect(() => {
     const handleUpdate = () => {
-      const saved = localStorage.getItem("procluster_user");
+      const saved = storage.getJson<any>("procluster_user", null);
       if (saved) {
         try {
-          const parsed = JSON.parse(saved);
-          setProfileUser(parsed);
+          setProfileUser(saved);
           
           // Align userRole state and storage perfectly with the parsed profile user tier!
-          const tier = (parsed.tier || "Free").toLowerCase();
+          const tier = (saved.tier || "Free").toLowerCase();
           let nextRole: "Guest" | "Free" | "Pro" | "VIP" | "Admin" = "Guest";
-          if (tier === "admin" || parsed.role === "Admin" || parsed.subscriptionLevel === "Admin") {
+          if (tier === "admin" || saved.role === "Admin" || saved.subscriptionLevel === "Admin") {
             nextRole = "Admin";
-          } else if (tier === "vip" || parsed.subscriptionLevel === "VIP") {
+          } else if (tier === "vip" || saved.subscriptionLevel === "VIP") {
             nextRole = "VIP";
-          } else if (tier === "pro" || parsed.subscriptionLevel === "Pro") {
+          } else if (tier === "pro" || saved.subscriptionLevel === "Pro") {
             nextRole = "Pro";
-          } else if (tier === "free" || parsed.subscriptionLevel === "Free") {
+          } else if (tier === "free" || saved.subscriptionLevel === "Free") {
             nextRole = "Free";
           } else {
             nextRole = "Guest";
           }
           
           setUserRole(nextRole);
-          localStorage.setItem("procluster_role", nextRole);
+          storage.set("procluster_role", nextRole);
         } catch (e) {
           // ignore
         }
@@ -1226,77 +730,7 @@ export default function App() {
   }, []);
 
   const getActiveGroupLimits = () => {
-    let group: "guest" | "free" | "pro" | "vip" | "admin" = "guest";
-    
-    // First priorities: userRole from header
-    if (userRole === "Admin") {
-      group = "admin";
-    } else if (userRole === "VIP") {
-      group = "vip";
-    } else if (userRole === "Pro") {
-      group = "pro";
-    } else if (userRole === "Free") {
-      group = "free";
-    } else if (userRole === "Guest") {
-      group = "guest";
-    } else if (profileUser) {
-      const tier = (profileUser.tier || "Free").toLowerCase();
-      if (tier === "admin" || (profileUser as any).role === "Admin" || (profileUser as any).subscriptionLevel === "Admin") {
-        group = "admin";
-      } else if (tier === "vip" || (profileUser as any).subscriptionLevel === "VIP") {
-        group = "vip";
-      } else if (tier === "pro" || tier === "rpo" || (profileUser as any).subscriptionLevel === "RPO") {
-        group = "pro";
-      } else if (tier === "free") {
-        group = "free";
-      } else {
-        group = "guest";
-      }
-    }
-
-    let settings: Record<"guest" | "free" | "pro" | "vip" | "admin", {
-      maxHistory: number;
-      compressionLevels: number;
-      maxIndicators: number;
-      customIndicatorSettings: boolean;
-      telegramNotifications: boolean;
-      historyDays_1m: number;
-      historyDays_5m: number;
-      historyDays_15m: number;
-      historyDays_30m: number;
-      historyDays_1h: number;
-      historyDays_4h: number;
-      workspacesCount: number;
-    }> = {
-      guest: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false, historyDays_1m: 1, historyDays_5m: 3, historyDays_15m: 7, historyDays_30m: 14, historyDays_1h: 30, historyDays_4h: 90, workspacesCount: 1 },
-      free: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false, historyDays_1m: 1, historyDays_5m: 3, historyDays_15m: 7, historyDays_30m: 14, historyDays_1h: 30, historyDays_4h: 90, workspacesCount: 1 },
-      pro: { maxHistory: 1400, compressionLevels: 2, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false, historyDays_1m: 3, historyDays_5m: 7, historyDays_15m: 14, historyDays_30m: 30, historyDays_1h: 60, historyDays_4h: 180, workspacesCount: 2 },
-      vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 7, historyDays_5m: 14, historyDays_15m: 30, historyDays_30m: 60, historyDays_1h: 120, historyDays_4h: 360, workspacesCount: 2 },
-      admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 14, historyDays_5m: 30, historyDays_15m: 60, historyDays_30m: 120, historyDays_1h: 240, historyDays_4h: 720, workspacesCount: 2 }
-    };
-    const savedSettings = localStorage.getItem("procluster_tier_settings");
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        if (parsed) {
-          for (const k of ["guest", "free", "pro", "vip", "admin"] as const) {
-            if (!parsed[k]) {
-              parsed[k] = { ...settings[k] };
-            } else {
-              parsed[k] = { ...settings[k], ...parsed[k] };
-            }
-            const s = parsed[k];
-            if (s && typeof s.compressionLevels === "number") {
-              s.compressionLevels = Math.min(6, Math.max(1, s.compressionLevels));
-            }
-          }
-          settings = parsed;
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-    return settings[group] || settings.free;
+    return getActiveGroupLimitsFromTier(userRole, profileUser).limits;
   };
 
   const getMaxCandlesForInterval = (interval: string) => {
@@ -1419,12 +853,13 @@ export default function App() {
     async function loadRealBinanceData() {
       try {
         const isFutures = marketType0 === "FUTURES";
-        let realCandles: ClusterCandle[] = [];
-        if (interval0 === "50t") {
-          realCandles = await fetchBinanceTicksAndAggregate(activePair0.symbol, isFutures, tickStep, 50);
-        } else {
-          realCandles = await fetchBinanceKlines(activePair0.symbol, interval0, isFutures, tickStep);
-        }
+        const realCandles = await getClusterCandles({
+          symbol: activePair0.symbol,
+          interval: interval0,
+          isFutures,
+          priceStep: tickStep,
+          compressionTicks: 50
+        });
         if (!active) return;
         const limits = getActiveGroupLimits();
         setCandles0(realCandles.slice(-getMaxCandlesForInterval(interval0)));
@@ -1520,12 +955,13 @@ export default function App() {
     async function loadRealBinanceData() {
       try {
         const isFutures = marketType1 === "FUTURES";
-        let realCandles: ClusterCandle[] = [];
-        if (interval1 === "50t") {
-          realCandles = await fetchBinanceTicksAndAggregate(activePair1.symbol, isFutures, tickStep, 50);
-        } else {
-          realCandles = await fetchBinanceKlines(activePair1.symbol, interval1, isFutures, tickStep);
-        }
+        const realCandles = await getClusterCandles({
+          symbol: activePair1.symbol,
+          interval: interval1,
+          isFutures,
+          priceStep: tickStep,
+          compressionTicks: 50
+        });
         if (!active) return;
         const limits = getActiveGroupLimits();
         setCandles1(realCandles.slice(-getMaxCandlesForInterval(interval1)));

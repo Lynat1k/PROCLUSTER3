@@ -6,6 +6,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator } from "../types";
 import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight, TrendingUp } from "lucide-react";
+import { storage } from "../lib/storage";
 
 interface ClusterChartProps {
   candles: ClusterCandle[];
@@ -64,7 +65,7 @@ export default function ClusterChart({
   const [drawingDragState, setDrawingDragState] = useState<any | null>(null);
 
   const [selectedTimezone, setSelectedTimezone] = useState<string>(() => {
-    return localStorage.getItem("procluster_chart_timezone") || "local";
+    return storage.get("procluster_chart_timezone") || "local";
   });
 
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
@@ -83,7 +84,7 @@ export default function ClusterChart({
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("procluster_chart_timezone", selectedTimezone);
+    storage.set("procluster_chart_timezone", selectedTimezone);
   }, [selectedTimezone]);
 
   useEffect(() => {
@@ -147,20 +148,20 @@ export default function ClusterChart({
 
   // Height configurations dynamic calculations
   const [deltaPanelHeight, setDeltaPanelHeight] = useState<number>(() => {
-    const saved = localStorage.getItem("procluster_delta_panel_height");
+    const saved = storage.get("procluster_delta_panel_height");
     return saved ? parseInt(saved, 10) : 120;
   });
   const [cvdPanelHeight, setCvdPanelHeight] = useState<number>(() => {
-    const saved = localStorage.getItem("procluster_cvd_panel_height");
+    const saved = storage.get("procluster_cvd_panel_height");
     return saved ? parseInt(saved, 10) : 120;
   });
 
   useEffect(() => {
-    localStorage.setItem("procluster_delta_panel_height", deltaPanelHeight.toString());
+    storage.set("procluster_delta_panel_height", deltaPanelHeight.toString());
   }, [deltaPanelHeight]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_cvd_panel_height", cvdPanelHeight.toString());
+    storage.set("procluster_cvd_panel_height", cvdPanelHeight.toString());
   }, [cvdPanelHeight]);
 
   const [resizingPanel, setResizingPanel] = useState<"delta" | "cvd" | null>(null);

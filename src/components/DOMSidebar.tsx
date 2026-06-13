@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { OrderBook as OrderBookType, CryptoPair } from "../types";
+import { storage } from "../lib/storage";
 import { 
   Wallet, 
   ArrowUpRight, 
@@ -111,23 +112,22 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
 
   // --- Persistent Simulator State ---
   const [balance, setBalance] = useState<number>(() => {
-    const saved = localStorage.getItem("procluster_balance_v2");
+    const saved = storage.get("procluster_balance_v2");
     return saved ? parseFloat(saved) : 100000;
   });
 
   const [position, setPosition] = useState<number>(() => {
-    const saved = localStorage.getItem("procluster_position_v2");
+    const saved = storage.get("procluster_position_v2");
     return saved ? parseFloat(saved) : 0;
   });
 
   const [entryPrice, setEntryPrice] = useState<number>(() => {
-    const saved = localStorage.getItem("procluster_entry_price_v2");
+    const saved = storage.get("procluster_entry_price_v2");
     return saved ? parseFloat(saved) : 0;
   });
 
   const [limitOrders, setLimitOrders] = useState<LimitOrder[]>(() => {
-    const saved = localStorage.getItem("procluster_limit_orders_v2");
-    return saved ? JSON.parse(saved) : [];
+    return storage.getJson<LimitOrder[]>("procluster_limit_orders_v2", []);
   });
 
   const [tradeLogs, setTradeLogs] = useState<TradeLog[]>([]);
@@ -138,19 +138,19 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
 
   // Persist simulator variables to localStorage when changes occur
   useEffect(() => {
-    localStorage.setItem("procluster_balance_v2", balance.toString());
+    storage.set("procluster_balance_v2", balance.toString());
   }, [balance]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_position_v2", position.toString());
+    storage.set("procluster_position_v2", position.toString());
   }, [position]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_entry_price_v2", entryPrice.toString());
+    storage.set("procluster_entry_price_v2", entryPrice.toString());
   }, [entryPrice]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_limit_orders_v2", JSON.stringify(limitOrders));
+    storage.setJson("procluster_limit_orders_v2", limitOrders);
   }, [limitOrders]);
 
   // Set default limit price input to active pair price if blank

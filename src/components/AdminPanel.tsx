@@ -34,6 +34,7 @@ import {
   Save
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { storage } from "../lib/storage";
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -95,15 +96,7 @@ export default function AdminPanel({
   
   // Default Chart Compression levels map: { [ticker]: { [timeframe]: multiplier } }
   const [defaultCompressions, setDefaultCompressions] = useState<Record<string, Record<string, number>>>(() => {
-    const saved = localStorage.getItem("procluster_default_compressions");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse default compressions", e);
-      }
-    }
-    return {};
+    return storage.getJson("procluster_default_compressions", {});
   });
 
   const [activeCompTicker, setActiveCompTicker] = useState<string>(activePair.symbol);
@@ -132,27 +125,20 @@ export default function AdminPanel({
       vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 7, historyDays_5m: 14, historyDays_15m: 30, historyDays_30m: 60, historyDays_1h: 120, historyDays_4h: 360, workspacesCount: 2 },
       admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 14, historyDays_5m: 30, historyDays_15m: 60, historyDays_30m: 120, historyDays_1h: 240, historyDays_4h: 720, workspacesCount: 2 }
     };
-    const saved = localStorage.getItem("procluster_tier_settings");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed) {
-          for (const k of ["guest", "free", "pro", "vip", "admin"] as const) {
-            if (!parsed[k]) {
-              parsed[k] = { ...defaultSettings[k] };
-            } else {
-              parsed[k] = { ...defaultSettings[k], ...parsed[k] };
-            }
-            const s = parsed[k];
-            if (s && typeof s.compressionLevels === "number") {
-              s.compressionLevels = Math.min(6, Math.max(1, s.compressionLevels));
-            }
-          }
-          return parsed;
+    const parsed = storage.getJson<any>("procluster_tier_settings", null);
+    if (parsed) {
+      for (const k of ["guest", "free", "pro", "vip", "admin"] as const) {
+        if (!parsed[k]) {
+          parsed[k] = { ...defaultSettings[k] };
+        } else {
+          parsed[k] = { ...defaultSettings[k], ...parsed[k] };
         }
-      } catch (e) {
-        console.error("Failed to parse tier settings", e);
+        const s = parsed[k];
+        if (s && typeof s.compressionLevels === "number") {
+          s.compressionLevels = Math.min(6, Math.max(1, s.compressionLevels));
+        }
       }
+      return parsed;
     }
     return defaultSettings;
   });
@@ -172,14 +158,14 @@ export default function AdminPanel({
           [key]: sanitizedValue
         }
       };
-      localStorage.setItem("procluster_tier_settings", JSON.stringify(updated));
+      storage.setJson("procluster_tier_settings", updated);
       return updated;
     });
   };
 
   const handleSavePolicies = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem("procluster_tier_settings", JSON.stringify(tierSettings));
+    storage.setJson("procluster_tier_settings", tierSettings);
     window.dispatchEvent(new Event("procluster_tier_settings_updated"));
     setPolicySuccessMsg("Политики ограничений успешно сохранены!");
     setTimeout(() => setPolicySuccessMsg(""), 3000);
@@ -200,7 +186,7 @@ export default function AdminPanel({
           }
         }
       };
-      localStorage.setItem("procluster_default_compressions", JSON.stringify(updated));
+      storage.setJson("procluster_default_compressions", updated);
       window.dispatchEvent(new Event("procluster_default_comp_changed"));
       return updated;
     });
@@ -262,25 +248,17 @@ export default function AdminPanel({
   }
 
   const [paidRecords, setPaidRecords] = useState<PaidSubscriptionRecord[]>(() => {
-    const saved = localStorage.getItem("procluster_paid_subscriptions");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse paid subscriptions", e);
-      }
-    }
-    return [
+    return storage.getJson<PaidSubscriptionRecord[]>("procluster_paid_subscriptions", [
       { id: "tx_101", userId: "usr_002", nickname: "@whale_hunter", subscriptionLevel: "VIP", status: "active", lastPaidAmount: 199, totalSpent: 597, paymentDate: "2026-06-10" },
       { id: "tx_102", userId: "usr_003", nickname: "@scalper_pro", subscriptionLevel: "RPO", status: "active", lastPaidAmount: 49, totalSpent: 147, paymentDate: "2026-05-18" },
       { id: "tx_103", userId: "usr_005", nickname: "@kzt_trader", subscriptionLevel: "RPO", status: "waiting", lastPaidAmount: 49, totalSpent: 98, paymentDate: "2026-06-11" },
       { id: "tx_104", userId: "usr_004", nickname: "@moonwalker", subscriptionLevel: "RPO", status: "expired", lastPaidAmount: 49, totalSpent: 49, paymentDate: "2026-02-15" }
-    ];
+    ]);
   });
 
   // Save billing records to localStorage
   useEffect(() => {
-    localStorage.setItem("procluster_paid_subscriptions", JSON.stringify(paidRecords));
+    storage.setJson("procluster_paid_subscriptions", paidRecords);
   }, [paidRecords]);
 
   // Form states for managing paid transactions inside Statistics Tab
@@ -309,19 +287,19 @@ export default function AdminPanel({
   
   // Default Chart Compression for Spot and Futures separately
   const [defaultCompSpot, setDefaultCompSpot] = useState<string>(() => {
-    return localStorage.getItem("procluster_default_comp_spot") || "1";
+    return storage.get("procluster_default_comp_spot") || "1";
   });
   const [defaultCompFutures, setDefaultCompFutures] = useState<string>(() => {
-    return localStorage.getItem("procluster_default_comp_futures") || "5";
+    return storage.get("procluster_default_comp_futures") || "5";
   });
 
   useEffect(() => {
-    localStorage.setItem("procluster_default_comp_spot", defaultCompSpot);
+    storage.set("procluster_default_comp_spot", defaultCompSpot);
     window.dispatchEvent(new Event("procluster_default_comp_changed"));
   }, [defaultCompSpot]);
 
   useEffect(() => {
-    localStorage.setItem("procluster_default_comp_futures", defaultCompFutures);
+    storage.set("procluster_default_comp_futures", defaultCompFutures);
     window.dispatchEvent(new Event("procluster_default_comp_changed"));
   }, [defaultCompFutures]);
 
@@ -1158,7 +1136,7 @@ export default function AdminPanel({
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                       <button
                         onClick={() => {
-                          localStorage.setItem("procluster_default_compressions", JSON.stringify(defaultCompressions));
+                          storage.setJson("procluster_default_compressions", defaultCompressions);
                           window.dispatchEvent(new Event("procluster_default_comp_changed"));
                           setCompSuccessMsg("Настройки сжатия успешно сохранены!");
                           setTimeout(() => setCompSuccessMsg(""), 3000);

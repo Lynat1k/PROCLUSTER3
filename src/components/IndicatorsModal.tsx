@@ -2,53 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { Indicator, IndicatorSettings } from "../types";
 import { X, Search, Star, Trash2, Eye, EyeOff, Layers, Settings, Activity, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-
-const INDICATOR_DESCRIPTIONS: Record<string, { desc: string; details: string }> = {
-  volume: {
-    desc: "Отображает вертикальный объем торгов за каждую свечу в отдельном подвальном окне графиков.",
-    details: "Помогает моментально оценить общую торговую активность за таймфрейм. Высокие столбцы объема свидетельствуют об активном участии крупных рыночных игроков, подтверждают истинность пробоев или сигнализируют о замедлении движения у ключевых уровней."
-  },
-  volumeOnChart: {
-    desc: "Накладывает вертикальную гистограмму проторгованного объема прямо поверх тела и теней свечей на график.",
-    details: "Помогает сопоставлять ценовые уровни и проторгованную активность внутри каждой свечи, не переводя взгляд на отдельные подвальные индикаторы. Наглядно очерчивает ценовые зоны, вызвавшие наибольший интерес трейдеров."
-  },
-  volumeProfile: {
-    desc: "Строит горизонтальный профиль объемов (Volume Profile) распределения проторгованных лотов по ценам за выбранный период.",
-    details: "Позволяет выявлять сильные невидимые уровни поддержки и сопротивления. Четко прорисовывает уровень Point of Control (POC) — цену с максимальным скоплением торгов, где сосредоточены крупнейшие лимитные скопления."
-  },
-  marketProfile: {
-    desc: "Строит классический рыночный профиль на основе времени нахождения цены на каждом уровне (TPO - Time Price Opportunity).",
-    details: "Визуализирует распределение ликвидности по времени. Помогает определить 'справедливую стоимость' (Value Area), выявить зоны баланса и дисбаланса, а также сильные выходы за пределы устоявшихся ценовых зон."
-  },
-  delta: {
-    desc: "Рыночная дельту — чистая разница между агрессивными рыночными покупками (Market Buys) и продажами (Market Sells) по каждой свече.",
-    details: "Отвечает на вопрос, кто прямо сейчас доминирует на рынке — быки или медведи. Положительная (зеленая) дельта означает перевес рыночных покупок, отрицательная (красная) — преобладание рыночных продаж."
-  },
-  cvd: {
-    desc: "Кумулятивная дельта объема (Cumulative Volume Delta), суммирующая значения дельты нарастающим итогом на протяжении всего графика.",
-    details: "Используется для поиска рыночных скрытых дивергенций: например, если цена движется вверх к новым вершинам, а линия CVD падает, это признак сильного лимитного давления продавцов и скорого разворота цены вниз."
-  },
-  liquidations: {
-    desc: "Выделяет на ценовой шкале и свечах зоны принудительного закрытия (ликвидации) ордеров маржинальных трейдеров (Long/Short).",
-    details: "Ликвидации покупателей отображаются красным цветом, шортистов — зеленым. Крупные ликвидации часто выступают топливом для стремительного движения рынка, а также указывают на появление локальных экстремумов."
-  },
-  clusterSearch: {
-    desc: "Интеллектуальный сканер аномальных горизонтальных объемов (кластеров) внутри свечей по индивидуально настроенным средним и крупным фильтрам.",
-    details: "Автоматически обводит зоны экстремальных ценовых вливаний геометрическими фигурами разной формы (круг, квадрат, ромб) и прозрачности. Помогает мгновенно считывать локальные лимитные блоки или защитные позиции крупных игроков."
-  },
-  reversalClusters: {
-    desc: "Идентифицирует ситуации с запертым на тенях свечей максимальным объемом (POC).",
-    details: "Детектирует разворотную логику: если крупный рыночный объем выходит на самых кончиках теней свечей на экстремумах графика, а цена затем разворачивается в обратную сторону — это доказывает наличие встречного лимитного ордера, забравшего всю энергию движения."
-  },
-  absorption: {
-    desc: "Детектор пассивного лимитного поглощения рыночного натиска покупателей или продавцов крупными игроками.",
-    details: "Показывает ситуации, когда вопреки сильным рыночным покупкам или продажам (агрессорам) цена упирается в непреодолимую стену лимитного уровня, полностью всасывая встречный объем без движения цены вперед."
-  },
-  stackedImbalance: {
-    desc: "Строит зоны последовательных рыночных дисбалансов (Stacked Imbalances) покупателей и продавцов на нескольких уровнях цены подряд.",
-    details: "Показывает агрессивную рыночную однонаправленную инициативу. Складывание дисбалансов (например, когда рыночный спрос многократно превышает лимитное предложение 3 уровня подряд) образует сильнейшие зоны поддержки или сопротивления на будущее."
-  }
-};
+import { INDICATOR_DESCRIPTIONS } from "../data/indicatorDescriptions";
+import { getActiveGroupLimits } from "../lib/tierLimits";
 
 interface IndicatorsModalProps {
   isOpen: boolean;
@@ -68,76 +23,6 @@ export default function IndicatorsModal({
   theme = "dark"
 }: IndicatorsModalProps) {
   const isLight = theme === "light";
-
-  const getActiveGroupLimits = () => {
-    let group: "guest" | "free" | "pro" | "vip" | "admin" = "guest";
-    
-    // Check direct role override first
-    const savedRole = localStorage.getItem("procluster_role");
-    if (savedRole) {
-      if (savedRole === "Admin") group = "admin";
-      else if (savedRole === "VIP") group = "vip";
-      else if (savedRole === "Pro") group = "pro";
-      else if (savedRole === "Free") group = "free";
-      else if (savedRole === "Guest") group = "guest";
-    } else {
-      const savedUser = localStorage.getItem("procluster_user");
-      if (savedUser) {
-        try {
-          const u = JSON.parse(savedUser);
-          const tier = (u.tier || "Free").toLowerCase();
-          if (tier === "admin" || u.role === "Admin" || u.subscriptionLevel === "Admin") {
-            group = "admin";
-          } else if (tier === "vip" || u.subscriptionLevel === "VIP") {
-            group = "vip";
-          } else if (tier === "pro" || tier === "rpo" || u.subscriptionLevel === "RPO") {
-            group = "pro";
-          } else if (tier === "free") {
-            group = "free";
-          } else {
-            group = "guest";
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
-    }
-
-    let settings: Record<"guest" | "free" | "pro" | "vip" | "admin", {
-      maxHistory: number;
-      compressionLevels: number;
-      maxIndicators: number;
-      customIndicatorSettings: boolean;
-      telegramNotifications: boolean;
-    }> = {
-      guest: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
-      free: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false },
-      pro: { maxHistory: 1400, compressionLevels: 2, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false },
-      vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true },
-      admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true }
-    };
-    const savedSettings = localStorage.getItem("procluster_tier_settings");
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        if (parsed) {
-          if (!parsed.guest) {
-            parsed.guest = { maxHistory: 100, compressionLevels: 1, maxIndicators: 1, customIndicatorSettings: false, telegramNotifications: false };
-          }
-          for (const k of Object.keys(parsed)) {
-            const s = parsed[k];
-            if (s && typeof s.compressionLevels === "number") {
-              s.compressionLevels = Math.min(6, Math.max(1, s.compressionLevels));
-            }
-          }
-          settings = parsed;
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-    return { group, limits: settings[group] || settings.guest };
-  };
 
   const [profileVersion, setProfileVersion] = useState(0);
 

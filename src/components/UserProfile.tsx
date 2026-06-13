@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from "react";
 import { ProfileUser } from "../types";
+import { storage } from "../lib/storage";
 import { 
   User, Mail, Calendar, ShieldCheck, Zap, ArrowLeft, Check, Camera, 
   RefreshCw, BarChart2, Server, Award, Layout, Clock, Sparkles, ChevronRight,
@@ -339,10 +340,10 @@ export default function UserProfile({
 
   // Payment states and dates
   const [paymentDate, setPaymentDate] = useState(() => {
-    return localStorage.getItem("procluster_payment_date") || "2026-05-29";
+    return storage.get("procluster_payment_date") || "2026-05-29";
   });
   const [expireDate, setExpireDate] = useState(() => {
-    return localStorage.getItem("procluster_expire_date") || "2026-06-29";
+    return storage.get("procluster_expire_date") || "2026-06-29";
   });
 
   const [activePaymentPlan, setActivePaymentPlan] = useState<"Pro" | "VIP" | null>(null);
@@ -368,8 +369,8 @@ export default function UserProfile({
       setPaymentDate("—");
       setExpireDate(language === "RU" ? "Безлимитно" : language === "KZ" ? "Шексіз" : "Unlimited");
     } else {
-      const storedPay = localStorage.getItem("procluster_payment_date");
-      const storedExp = localStorage.getItem("procluster_expire_date");
+      const storedPay = storage.get("procluster_payment_date");
+      const storedExp = storage.get("procluster_expire_date");
       setPaymentDate(storedPay || "2026-05-29");
       setExpireDate(storedExp || "2026-06-29");
     }
@@ -391,10 +392,10 @@ export default function UserProfile({
     onUpdateUser(updated);
     
     // Save to localStorage so it persists correctly
-    localStorage.setItem("procluster_user", JSON.stringify(updated));
+    storage.setJson("procluster_user", updated);
 
     if (password.trim()) {
-      localStorage.setItem("procluster_user_password", password.trim());
+      storage.set("procluster_user_password", password.trim());
       setPassword("");
     }
     
@@ -422,11 +423,11 @@ export default function UserProfile({
         payD = today.toISOString().split('T')[0];
         expD = nextMonth.toISOString().split('T')[0];
       }
-      localStorage.setItem("procluster_payment_date", payD);
-      localStorage.setItem("procluster_expire_date", expD);
+      storage.set("procluster_payment_date", payD);
+      storage.set("procluster_expire_date", expD);
     } else {
-      localStorage.removeItem("procluster_payment_date");
-      localStorage.removeItem("procluster_expire_date");
+      storage.remove("procluster_payment_date");
+      storage.remove("procluster_expire_date");
     }
 
     setPaymentDate(payD);
@@ -441,10 +442,10 @@ export default function UserProfile({
     };
 
     onUpdateUser(updated);
-    localStorage.setItem("procluster_user", JSON.stringify(updated));
+    storage.setJson("procluster_user", updated);
 
     // Align the simulated override role state in local storage
-    localStorage.setItem("procluster_role", targetTier);
+    storage.set("procluster_role", targetTier);
     window.dispatchEvent(new CustomEvent("procluster_user_updated"));
 
     setNotification(`${t.activatedPlan}: ${targetTier}`);
