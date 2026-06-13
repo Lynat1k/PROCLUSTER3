@@ -119,6 +119,10 @@ export interface IndicatorSettings {
   // Cluster Search Common Settings
   csMergeLevels?: number;
   csImbalancePercent?: number;
+
+  // Volume on Chart specific settings
+  volumeOnChartDeltaThreshold?: number;
+  volumeOnChartMaxHeightPercent?: number;
 }
 
 export interface Indicator {

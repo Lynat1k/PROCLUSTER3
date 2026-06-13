@@ -1777,6 +1777,14 @@ export default function ClusterChart({
     }
     ctx.restore();
 
+    // Pre-calculate visible max total candle volume for scaling volumeOnChart
+    let visibleMaxCandleVolume = 1;
+    for (let cIdx = startIdx; cIdx <= endIdx; cIdx++) {
+      if (candles[cIdx] && candles[cIdx].volume > visibleMaxCandleVolume) {
+        visibleMaxCandleVolume = candles[cIdx].volume;
+      }
+    }
+
     // 4. Draw each visible candlestick
     for (let cIdx = startIdx; cIdx <= endIdx; cIdx++) {
       const candle = candles[cIdx];
@@ -1808,6 +1816,46 @@ export default function ClusterChart({
       ctx.beginPath();
       ctx.rect(margin.left, margin.top, scrollWidth - margin.left + 50, chartHeight);
       ctx.clip();
+
+      // Draw volumeOnChart background histogram if active
+      if (activeIndicators && activeIndicators.volumeOnChart) {
+        const vocSettings = indicatorSettings?.volumeOnChart || {};
+        const deltaThreshold = vocSettings.volumeOnChartDeltaThreshold ?? 500;
+        const maxHPercent = vocSettings.volumeOnChartMaxHeightPercent ?? 20;
+        const vocOpacity = vocSettings.opacity != null ? vocSettings.opacity : 0.4;
+
+        const maxBarHeight = chartHeight * (maxHPercent / 100);
+        const barH = visibleMaxCandleVolume > 0 
+          ? (candle.volume / visibleMaxCandleVolume) * maxBarHeight 
+          : 0;
+
+        const baseY = margin.top + chartHeight;
+        const barY = baseY - barH;
+
+        let fillStyle = "";
+        let strokeStyle = "";
+
+        if (candle.delta > deltaThreshold) {
+          fillStyle = isLight ? "rgba(16, 185, 129, 0.28)" : "rgba(16, 185, 129, 0.35)";
+          strokeStyle = isLight ? "rgba(5, 150, 105, 0.55)" : "rgba(16, 185, 129, 0.65)";
+        } else if (candle.delta < -deltaThreshold) {
+          fillStyle = isLight ? "rgba(244, 63, 94, 0.28)" : "rgba(244, 63, 94, 0.35)";
+          strokeStyle = isLight ? "rgba(220, 38, 38, 0.55)" : "rgba(244, 63, 94, 0.65)";
+        } else {
+          fillStyle = isLight ? "rgba(100, 116, 139, 0.18)" : "rgba(148, 163, 184, 0.22)";
+          strokeStyle = isLight ? "rgba(71, 85, 105, 0.38)" : "rgba(148, 163, 184, 0.48)";
+        }
+
+        ctx.save();
+        ctx.globalAlpha = vocOpacity;
+        ctx.fillStyle = fillStyle;
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = 1.0;
+
+        ctx.fillRect(x + 1, barY, candleWidth - 2, barH);
+        ctx.strokeRect(x + 1, barY, candleWidth - 2, barH);
+        ctx.restore();
+      }
 
       // Determine colors based on palette
       const useAltPalette = candlePalette === "alternative";

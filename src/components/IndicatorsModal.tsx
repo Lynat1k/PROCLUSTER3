@@ -1131,7 +1131,7 @@ export default function IndicatorsModal({
                         <div className="flex justify-between font-bold">
                           <span className={isLight ? "text-slate-700" : "text-slate-300"}>Opacity / Прозрачность</span>
                           <span className={`font-mono font-bold ${isLight ? "text-blue-700" : "text-yellow-500"}`}>
-                            {Math.round((selectedIndicator.settings.opacity || 0.7) * 100)}%
+                            {Math.round((selectedIndicator.settings.opacity || 0.4) * 100)}%
                           </span>
                         </div>
                         <input
@@ -1139,11 +1139,54 @@ export default function IndicatorsModal({
                           min="0.1"
                           max="1.0"
                           step="0.05"
-                          value={selectedIndicator.settings.opacity || 0.7}
+                          value={selectedIndicator.settings.opacity || 0.4}
                           onChange={(e) => updateSettings({ opacity: parseFloat(e.target.value) })}
                           className={`w-full accent-blue-600 rounded-lg h-1 ${isLight ? "bg-slate-200" : "bg-slate-800"}`}
                         />
                       </div>
+
+                      {/* volumeOnChart specific advanced settings */}
+                      {selectedIndicator.id === "volumeOnChart" && (
+                        <>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex justify-between font-bold">
+                              <span className={isLight ? "text-slate-700" : "text-slate-300"}>Max Height % / Макс. высота %</span>
+                              <span className={`font-mono font-bold ${isLight ? "text-blue-700" : "text-yellow-500"}`}>
+                                {selectedIndicator.settings.volumeOnChartMaxHeightPercent ?? 20}%
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min="5"
+                              max="100"
+                              step="5"
+                              value={selectedIndicator.settings.volumeOnChartMaxHeightPercent ?? 20}
+                              onChange={(e) => updateSettings({ volumeOnChartMaxHeightPercent: parseInt(e.target.value) })}
+                              className={`w-full accent-blue-600 rounded-lg h-1 ${isLight ? "bg-slate-200" : "bg-slate-800"}`}
+                            />
+                            <span className={`text-[10px] ${isLight ? "text-slate-500/80" : "text-slate-400/80"}`}>
+                              Максимальная высота гистограммы объемов на основном графике.
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col gap-1.5 text-xs">
+                            <span className={isLight ? "text-slate-700 font-bold" : "text-slate-300 font-bold"}>Порог дельты для подсветки / Delta Threshold</span>
+                            <input
+                              type="number"
+                              value={selectedIndicator.settings.volumeOnChartDeltaThreshold ?? 500}
+                              onChange={(e) => updateSettings({ volumeOnChartDeltaThreshold: parseFloat(e.target.value) || 0 })}
+                              className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                                isLight
+                                  ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                  : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
+                              }`}
+                            />
+                            <span className={`text-[10px] ${isLight ? "text-slate-500/80" : "text-slate-400/80"}`}>
+                              Столбцы с абсолютной дельтой в свече выше этого значения станут зелеными / красными, иначе будут серыми.
+                            </span>
+                          </div>
+                        </>
+                      )}
 
                       <label className={`flex items-center gap-2.5 p-1 rounded cursor-pointer mt-1 ${isLight ? "hover:bg-slate-100" : "hover:bg-white/5"}`}>
                         <input

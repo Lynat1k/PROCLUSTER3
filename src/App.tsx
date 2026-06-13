@@ -24,7 +24,8 @@ import { motion, AnimatePresence } from "motion/react";
 
 import { AutoIcon, JapaneseIcon, FootprintIcon, ClustersIcon, CandlePreviewIcon } from "./components/icons";
 import { getBaseTickSize } from "./lib/symbols";
-import { getClusterCandles, fetchBinanceDepth } from "./lib/marketData";
+import { fetchBinanceDepth } from "./lib/marketData";
+import { getClusterCandles } from "./lib/api";
 import { getActiveGroupLimits as getActiveGroupLimitsFromTier } from "./lib/tierLimits";
 import { storage } from "./lib/storage";
 
@@ -507,40 +508,17 @@ export default function App() {
   const [indicators, setIndicators] = useState<Indicator[]>(() => {
     const defaultList: Indicator[] = [
       {
-        id: "volume",
-        label: "(PROCLUSTER) Volume",
-        category: "Все индикаторы",
-        type: "Глобальный",
-        isFavorite: false,
-        isActive: true,
-        settings: { opacity: 0.8 }
-      },
-      {
         id: "volumeOnChart",
         label: "(PROCLUSTER) Volume on Chart",
         category: "Все индикаторы",
         type: "Оверлей",
         isFavorite: true,
         isActive: true,
-        settings: { opacity: 0.6 }
-      },
-      {
-        id: "volumeProfile",
-        label: "(PROCLUSTER) Volume Profile",
-        category: "Все индикаторы",
-        type: "Оверлей",
-        isFavorite: true,
-        isActive: true,
-        settings: { opacity: 0.7 }
-      },
-      {
-        id: "marketProfile",
-        label: "(PROCLUSTER) Market Profile",
-        category: "Все индикаторы",
-        type: "Оверлей",
-        isFavorite: false,
-        isActive: false,
-        settings: { opacity: 0.5 }
+        settings: { 
+          opacity: 0.4, 
+          volumeOnChartDeltaThreshold: 500, 
+          volumeOnChartMaxHeightPercent: 20 
+        }
       },
       {
         id: "delta",
@@ -559,15 +537,6 @@ export default function App() {
         isFavorite: true,
         isActive: true,
         settings: { smoothing: 10 }
-      },
-      {
-        id: "liquidations",
-        label: "(PROCLUSTER) Liquidations",
-        category: "Все индикаторы",
-        type: "Оверлей",
-        isFavorite: true,
-        isActive: false,
-        settings: { opacity: 0.9 }
       },
       {
         id: "clusterSearch",
@@ -602,24 +571,6 @@ export default function App() {
           csLargeOpacity: 0.9,
           csLargeTgAlert: false
         }
-      },
-      {
-        id: "reversalClusters",
-        label: "(PROCLUSTER) Reversal Clusters",
-        category: "Все индикаторы",
-        type: "Оверлей",
-        isFavorite: false,
-        isActive: false,
-        settings: { sensitivity: 5 }
-      },
-      {
-        id: "absorption",
-        label: "(PROCLUSTER) Absorption",
-        category: "Все индикаторы",
-        type: "Оверлей",
-        isFavorite: false,
-        isActive: false,
-        settings: { sensitivity: 6 }
       },
       {
         id: "stackedImbalance",
@@ -2247,6 +2198,7 @@ export default function App() {
           clusterSearch: (indicators.find(i => i.id === "clusterSearch")?.isActive ?? false) && (indicators.find(i => i.id === "clusterSearch")?.isVisible !== false),
           delta: (indicators.find(i => i.id === "delta")?.isActive ?? false) && (indicators.find(i => i.id === "delta")?.isVisible !== false),
           volume: (indicators.find(i => i.id === "volume" || i.id === "volumeProfile")?.isActive ?? false) && (indicators.find(i => i.id === "volume" || i.id === "volumeProfile")?.isVisible !== false),
+          volumeOnChart: (indicators.find(i => i.id === "volumeOnChart")?.isActive ?? false) && (indicators.find(i => i.id === "volumeOnChart")?.isVisible !== false),
           cvd: (indicators.find(i => i.id === "cvd")?.isActive ?? false) && (indicators.find(i => i.id === "cvd")?.isVisible !== false),
           stackedImbalance: (indicators.find(i => i.id === "stackedImbalance")?.isActive ?? false) && (indicators.find(i => i.id === "stackedImbalance")?.isVisible !== false)
         };
@@ -2256,6 +2208,7 @@ export default function App() {
           volumeProfile: indicators.find(i => i.id === "volumeProfile")?.settings || {},
           delta: indicators.find(i => i.id === "delta")?.settings || {},
           cvd: indicators.find(i => i.id === "cvd")?.settings || {},
+          volumeOnChart: indicators.find(i => i.id === "volumeOnChart")?.settings || {},
           stackedImbalance: indicators.find(i => i.id === "stackedImbalance")?.settings || {}
         };
 
