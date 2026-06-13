@@ -754,8 +754,8 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
                 {/* Size (Ask) Red */}
                 <div className={`text-right pr-4 z-10 font-bold tracking-tight transition-all duration-200 ${
                   isAbundantWall 
-                    ? "text-rose-400 font-extrabold text-[11px] drop-shadow-[0_0_3px_rgba(244,63,94,0.4)]" 
-                    : "text-rose-500/90"
+                    ? (isLight ? "text-rose-950 font-black text-[11px]" : "text-rose-400 font-extrabold text-[11px] drop-shadow-[0_0_3px_rgba(244,63,94,0.4)]") 
+                    : (isLight ? "text-rose-800 font-extrabold" : "text-rose-500/90")
                 }`}>
                   {ask.amount.toFixed(2)}
                 </div>
@@ -763,8 +763,8 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
                 {/* Price (Ask) standard Gray/White */}
                 <div className={`text-left pl-3 z-10 font-bold transition-all duration-200 ${
                   isAbundantWall
-                    ? "font-extrabold text-slate-200"
-                    : (isLight ? "text-slate-600 group-hover:text-slate-900" : "text-slate-400 group-hover:text-slate-100")
+                    ? (isLight ? "font-black text-slate-950 text-[11.5px]" : "font-extrabold text-slate-200")
+                    : (isLight ? "text-slate-800 group-hover:text-black font-extrabold" : "text-slate-400 group-hover:text-slate-100")
                 }`}>
                   {ask.price.toLocaleString(undefined, { minimumFractionDigits: ask.price < 50 ? 2 : 1 })}
                 </div>
@@ -841,8 +841,8 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
                 {/* Size (Bid) Green */}
                 <div className={`text-right pr-4 z-10 font-bold tracking-tight transition-all duration-200 ${
                   isAbundantWall 
-                    ? "text-emerald-400 font-extrabold text-[11px] drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]" 
-                    : "text-emerald-500/90"
+                    ? (isLight ? "text-emerald-950 font-black text-[11px]" : "text-emerald-400 font-extrabold text-[11px] drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]") 
+                    : (isLight ? "text-emerald-800 font-extrabold" : "text-emerald-500/90")
                 }`}>
                   {bid.amount.toFixed(2)}
                 </div>
@@ -850,8 +850,8 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
                 {/* Price (Bid) standard Gray/White */}
                 <div className={`text-left pl-3 z-10 font-bold transition-all duration-200 ${
                   isAbundantWall
-                    ? "font-extrabold text-slate-200"
-                    : (isLight ? "text-slate-600 group-hover:text-slate-900" : "text-slate-400 group-hover:text-slate-100")
+                    ? (isLight ? "font-black text-slate-950 text-[11.5px]" : "font-extrabold text-slate-200")
+                    : (isLight ? "text-slate-800 group-hover:text-black font-extrabold" : "text-slate-400 group-hover:text-slate-100")
                 }`}>
                   {bid.price.toLocaleString(undefined, { minimumFractionDigits: bid.price < 50 ? 2 : 1 })}
                 </div>

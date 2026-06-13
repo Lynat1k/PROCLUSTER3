@@ -635,47 +635,47 @@ export default function AdminPanel({
                   <Cpu className="w-4 h-4 text-slate-400 animate-pulse" /> Мониторинг ресурсов & Спецификации веб-сервера
                 </h3>
                 
-                <div className="flex-1 flex flex-col gap-3 lg:min-h-0 justify-between">
+                <div className="flex-1 flex flex-col gap-4 lg:min-h-0 justify-between">
                   
                   {/* --- CARD 1: CPU GRAPH --- */}
-                  <div className={`flex-1 min-h-0 p-3 rounded-xl border flex flex-col justify-between gap-1.5 transition-all ${
-                    isLight ? "bg-slate-50/40 border-slate-200/80" : "bg-white/[0.01] border-white/5"
+                  <div className={`flex-1 min-h-[145px] p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition-all ${
+                    isLight ? "bg-slate-50/70 border-slate-200" : "bg-white/[0.01] border-white/5"
                   }`}>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold flex items-center gap-1.5">
+                      <span className={`font-bold flex items-center gap-1.5 ${isLight ? "text-slate-800" : "text-white"}`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
                         <span>Нагрузка Процессора (CPU)</span>
                       </span>
-                      <span className="font-mono font-bold text-amber-500">{cpuUsage}%</span>
+                      <span className={`font-mono font-bold ${isLight ? "text-amber-600" : "text-amber-500"}`}>{cpuUsage}%</span>
                     </div>
                     
-                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                    <div className={`h-2 w-full ${isLight ? "bg-slate-200" : "bg-slate-900"} rounded-full overflow-hidden`}>
                       <div 
                         className="h-full bg-amber-500 transition-all duration-300"
                         style={{ width: `${cpuUsage}%` }}
                       />
                     </div>
                     
-                    <div className="text-[10px] text-slate-400 font-mono flex justify-between">
+                    <div className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"} font-mono flex justify-between`}>
                       <span>VM Core 8x Threads</span>
                       <span>Частота: 3.40 GHz</span>
                     </div>
 
                     {/* CPU Chart View */}
                     <div className="flex flex-col gap-1 min-h-0">
-                      <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">График загрузки CPU (30 сек)</span>
+                      <span className={`text-[9px] ${isLight ? "text-slate-550" : "text-slate-400"} font-mono uppercase tracking-wider`}>График загрузки CPU (30 сек)</span>
                       {(() => {
                         const width = 300;
-                        const height = 40;
+                        const height = 48;
                         const points = cpuHistory.map((val, idx) => {
-                          const x = idx * (width / (cpuHistory.length - 1 || 1));
-                          const y = height - (val / 100) * (height - 8) - 4;
-                          return { x, y };
+                           const x = idx * (width / (cpuHistory.length - 1 || 1));
+                           const y = height - (val / 100) * (height - 8) - 4;
+                           return { x, y };
                         });
                         const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
                         const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
                         return (
-                          <div className="h-11 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
+                          <div className={`h-14 w-full ${isLight ? "bg-slate-100/80" : "bg-black/30"} rounded-lg p-1.5 border ${isLight ? "border-slate-300/40" : "border-white/[0.02]"}`}>
                             <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
                               <defs>
                                 <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
@@ -683,7 +683,7 @@ export default function AdminPanel({
                                   <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
                                 </linearGradient>
                               </defs>
-                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className="text-slate-200/10 dark:text-white/[0.03]" strokeDasharray="3 3" />
+                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className={isLight ? "text-slate-400/20" : "text-white/[0.03]"} strokeDasharray="3 3" />
                               <path d={areaD} fill="url(#cpuGrad)" />
                               <path d={pathD} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                               {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2" fill="#f59e0b" />}
@@ -695,44 +695,44 @@ export default function AdminPanel({
                   </div>
 
                   {/* --- CARD 2: RAM GRAPH WITH ALL BUSY SERVER MEMORY --- */}
-                  <div className={`flex-1 min-h-0 p-3 rounded-xl border flex flex-col justify-between gap-1.5 transition-all ${
-                    isLight ? "bg-slate-50/40 border-slate-200/80" : "bg-white/[0.01] border-white/5"
+                  <div className={`flex-1 min-h-[145px] p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition-all ${
+                    isLight ? "bg-slate-50/70 border-slate-200" : "bg-white/[0.01] border-white/5"
                   }`}>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold flex items-center gap-1.5">
+                      <span className={`font-bold flex items-center gap-1.5 ${isLight ? "text-slate-800" : "text-white"}`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                         <span>Вся занятая память сервера (RAM)</span>
                       </span>
-                      <span className="font-mono font-bold text-emerald-500">{ramUsageGB.toFixed(2)} GB / 16.0 GB</span>
+                      <span className={`font-mono font-bold ${isLight ? "text-emerald-600" : "text-emerald-500"}`}>{ramUsageGB.toFixed(2)} GB / 16.0 GB</span>
                     </div>
                     
-                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                    <div className={`h-2 w-full ${isLight ? "bg-slate-200" : "bg-slate-900"} rounded-full overflow-hidden`}>
                       <div 
-                        className="h-full bg-emerald-500 transition-all duration-300"
+                        className="h-full bg-emerald-500 transition-all duration-350"
                         style={{ width: `${(ramUsageGB / 16) * 100}%` }}
                       />
                     </div>
                     
-                    <div className="text-[10px] text-slate-400 font-mono flex justify-between">
+                    <div className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"} font-mono flex justify-between`}>
                       <span>Использование памяти процессами Node</span>
                       <span>Свободно: {(16 - ramUsageGB).toFixed(2)} GB</span>
                     </div>
 
                     {/* RAM Chart View */}
                     <div className="flex flex-col gap-1 min-h-0">
-                      <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">График загрузки ОЗУ (RAM)</span>
+                      <span className={`text-[9px] ${isLight ? "text-slate-500" : "text-slate-400"} font-mono uppercase tracking-wider`}>График загрузки ОЗУ (RAM)</span>
                       {(() => {
                         const width = 300;
-                        const height = 40;
+                        const height = 48;
                         const points = ramHistory.map((val, idx) => {
-                          const x = idx * (width / (ramHistory.length - 1 || 1));
-                          const y = height - (val / 16) * (height - 8) - 4;
-                          return { x, y };
+                           const x = idx * (width / (ramHistory.length - 1 || 1));
+                           const y = height - (val / 16) * (height - 8) - 4;
+                           return { x, y };
                         });
                         const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
                         const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
                         return (
-                          <div className="h-11 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
+                          <div className={`h-14 w-full ${isLight ? "bg-slate-100/80" : "bg-black/30"} rounded-lg p-1.5 border ${isLight ? "border-slate-300/40" : "border-white/[0.02]"}`}>
                             <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
                               <defs>
                                 <linearGradient id="ramGrad" x1="0" y1="0" x2="0" y2="1">
@@ -740,7 +740,7 @@ export default function AdminPanel({
                                   <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
                                 </linearGradient>
                               </defs>
-                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className="text-slate-200/10 dark:text-white/[0.03]" strokeDasharray="3 3" />
+                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className={isLight ? "text-slate-400/20" : "text-white/[0.03]"} strokeDasharray="3 3" />
                               <path d={areaD} fill="url(#ramGrad)" />
                               <path d={pathD} fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                               {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2" fill="#10b981" />}
@@ -752,44 +752,44 @@ export default function AdminPanel({
                   </div>
 
                   {/* --- CARD 3: DISK GRAPH & DATABASE VOLUME --- */}
-                  <div className={`flex-1 min-h-0 p-3 rounded-xl border flex flex-col justify-between gap-1.5 transition-all ${
-                    isLight ? "bg-slate-50/40 border-slate-200/80" : "bg-white/[0.01] border-white/5"
+                  <div className={`flex-1 min-h-[145px] p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition-all ${
+                    isLight ? "bg-slate-50/70 border-slate-200" : "bg-white/[0.01] border-white/5"
                   }`}>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="font-semibold flex items-center gap-1.5">
+                      <span className={`font-semibold flex items-center gap-1.5 ${isLight ? "text-slate-800" : "text-white"}`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                         <span>Нагрузка Диска & Объем Базы Данных</span>
                       </span>
-                      <span className="font-mono font-bold text-blue-400">{diskLoad.toFixed(1)}%</span>
+                      <span className={`font-mono font-bold ${isLight ? "text-blue-600" : "text-blue-400"}`}>{diskLoad.toFixed(1)}%</span>
                     </div>
                     
-                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                    <div className={`h-2 w-full ${isLight ? "bg-slate-200" : "bg-slate-900"} rounded-full overflow-hidden`}>
                       <div 
                         className="h-full bg-blue-500 transition-all duration-300"
                         style={{ width: `${diskLoad}%` }}
                       />
                     </div>
                     
-                    <div className="text-[10px] text-slate-400 font-mono flex justify-between">
-                      <span className="text-blue-400 font-semibold">Объём Базы Данных: {dbVolumeGB.toFixed(4)} GB</span>
+                    <div className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"} font-mono flex justify-between`}>
+                      <span className={`${isLight ? "text-blue-700 font-bold" : "text-blue-400 font-semibold"}`}>Объём Базы Данных: {dbVolumeGB.toFixed(4)} GB</span>
                       <span>SSD NVMe RAID</span>
                     </div>
 
                     {/* Disk Chart View */}
                     <div className="flex flex-col gap-1 min-h-0">
-                      <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">График нагрузки на диск (I/O)</span>
+                      <span className={`text-[9px] ${isLight ? "text-slate-550" : "text-slate-400"} font-mono uppercase tracking-wider`}>График нагрузки на диск (I/O)</span>
                       {(() => {
                         const width = 300;
-                        const height = 40;
+                        const height = 48;
                         const points = diskHistory.map((val, idx) => {
-                          const x = idx * (width / (diskHistory.length - 1 || 1));
-                          const y = height - (val / 100) * (height - 8) - 4;
-                          return { x, y };
+                           const x = idx * (width / (diskHistory.length - 1 || 1));
+                           const y = height - (val / 100) * (height - 8) - 4;
+                           return { x, y };
                         });
                         const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
                         const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
                         return (
-                          <div className="h-11 w-full bg-black/10 dark:bg-black/30 rounded-lg p-1 border border-white/[0.02]">
+                          <div className={`h-14 w-full ${isLight ? "bg-slate-100/80" : "bg-black/30"} rounded-lg p-1.5 border ${isLight ? "border-slate-300/40" : "border-white/[0.02]"}`}>
                             <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
                               <defs>
                                 <linearGradient id="diskGrad" x1="0" y1="0" x2="0" y2="1">
@@ -797,7 +797,7 @@ export default function AdminPanel({
                                   <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
                                 </linearGradient>
                               </defs>
-                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className="text-slate-200/10 dark:text-white/[0.03]" strokeDasharray="3 3" />
+                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className={isLight ? "text-slate-400/20" : "text-white/[0.03]"} strokeDasharray="3 3" />
                               <path d={areaD} fill="url(#diskGrad)" />
                               <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                               {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2" fill="#3b82f6" />}
@@ -852,424 +852,426 @@ export default function AdminPanel({
 
           {/* TAB 2: DATABASE COINS, PRICE SETTING, SCRAPING HISTORICAL DATA */}
           {activeTab === "database" && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0 w-full items-start">
               
-              {/* LEFT COLUMN: REGISTRY (span 7) */}
-              <div className="lg:col-span-7 flex flex-col gap-6">
-                
-                {/* BOX 1: ADD COIN & SET GRIDS */}
-                <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
-                  isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
+              {/* BOX 1: ADD COIN & SET GRIDS */}
+              <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
+                isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
+              }`}>
+                <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
+                  isLight ? "text-emerald-700" : "text-emerald-500"
                 }`}>
-                  <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
-                    isLight ? "text-emerald-700" : "text-emerald-500"
-                  }`}>
-                    <Plus className="w-4 h-4" />
-                    Добавление и Сжатие Новых Монет
-                  </h3>
-                  <p className={`text-xs leading-relaxed ${
-                    isLight ? "text-slate-600 font-medium" : "text-slate-400"
-                  }`}>
-                    Внесите в систему новые рыночные активы. Также укажите степень сжатия цен стакана для Spot (в базовых пунктах) и Futures (в усредненных интервалах объемов).
-                  </p>
+                  <Plus className="w-4 h-4" />
+                  Добавление и Сжатие Новых Монет
+                </h3>
+                <p className={`text-xs leading-relaxed ${
+                  isLight ? "text-slate-600 font-medium" : "text-slate-400"
+                }`}>
+                  Внесите в систему новые рыночные активы. Также укажите степень сжатия цен стакана для Spot (в базовых пунктах) и Futures (в усредненных интервалах объемов).
+                </p>
 
-                  {tickerSuccessMsg && (
-                    <div className={`p-3 rounded-xl text-xs font-bold border ${
+                {tickerSuccessMsg && (
+                  <div className={`p-3 rounded-xl text-xs font-bold border ${
+                    isLight 
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-850" 
+                      : "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
+                  }`}>
+                    {tickerSuccessMsg}
+                  </div>
+                )}
+
+                <form onSubmit={handleAddNewTicker} className="flex flex-col gap-3.5 text-xs font-sans">
+                  <div>
+                    <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
+                      isLight ? "text-slate-700" : "text-slate-400"
+                    }`}>Символ Токена (Например: SOL/USDT)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="SOL/USDT"
+                      value={newSymbol}
+                      onChange={(e) => setNewSymbol(e.target.value)}
+                      className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                        isLight 
+                          ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+                          : "bg-slate-900 border-white/5 text-white focus:border-emerald-500"
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
+                      isLight ? "text-slate-700" : "text-slate-400"
+                    }`}>Минимальный Шаг Тика SPOT (Tick Size)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      placeholder="0.01"
+                      value={newMinTickStepSpot}
+                      onChange={(e) => setNewMinTickStepSpot(e.target.value)}
+                      className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                        isLight 
+                          ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+                          : "bg-slate-900 border-white/10 text-white focus:border-emerald-500"
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
+                      isLight ? "text-slate-700" : "text-slate-400"
+                    }`}>Минимальный Шаг Тика FUTURES (Tick Size)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      placeholder="0.1"
+                      value={newMinTickStepFutures}
+                      onChange={(e) => setNewMinTickStepFutures(e.target.value)}
+                      className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                        isLight 
+                          ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+                          : "bg-slate-900 border-white/10 text-white focus:border-emerald-500"
+                      }`}
+                    />
+                  </div>
+
+                  <div className={`p-3 rounded-lg border flex flex-col gap-1 ${
+                    isLight ? "bg-blue-50/70 border-blue-200" : "bg-blue-500/5 border-blue-500/10"
+                  }`}>
+                    <span className={`text-[10px] font-mono font-bold uppercase block tracking-wider mb-2 ${
+                      isLight ? "text-blue-700" : "text-blue-400"
+                    }`}>Настройки Степени Сжатия</span>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={`text-[9.5px] font-[600] block mb-1 ${
+                          isLight ? "text-slate-700" : "text-slate-400"
+                        }`}>Сжатие Spot Данных</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="200"
+                          value={compressionSpotVal}
+                          onChange={(e) => setCompressionSpotVal(e.target.value)}
+                          className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                            isLight 
+                              ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                              : "bg-slate-900 border-white/10 text-white focus:border-blue-500"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className={`text-[9.5px] font-[600] block mb-1 ${
+                          isLight ? "text-slate-700" : "text-slate-400"
+                        }`}>Сжатие Futures Данных</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="500"
+                          value={compressionFuturesVal}
+                          onChange={(e) => setCompressionFuturesVal(e.target.value)}
+                          className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                            isLight 
+                              ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                              : "bg-slate-900 border-white/10 text-white focus:border-blue-500"
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className={`w-full px-4 py-2.5 rounded-xl font-black transition tracking-wide text-xs flex items-center justify-center gap-2 cursor-pointer ${
                       isLight 
-                        ? "bg-emerald-50 border-emerald-200 text-emerald-850" 
-                        : "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow" 
+                        : "bg-emerald-500 text-slate-950 hover:bg-emerald-600"
+                    }`}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Зарегистрировать Тикер в Реестре
+                  </button>
+                </form>
+              </div>
+
+              {/* DEFAULT CHART COMPRESSIONS BY TICKER AND TIMEFRAME */}
+              <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
+                isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
+              }`}>
+                <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
+                  isLight ? "text-blue-700" : "text-blue-500"
+                }`}>
+                  <BarChart2 className="w-4 h-4" />
+                  Сжатие графика по умолчанию
+                </h3>
+                <p className={`text-xs leading-relaxed ${
+                  isLight ? "text-slate-600 font-medium" : "text-slate-400"
+                }`}>
+                  Настройте множитель сжатия по умолчанию для любой комбинации торговой пары и таймфрейма. Эти значения автоматически применятся при переключении графиков на терминале.
+                </p>
+
+                <div className="flex flex-col gap-4 font-sans text-xs">
+                  <div className="flex flex-col gap-1 pb-2 border-b border-dashed border-slate-200/60 dark:border-white/5">
+                    <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
+                      isLight ? "text-slate-700" : "text-slate-400"
+                    }`}>Выберите Торговую Пару для настройки</label>
+                    <select
+                      value={activeCompTicker}
+                      onChange={(e) => setActiveCompTicker(e.target.value)}
+                      className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
+                        isLight 
+                          ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white" 
+                          : "bg-slate-900 border-white/10 text-white focus:border-blue-500/50"
+                      }`}
+                    >
+                      {pairs.map(p => (
+                        <option key={p.symbol} value={p.symbol}>{p.symbol}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* FUTURES settings */}
+                  <div className={`p-4 rounded-xl border flex flex-col gap-3 ${
+                    isLight ? "bg-slate-50/50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                  }`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[11px] font-mono font-black uppercase tracking-wider text-amber-500">
+                        🟡 FUTURES Сжатие по умолчанию
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      {["1m", "5m", "15m", "30m", "1h", "4h"].map((intervalVal) => {
+                        const currentVal = defaultCompressions[activeCompTicker]?.FUTURES?.[intervalVal] !== undefined
+                          ? defaultCompressions[activeCompTicker].FUTURES[intervalVal]
+                          : (defaultCompressions[activeCompTicker]?.[intervalVal] !== undefined && typeof defaultCompressions[activeCompTicker]?.[intervalVal] === "number"
+                            ? defaultCompressions[activeCompTicker][intervalVal]
+                            : 5);
+                        return (
+                          <div key={intervalVal} className={`flex items-center justify-between gap-1 px-2.5 py-1.5 rounded-lg border ${
+                            isLight ? "bg-white border-slate-200/65 shadow-sm" : "bg-slate-900/60 border-white/5"
+                          }`}>
+                            <span className="font-mono font-black text-xs text-slate-400 uppercase">{intervalVal}</span>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="1"
+                                max="500"
+                                value={currentVal}
+                                onChange={(e) => {
+                                  const parsedInput = Math.max(1, parseInt(e.target.value) || 1);
+                                  updateDefaultCompression(activeCompTicker, "FUTURES", intervalVal, parsedInput);
+                                }}
+                                className={`w-11 text-center text-xs font-mono font-bold rounded px-1.5 py-0.5 border transition-all focus:outline-none ${
+                                  isLight 
+                                    ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500" 
+                                    : "bg-slate-950 border-white/10 text-white focus:border-amber-500"
+                                }`}
+                              />
+                              <span className="text-[10px] text-slate-400 font-bold font-mono">x</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* SPOT settings */}
+                  <div className={`p-4 rounded-xl border flex flex-col gap-3 ${
+                    isLight ? "bg-slate-50/50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                  }`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[11px] font-mono font-black uppercase tracking-wider text-emerald-500">
+                        🟢 SPOT Сжатие по умолчанию
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      {["15m", "30m", "1h", "4h"].map((intervalVal) => {
+                        const currentVal = defaultCompressions[activeCompTicker]?.SPOT?.[intervalVal] !== undefined
+                          ? defaultCompressions[activeCompTicker].SPOT[intervalVal]
+                          : (defaultCompressions[activeCompTicker]?.[intervalVal] !== undefined && typeof defaultCompressions[activeCompTicker]?.[intervalVal] === "number"
+                            ? defaultCompressions[activeCompTicker][intervalVal]
+                            : 1);
+                        return (
+                          <div key={intervalVal} className={`flex items-center justify-between gap-1 px-2.5 py-1.5 rounded-lg border ${
+                            isLight ? "bg-white border-slate-200/65 shadow-sm" : "bg-slate-900/60 border-white/5"
+                          }`}>
+                            <span className="font-mono font-black text-xs text-slate-400 uppercase">{intervalVal}</span>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="1"
+                                max="500"
+                                value={currentVal}
+                                onChange={(e) => {
+                                  const parsedInput = Math.max(1, parseInt(e.target.value) || 1);
+                                  updateDefaultCompression(activeCompTicker, "SPOT", intervalVal, parsedInput);
+                                }}
+                                className={`w-11 text-center text-xs font-mono font-bold rounded px-1.5 py-0.5 border transition-all focus:outline-none ${
+                                  isLight 
+                                    ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+                                    : "bg-slate-950 border-white/10 text-white focus:border-emerald-500"
+                                }`}
+                              />
+                              <span className="text-[10px] text-slate-400 font-bold font-mono">x</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Save Button for default compressions */}
+                  <div className="flex flex-col items-stretch gap-3 pt-2">
+                    <button
+                      onClick={() => {
+                        storage.setJson("procluster_default_compressions", defaultCompressions);
+                        window.dispatchEvent(new Event("procluster_default_comp_changed"));
+                        setCompSuccessMsg("Настройки сжатия успешно сохранены!");
+                        setTimeout(() => setCompSuccessMsg(""), 3000);
+                      }}
+                      className={`w-full px-5 py-2.5 rounded-xl font-bold transition tracking-wide text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
+                        isLight 
+                          ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/10" 
+                          : "bg-amber-500/20 border border-amber-500/30 text-amber-500 hover:bg-amber-500/30"
+                      }`}
+                    >
+                      <Save className="w-4 h-4" />
+                      Сохранить Настройки Сжатия
+                    </button>
+
+                    {compSuccessMsg && (
+                      <span className="text-xs text-emerald-500 text-center font-bold font-sans animate-pulse">
+                        ✓ {compSuccessMsg}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* BINANCE VISION CDN DOWNLOADER */}
+              <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
+                isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
+              }`}>
+                <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
+                  isLight ? "text-amber-700" : "text-yellow-500"
+                }`}>
+                  <Download className="w-4 h-4" />
+                  Загрузка исторических данных (Binance Vision)
+                </h3>
+                <p className={`text-xs leading-relaxed ${
+                  isLight ? "text-slate-600 font-medium" : "text-slate-400"
+                }`}>
+                  Импортируйте сырой массив агрегированных сделок (zip format) напрямую из архивов <code className="text-blue-500 font-bold">data.binance.vision</code>.
+                </p>
+
+                <div className="flex flex-col gap-3.5 text-xs font-sans">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className={`text-[9px] font-mono font-bold block mb-1 ${
+                        isLight ? "text-slate-700" : "text-slate-500"
+                      }`}>ТИКЕР</label>
+                      <select
+                        value={histTicker}
+                        onChange={(e) => setHistTicker(e.target.value)}
+                        className={`w-full text-xs font-mono font-bold rounded-lg px-2.5 py-1.5 border ${
+                          isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-900 border-white/10 text-white"
+                        }`}
+                      >
+                        {pairs.map(p => (
+                          <option key={p.symbol} value={p.symbol}>{p.symbol}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={`text-[9px] font-mono font-bold block mb-1 ${
+                        isLight ? "text-slate-700" : "text-slate-500"
+                      }`}>СЕГМЕНТ</label>
+                      <select
+                        value={histType}
+                        onChange={(e) => setHistType(e.target.value as any)}
+                        className={`w-full text-xs font-mono font-bold rounded-lg px-2.5 py-1.5 border ${
+                          isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-900 border-white/10 text-white"
+                        }`}
+                      >
+                        <option value="SPOT">SPOT (Сделки)</option>
+                        <option value="FUTURES">FUTURES (USD-M)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className={`text-[9px] font-mono font-bold block mb-1 ${
+                        isLight ? "text-slate-700" : "text-slate-500"
+                      }`}>С (Начало диапазона)</label>
+                      <input
+                        type="date"
+                        value={histStartDate}
+                        onChange={(e) => setHistStartDate(e.target.value)}
+                        className={`w-full text-xs font-mono rounded-lg px-2.5 py-1.5 border ${
+                          isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-900 border-white/10 text-white"
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`text-[9px] font-mono font-bold block mb-1 ${
+                        isLight ? "text-slate-700" : "text-slate-500"
+                      }`}>По (Конец диапазона)</label>
+                      <input
+                        type="date"
+                        value={histEndDate}
+                        onChange={(e) => setHistEndDate(e.target.value)}
+                        className={`w-full text-xs font-mono rounded-lg px-2.5 py-1.5 border ${
+                          isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-900 border-white/10 text-white"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Progress reporting UI */}
+                  {downloadProgress !== null && (
+                    <div className={`p-3 rounded-xl border flex flex-col gap-2 ${
+                      isLight ? "bg-blue-50/70 border-blue-200" : "bg-blue-500/5 border-blue-500/10"
                     }`}>
-                      {tickerSuccessMsg}
+                      <div className="flex justify-between text-[10px] font-mono font-bold">
+                        <span className={isLight ? "text-blue-800" : "text-blue-400"}>Импорт Прогресс:</span>
+                        <span className={isLight ? "text-blue-850" : "text-blue-400"}>{downloadProgress}%</span>
+                      </div>
+                      <div className={`h-1.5 w-full ${isLight ? "bg-slate-200" : "bg-slate-900"} rounded-full overflow-hidden`}>
+                        <div 
+                          className="h-full bg-blue-500 transition-all duration-300"
+                          style={{ width: `${downloadProgress}%` }}
+                        />
+                      </div>
+                      <span className={`text-[10px] font-mono italic block truncate ${
+                        isLight ? "text-slate-700" : "text-slate-400"
+                      }`}>{downloadStep}</span>
                     </div>
                   )}
 
-                  <form onSubmit={handleAddNewTicker} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
-                    <div>
-                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
-                        isLight ? "text-slate-700" : "text-slate-400"
-                      }`}>Символ Токена (Например: SOL/USDT)</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="SOL/USDT"
-                        value={newSymbol}
-                        onChange={(e) => setNewSymbol(e.target.value)}
-                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
-                          isLight 
-                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
-                            : "bg-slate-900 border-white/5 text-white focus:border-emerald-500"
-                        }`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
-                        isLight ? "text-slate-700" : "text-slate-400"
-                      }`}>Минимальный Шаг Тика SPOT (Tick Size)</label>
-                      <input
-                        type="number"
-                        step="any"
-                        required
-                        placeholder="0.01"
-                        value={newMinTickStepSpot}
-                        onChange={(e) => setNewMinTickStepSpot(e.target.value)}
-                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
-                          isLight 
-                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
-                            : "bg-slate-900 border-white/10 text-white focus:border-emerald-500"
-                        }`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
-                        isLight ? "text-slate-700" : "text-slate-400"
-                      }`}>Минимальный Шаг Тика FUTURES (Tick Size)</label>
-                      <input
-                        type="number"
-                        step="any"
-                        required
-                        placeholder="0.1"
-                        value={newMinTickStepFutures}
-                        onChange={(e) => setNewMinTickStepFutures(e.target.value)}
-                        className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
-                          isLight 
-                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
-                            : "bg-slate-900 border-white/10 text-white focus:border-emerald-500"
-                        }`}
-                      />
-                    </div>
-
-                    <div className={`p-3 rounded-lg border flex flex-col gap-1 md:col-span-2 ${
-                      isLight ? "bg-blue-50/70 border-blue-200" : "bg-blue-500/5 border-blue-500/10"
-                    }`}>
-                      <span className={`text-[10px] font-mono font-bold uppercase block tracking-wider mb-2 ${
-                        isLight ? "text-blue-700" : "text-blue-400"
-                      }`}>Настройки Степени Сжатия</span>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className={`text-[9.5px] font-[600] block mb-1 ${
-                            isLight ? "text-slate-700" : "text-slate-400"
-                          }`}>Сжатие Spot Данных (Коэффициент)</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="200"
-                            value={compressionSpotVal}
-                            onChange={(e) => setCompressionSpotVal(e.target.value)}
-                            className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
-                              isLight 
-                                ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                                : "bg-slate-900 border-white/10 text-white focus:border-blue-500"
-                            }`}
-                          />
-                        </div>
-
-                        <div>
-                          <label className={`text-[9.5px] font-[600] block mb-1 ${
-                            isLight ? "text-slate-700" : "text-slate-400"
-                          }`}>Сжатие Futures Данных (Коэффициент)</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="500"
-                            value={compressionFuturesVal}
-                            onChange={(e) => setCompressionFuturesVal(e.target.value)}
-                            className={`w-full text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
-                              isLight 
-                                ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                                : "bg-slate-900 border-white/10 text-white focus:border-blue-500"
-                            }`}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      className={`md:col-span-2 px-4 py-2.5 rounded-xl font-black transition tracking-wide text-xs flex items-center justify-center gap-2 cursor-pointer ${
-                        isLight 
-                          ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow" 
-                          : "bg-emerald-500 text-slate-950 hover:bg-emerald-600"
-                      }`}
-                    >
-                      <Plus className="w-4 h-4" />
-                      Зарегистрировать Тикер в Реестре Терминала
-                    </button>
-                  </form>
+                  <button
+                    type="button"
+                    onClick={handleDownloadBinanceVision}
+                    disabled={downloadProgress !== null}
+                    className={`py-2.5 px-3.5 rounded-xl text-center font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      downloadProgress !== null 
+                        ? (isLight ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5") 
+                        : (isLight ? "bg-amber-600 hover:bg-amber-700 text-white shadow shadow-amber-600/10" : "bg-amber-500 text-slate-950 hover:bg-amber-600")
+                    }`}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Скачать zip-агрегаты и сжать в Footprint
+                  </button>
                 </div>
-
-                {/* DEFAULT CHART COMPRESSIONS BY TICKER AND TIMEFRAME */}
-                <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
-                  isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 ${
-                      isLight ? "text-blue-700" : "text-blue-500"
-                    }`}>
-                      <BarChart2 className="w-4 h-4" />
-                      Сжатие графика по умолчанию (по тикерам и таймфреймам)
-                    </h3>
-                  </div>
-                  <p className={`text-xs leading-relaxed ${
-                    isLight ? "text-slate-600 font-medium" : "text-slate-400"
-                  }`}>
-                    Настройте множитель сжатия по умолчанию для любой комбинации торговой пары и таймфрейма. Эти значения автоматически применятся при переключении графиков на терминале.
-                  </p>
-
-                  <div className="flex flex-col gap-4 font-sans text-xs">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-dashed border-slate-200/60 dark:border-white/5">
-                      <div className="flex flex-col gap-1 w-full sm:w-auto">
-                        <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
-                          isLight ? "text-slate-700" : "text-slate-400"
-                        }`}>Выберите Торговую Пару для настройки</label>
-                        <select
-                          value={activeCompTicker}
-                          onChange={(e) => setActiveCompTicker(e.target.value)}
-                          className={`w-full sm:w-64 text-xs font-mono font-bold rounded-lg px-3 py-2 border shadow-inner transition-colors ${
-                            isLight 
-                              ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white" 
-                              : "bg-slate-900 border-white/10 text-white focus:border-blue-500/50"
-                          }`}
-                        >
-                          {pairs.map(p => (
-                            <option key={p.symbol} value={p.symbol}>{p.symbol}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* FUTURES Horizontal settings */}
-                    <div className={`p-4 rounded-xl border flex flex-col gap-3 ${
-                      isLight ? "bg-slate-50/50 border-slate-200" : "bg-white/[0.02] border-white/5"
-                    }`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[11px] font-mono font-black uppercase tracking-wider text-amber-500">
-                          🟡 FUTURES Сжатие по умолчанию
-                        </span>
-                      </div>
-                      
-                      <div className="flex flex-wrap items-center gap-3.5">
-                        {["1m", "5m", "15m", "30m", "1h", "4h"].map((intervalVal) => {
-                          const currentVal = defaultCompressions[activeCompTicker]?.FUTURES?.[intervalVal] !== undefined
-                            ? defaultCompressions[activeCompTicker].FUTURES[intervalVal]
-                            : (defaultCompressions[activeCompTicker]?.[intervalVal] !== undefined && typeof defaultCompressions[activeCompTicker]?.[intervalVal] === "number"
-                              ? defaultCompressions[activeCompTicker][intervalVal]
-                              : 5);
-                          return (
-                            <div key={intervalVal} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
-                              isLight ? "bg-white border-slate-200/65 shadow-sm" : "bg-slate-900/60 border-white/5"
-                            }`}>
-                              <span className="font-mono font-black text-xs text-slate-400 uppercase min-w-[24px]">{intervalVal}</span>
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="500"
-                                  value={currentVal}
-                                  onChange={(e) => {
-                                    const parsedInput = Math.max(1, parseInt(e.target.value) || 1);
-                                    updateDefaultCompression(activeCompTicker, "FUTURES", intervalVal, parsedInput);
-                                  }}
-                                  className={`w-14 text-center text-xs font-mono font-bold rounded px-1.5 py-1 border transition-all focus:outline-none ${
-                                    isLight 
-                                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500" 
-                                      : "bg-slate-950 border-white/10 text-white focus:border-amber-500"
-                                  }`}
-                                />
-                                <span className="text-[10px] text-slate-400 font-bold font-mono">x</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* SPOT Horizontal settings */}
-                    <div className={`p-4 rounded-xl border flex flex-col gap-3 ${
-                      isLight ? "bg-slate-50/50 border-slate-200" : "bg-white/[0.02] border-white/5"
-                    }`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[11px] font-mono font-black uppercase tracking-wider text-emerald-500">
-                          🟢 SPOT Сжатие по умолчанию
-                        </span>
-                      </div>
-                      
-                      <div className="flex flex-wrap items-center gap-3.5">
-                        {["15m", "30m", "1h", "4h"].map((intervalVal) => {
-                          const currentVal = defaultCompressions[activeCompTicker]?.SPOT?.[intervalVal] !== undefined
-                            ? defaultCompressions[activeCompTicker].SPOT[intervalVal]
-                            : (defaultCompressions[activeCompTicker]?.[intervalVal] !== undefined && typeof defaultCompressions[activeCompTicker]?.[intervalVal] === "number"
-                              ? defaultCompressions[activeCompTicker][intervalVal]
-                              : 1);
-                          return (
-                            <div key={intervalVal} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
-                              isLight ? "bg-white border-slate-200/65 shadow-sm" : "bg-slate-900/60 border-white/5"
-                            }`}>
-                              <span className="font-mono font-black text-xs text-slate-400 uppercase min-w-[24px]">{intervalVal}</span>
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="500"
-                                  value={currentVal}
-                                  onChange={(e) => {
-                                    const parsedInput = Math.max(1, parseInt(e.target.value) || 1);
-                                    updateDefaultCompression(activeCompTicker, "SPOT", intervalVal, parsedInput);
-                                  }}
-                                  className={`w-14 text-center text-xs font-mono font-bold rounded px-1.5 py-1 border transition-all focus:outline-none ${
-                                    isLight 
-                                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
-                                      : "bg-slate-950 border-white/10 text-white focus:border-emerald-500"
-                                  }`}
-                                />
-                                <span className="text-[10px] text-slate-400 font-bold font-mono">x</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Save Button for default compressions */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                      <button
-                        onClick={() => {
-                          storage.setJson("procluster_default_compressions", defaultCompressions);
-                          window.dispatchEvent(new Event("procluster_default_comp_changed"));
-                          setCompSuccessMsg("Настройки сжатия успешно сохранены!");
-                          setTimeout(() => setCompSuccessMsg(""), 3000);
-                        }}
-                        className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold transition tracking-wide text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
-                          isLight 
-                            ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/10" 
-                            : "bg-amber-500/20 border border-amber-500/30 text-amber-500 hover:bg-amber-500/30"
-                        }`}
-                      >
-                        <Save className="w-4 h-4" />
-                        Сохранить Настройки Сжатия
-                      </button>
-
-                      {compSuccessMsg && (
-                        <span className="text-xs text-emerald-500 font-bold font-sans animate-pulse">
-                          ✓ {compSuccessMsg}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
               </div>
 
-              {/* RIGHT COLUMN: HISTORICAL DATA SCRAPET (span 5) */}
-              <div className="lg:col-span-5 flex flex-col gap-6">
-                
-                {/* BINANCE VISION CDN DOWNLOADER */}
-                <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
-                  isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
-                }`}>
-                  <h3 className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-yellow-500">
-                    <Download className="w-4 h-4 text-goldenrod" />
-                    Загрузка исторических данных (Binance Vision)
-                  </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Импортируйте сырой массив агрегированных сделок (zip format) напрямую из архивов <code className="text-blue-400">data.binance.vision</code>.
-                  </p>
-
-                  <div className="flex flex-col gap-3.5 text-xs font-sans">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[9px] font-mono font-bold text-slate-500 block mb-1">ТИКЕР</label>
-                        <select
-                          value={histTicker}
-                          onChange={(e) => setHistTicker(e.target.value)}
-                          className={`w-full text-xs font-mono font-bold rounded-lg px-2.5 py-1.5 border ${
-                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
-                          }`}
-                        >
-                          {pairs.map(p => (
-                            <option key={p.symbol} value={p.symbol}>{p.symbol}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[9px] font-mono font-bold text-slate-500 block mb-1">СЕГМЕНТ</label>
-                        <select
-                          value={histType}
-                          onChange={(e) => setHistType(e.target.value as any)}
-                          className={`w-full text-xs font-mono font-bold rounded-lg px-2.5 py-1.5 border ${
-                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
-                          }`}
-                        >
-                          <option value="SPOT">SPOT (Сделки)</option>
-                          <option value="FUTURES">FUTURES (USD-M)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[9px] font-mono font-bold text-slate-500 block mb-1">С (Начало диапазона)</label>
-                        <input
-                          type="date"
-                          value={histStartDate}
-                          onChange={(e) => setHistStartDate(e.target.value)}
-                          className={`w-full text-xs font-mono rounded-lg px-2.5 py-1.5 border ${
-                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
-                          }`}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[9px] font-mono font-bold text-slate-500 block mb-1">По (Конец диапазона)</label>
-                        <input
-                          type="date"
-                          value={histEndDate}
-                          onChange={(e) => setHistEndDate(e.target.value)}
-                          className={`w-full text-xs font-mono rounded-lg px-2.5 py-1.5 border ${
-                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900 border-white/10 text-white"
-                          }`}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Progress reporting UI */}
-                    {downloadProgress !== null && (
-                      <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 flex flex-col gap-2">
-                        <div className="flex justify-between text-[10px] font-mono font-bold">
-                          <span className="text-blue-400">Импорт Прогресс:</span>
-                          <span className="text-blue-400">{downloadProgress}%</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500 transition-all duration-300"
-                            style={{ width: `${downloadProgress}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] font-mono italic text-slate-450 block truncate">{downloadStep}</span>
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={handleDownloadBinanceVision}
-                      disabled={downloadProgress !== null}
-                      className={`py-2 px-3.5 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                        downloadProgress !== null 
-                          ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5" 
-                          : "bg-amber-500/15 border border-amber-500/25 text-amber-500 hover:bg-amber-500/25"
-                      }`}
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      Скачать zip-агрегаты и сжать в Footprint
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-              
             </div>
           )}
 
@@ -1281,15 +1283,18 @@ export default function AdminPanel({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* 1. Host Counter */}
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
-                  isLight ? "bg-white border-slate-200/80 shadow-sm" : "liquid-glass-card"
+                  isLight ? "bg-white border-slate-200/85 shadow-sm" : "liquid-glass-card"
                 }`}>
-                  <div className="p-3 rounded-lg bg-blue-500/10 text-blue-500">
+                  <div className={`p-3 rounded-lg ${isLight ? "bg-blue-100 text-blue-700 shadow-sm border border-blue-200/30" : "bg-blue-500/10 text-blue-500"}`}>
                     <Globe className="w-6 h-6 animate-spin-slow" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-mono font-extrabold text-slate-450 block uppercase">Хостов на сайте</span>
-                    <div className="text-lg font-black tracking-tight">{hostsCount.toLocaleString()} <span className="text-[9px] text-emerald-500 font-mono font-bold">LIVE</span></div>
-                    <span className="text-[9.5px] text-slate-450">Идентификация узлов по CDN</span>
+                    <span className={`text-[10px] font-mono font-extrabold block uppercase ${isLight ? "text-slate-500" : "text-slate-400"}`}>Хостов на сайте</span>
+                    <div className="text-lg font-black tracking-tight flex items-center gap-2">
+                      <span>{hostsCount.toLocaleString()}</span>
+                      <span className={`text-[9px] px-1.5 py-0.5 font-mono font-black rounded ${isLight ? "bg-emerald-600 text-white shadow-sm" : "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20"}`}>LIVE</span>
+                    </div>
+                    <span className={`text-[9.5px] ${isLight ? "text-slate-600 font-medium" : "text-slate-455"}`}>Идентификация узлов по CDN</span>
                   </div>
                 </div>
 
@@ -1297,13 +1302,13 @@ export default function AdminPanel({
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
                   isLight ? "bg-white border-slate-200/80 shadow-sm" : "liquid-glass-card"
                 }`}>
-                  <div className="p-3 rounded-lg bg-yellow-500/10 text-yellow-500">
+                  <div className={`p-3 rounded-lg ${isLight ? "bg-amber-100 text-amber-800 shadow-sm border border-amber-200/30" : "bg-yellow-500/10 text-yellow-500"}`}>
                     <Users className="w-6 h-6 animate-pulse" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-mono font-extrabold text-slate-450 block uppercase">Зарегистрировано</span>
+                    <span className={`text-[10px] font-mono font-extrabold block uppercase ${isLight ? "text-slate-500" : "text-slate-400"}`}>Зарегистрировано</span>
                     <div className="text-lg font-black tracking-tight">{registeredUsersCount.toLocaleString()}</div>
-                    <span className="text-[9.5px] text-slate-450">+15 новых за сегодня</span>
+                    <span className={`text-[9.5px] ${isLight ? "text-emerald-700 font-bold" : "text-slate-455"}`}>+15 новых за сегодня</span>
                   </div>
                 </div>
 
@@ -1311,16 +1316,16 @@ export default function AdminPanel({
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
                   isLight ? "bg-white border-slate-200/80 shadow-sm" : "liquid-glass-card"
                 }`}>
-                  <div className="p-3 rounded-lg bg-emerald-500/10 text-emerald-500">
+                  <div className={`p-3 rounded-lg ${isLight ? "bg-emerald-100 text-emerald-800 shadow-sm border border-emerald-200/30" : "bg-emerald-500/10 text-emerald-500"}`}>
                     <Activity className="w-6 h-6" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-mono font-extrabold text-slate-450 block uppercase">Пользователей ОНЛАЙН</span>
+                    <span className={`text-[10px] font-mono font-extrabold block uppercase ${isLight ? "text-slate-500" : "text-slate-400"}`}>Пользователей ОНЛАЙН</span>
                     <div className="text-lg font-black tracking-tight flex items-center gap-2">
-                      {onlineCount} 
+                      <span>{onlineCount}</span>
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping inline-block" />
                     </div>
-                    <span className="text-[9.5px] text-slate-450 font-sans">Прямое WebSocket соединение</span>
+                    <span className={`text-[9.5px] font-sans ${isLight ? "text-slate-600 font-medium" : "text-slate-455"}`}>Прямое WebSocket соединение</span>
                   </div>
                 </div>
               </div>
@@ -1355,7 +1360,9 @@ export default function AdminPanel({
                 </div>
 
                 {/* TABS FOR EVERY TIER */}
-                <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-slate-950/20 border border-white/5">
+                <div className={`flex flex-wrap gap-1.5 p-1 rounded-xl ${
+                  isLight ? "bg-slate-100 border border-slate-200/80 shadow-inner" : "bg-slate-950/20 border border-white/5"
+                }`}>
                   {(["guest", "free", "pro", "vip", "admin"] as const).map((g) => {
                     const isActive = selectedGroup === g;
 
@@ -1366,12 +1373,12 @@ export default function AdminPanel({
                         onClick={() => setSelectedGroup(g)}
                         className={`flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase tracking-wider cursor-pointer transition border ${
                           isActive 
-                            ? g === "guest" ? "bg-purple-550/15 border-purple-500 text-purple-300" :
-                              g === "free" ? "bg-slate-500/15 border-slate-400 text-slate-300" :
-                              g === "pro" ? "bg-blue-500/15 border-blue-500 text-blue-300" :
-                              g === "vip" ? "bg-amber-500/15 border-amber-500 text-amber-400" :
-                              "bg-rose-500/15 border-rose-500 text-rose-300"
-                            : isLight ? "bg-white border-transparent text-slate-500 hover:bg-slate-50 shadow-sm" : "bg-transparent border-transparent text-slate-400 hover:bg-white/[0.02]"
+                            ? g === "guest" ? (isLight ? "bg-purple-600 text-white shadow-md border-purple-700" : "bg-purple-550/15 border-purple-500 text-purple-300") :
+                              g === "free" ? (isLight ? "bg-slate-600 text-white shadow-md border-slate-700" : "bg-slate-500/15 border-slate-400 text-slate-300") :
+                              g === "pro" ? (isLight ? "bg-blue-600 text-white shadow-md border-blue-700" : "bg-blue-500/15 border-blue-500 text-blue-300") :
+                              g === "vip" ? (isLight ? "bg-amber-600 text-white shadow-md border-amber-700" : "bg-amber-500/15 border-amber-500 text-amber-400") :
+                              (isLight ? "bg-rose-600 text-white shadow-md border-rose-700" : "bg-rose-500/15 border-rose-500 text-rose-300")
+                            : isLight ? "bg-white border-slate-300/80 text-slate-700 hover:text-slate-900 hover:bg-slate-50 shadow-sm font-extrabold" : "bg-transparent border-transparent text-slate-400 hover:bg-white/[0.02]"
                         }`}
                       >
                         {g === "guest" && "GUEST ГОСТЬ"}
@@ -1405,7 +1412,7 @@ export default function AdminPanel({
                         const key = `historyDays_${tf}` as const;
                         return (
                           <div key={tf} className="flex flex-col gap-1">
-                            <span className="text-[10px] font-mono font-bold text-amber-500 uppercase">{tf}</span>
+                            <span className={`text-[10px] font-mono font-bold uppercase ${isLight ? "text-amber-800" : "text-amber-500"}`}>{tf}</span>
                             <div className="flex items-center gap-1.5">
                               <input
                                 type="number"
@@ -1415,7 +1422,7 @@ export default function AdminPanel({
                                 onChange={(e) => updateTierSetting(selectedGroup, key, parseInt(e.target.value) || 1)}
                                 className={`w-full rounded-lg px-2.5 py-1.5 font-mono font-black text-xs border ${
                                   isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/10 text-white"
-                                }`}
+                                }}`}
                               />
                               <span className="text-[9px] font-mono text-slate-450">дн.</span>
                             </div>
@@ -1450,7 +1457,7 @@ export default function AdminPanel({
                             isLight ? "bg-slate-300 accent-blue-600" : "bg-slate-800 accent-blue-500"
                           }`}
                         />
-                        <span className="text-xs font-mono font-black text-amber-500 shrink-0 select-none min-w-[32px] text-center">
+                        <span className={`text-xs font-mono font-black shrink-0 select-none min-w-[32px] text-center ${isLight ? "text-amber-800" : "text-amber-500"}`}>
                           {tierSettings[selectedGroup].compressionLevels}x
                         </span>
                       </div>
@@ -1499,7 +1506,7 @@ export default function AdminPanel({
                             isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-white/10 text-white"
                           }`}
                         />
-                        <span className="text-[11px] font-mono font-bold text-teal-400">активных</span>
+                        <span className={`text-[11px] font-mono font-bold ${isLight ? "text-teal-700 font-extrabold" : "text-teal-400"}`}>активных</span>
                       </div>
                       
                       <div className="flex gap-1 flex-wrap">
@@ -1781,8 +1788,8 @@ export default function AdminPanel({
                 <div className="overflow-x-auto">
                   <table className="w-full text-left font-sans text-xs border-collapse">
                     <thead>
-                      <tr className={`border-b text-[10px] font-mono text-slate-455 ${
-                        isLight ? "border-slate-200" : "border-white/5"
+                      <tr className={`border-b text-[10px] font-mono ${
+                        isLight ? "border-slate-200 text-slate-600 font-extrabold" : "border-white/5 text-slate-400"
                       }`}>
                         <th className="py-2.5 px-3">Идентификатор</th>
                         <th className="py-2.5 px-3">Никнейм</th>
@@ -1862,12 +1869,12 @@ export default function AdminPanel({
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
                   isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950 border-white/5 shadow-inner"
                 }`}>
-                  <div className="p-3 rounded-lg bg-emerald-500/10 text-emerald-500">
+                  <div className={`p-3 rounded-lg ${isLight ? "bg-emerald-100 text-emerald-800 border border-emerald-200/35" : "bg-emerald-500/10 text-emerald-500"}`}>
                     <DollarSign className="w-6 h-6" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-mono font-extrabold text-slate-400 block uppercase">Общая Выручка</span>
-                    <span className="text-sm font-black font-mono tracking-tight mt-1 block">
+                    <span className={`text-[10px] font-mono font-extrabold block uppercase ${isLight ? "text-slate-500" : "text-slate-400"}`}>Общая Выручка</span>
+                    <span className={`text-sm font-black font-mono tracking-tight mt-1 block ${isLight ? "text-slate-900" : "text-white"}`}>
                       {paidRecords.reduce((acc, r) => acc + r.totalSpent, 0).toLocaleString()} USDT
                     </span>
                   </div>
@@ -1877,12 +1884,12 @@ export default function AdminPanel({
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
                   isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950 border-white/5 shadow-inner"
                 }`}>
-                  <div className="p-3 rounded-lg bg-teal-500/10 text-teal-400">
+                  <div className={`p-3 rounded-lg ${isLight ? "bg-teal-100 text-teal-850 border border-teal-200/35" : "bg-teal-500/10 text-teal-400"}`}>
                     <Calendar className="w-6 h-6" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-mono font-extrabold text-slate-400 block uppercase">Выручка за Тек. Месяц</span>
-                    <span className="text-sm font-black font-mono tracking-tight mt-1 block text-teal-400">
+                    <span className={`text-[10px] font-mono font-extrabold block uppercase ${isLight ? "text-slate-500" : "text-slate-400"}`}>Выручка за Тек. Месяц</span>
+                    <span className={`text-sm font-black font-mono tracking-tight mt-1 block ${isLight ? "text-teal-800" : "text-teal-400"}`}>
                       {paidRecords
                         .filter(r => r.paymentDate.startsWith(new Date().toISOString().slice(0, 7)))
                         .reduce((acc, r) => acc + r.lastPaidAmount, 0).toLocaleString()} USDT
@@ -1893,15 +1900,15 @@ export default function AdminPanel({
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
                   isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950 border-white/5 shadow-inner"
                 }`}>
-                  <div className="p-3 rounded-lg bg-blue-500/10 text-blue-500">
+                  <div className={`p-3 rounded-lg ${isLight ? "bg-blue-100 text-blue-800 border border-blue-200/35" : "bg-blue-500/10 text-blue-500"}`}>
                     <Check className="w-6 h-6" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-mono font-extrabold text-slate-400 block uppercase">Активные подписки</span>
-                    <span className="text-sm font-black font-mono tracking-tight mt-1 block text-emerald-500">
+                    <span className={`text-[10px] font-mono font-extrabold block uppercase ${isLight ? "text-slate-500" : "text-slate-400"}`}>Активные подписки</span>
+                    <span className={`text-sm font-black font-mono tracking-tight mt-1 block ${isLight ? "text-emerald-700" : "text-emerald-500"}`}>
                       {paidRecords.filter(r => r.status === "active").length}
                     </span>
-                    <span className="text-[9px] text-slate-400 font-mono block mt-0.5 whitespace-nowrap">
+                    <span className={`text-[9px] font-mono block mt-0.5 whitespace-nowrap ${isLight ? "text-slate-600 font-bold" : "text-slate-400"}`}>
                       (PRO: {paidRecords.filter(r => r.status === "active" && r.subscriptionLevel === "RPO").length} | VIP: {paidRecords.filter(r => r.status === "active" && r.subscriptionLevel === "VIP").length})
                     </span>
                   </div>
@@ -1910,12 +1917,12 @@ export default function AdminPanel({
                 <div className={`p-4 rounded-xl border flex items-center gap-4 ${
                   isLight ? "bg-white border-slate-200/80 shadow-sm" : "bg-slate-950 border-white/5 shadow-inner"
                 }`}>
-                  <div className="p-3 rounded-lg bg-amber-500/10 text-amber-500">
+                  <div className={`p-3 rounded-lg ${isLight ? "bg-amber-100 text-amber-800 border border-amber-200/35" : "bg-amber-500/10 text-amber-500"}`}>
                     <RefreshCw className="w-6 h-6" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-mono font-extrabold text-slate-400 block uppercase">В ожидании оплаты</span>
-                    <span className="text-sm font-black font-mono tracking-tight mt-1 block text-amber-500">
+                    <span className={`text-[10px] font-mono font-extrabold block uppercase ${isLight ? "text-slate-500" : "text-slate-400"}`}>В ожидании оплаты</span>
+                    <span className={`text-sm font-black font-mono tracking-tight mt-1 block ${isLight ? "text-amber-800 animate-pulse font-extrabold" : "text-amber-500"}`}>
                       {paidRecords.filter(r => r.status === "waiting").length}
                     </span>
                   </div>
@@ -2107,7 +2114,7 @@ export default function AdminPanel({
                             setUserSuccessMsg("");
                           }, 3000);
                         }}
-                        className="px-4 py-1.5 rounded-lg bg-emerald-650 hover:bg-emerald-550 text-white font-extrabold text-xs font-sans cursor-pointer active:scale-95 transition-all"
+                        className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs font-sans cursor-pointer active:scale-95 transition-all"
                       >
                         Сохранить
                       </button>
@@ -2115,19 +2122,13 @@ export default function AdminPanel({
                   </div>
                 )}
 
-                {/* USER SUCCESS MESSAGE */}
-                {userSuccessMsg && (
-                  <div className="p-2 ml-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-center text-[11px] font-mono font-bold mb-4 animate-pulse">
-                    {userSuccessMsg}
-                  </div>
-                )}
 
                 {/* BILLING BASE TABLE */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-left font-sans text-xs border-collapse">
                     <thead>
-                      <tr className={`border-b text-[10px] font-mono text-slate-400 ${
-                        isLight ? "border-slate-200" : "border-white/5"
+                      <tr className={`border-b text-[10px] font-mono ${
+                        isLight ? "border-slate-200 text-slate-600 font-extrabold" : "border-white/5 text-slate-400"
                       }`}>
                         <th className="py-2 px-3">Код</th>
                         <th className="py-2 px-3">ID Трейдера</th>

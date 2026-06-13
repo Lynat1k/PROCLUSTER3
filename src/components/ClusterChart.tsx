@@ -205,6 +205,23 @@ export default function ClusterChart({
   const [priceCenterOffset, setPriceCenterOffset] = useState<number>(0);
   const [startPriceOffset, setStartPriceOffset] = useState<number>(0);
 
+  // Synchronize state references for smooth zero-drift mouse wheel zooming
+  const candleWidthRef = useRef<number>(145);
+  const verticalScaleRef = useRef<number>(0.7);
+  const priceCenterOffsetRef = useRef<number>(0);
+
+  useEffect(() => {
+    candleWidthRef.current = candleWidth;
+  }, [candleWidth]);
+
+  useEffect(() => {
+    verticalScaleRef.current = verticalScale;
+  }, [verticalScale]);
+
+  useEffect(() => {
+    priceCenterOffsetRef.current = priceCenterOffset;
+  }, [priceCenterOffset]);
+
   // States and refs for interactive vertical scroll/zoom dragging on the price scale
   const [isDraggingPriceScale, setIsDraggingPriceScale] = useState(false);
   const startPriceScaleYRef = useRef<number>(0);
@@ -289,7 +306,7 @@ export default function ClusterChart({
   const priceCenter = useMemo(() => basePriceCenter + priceCenterOffset, [basePriceCenter, priceCenterOffset]);
   
   const maxPrice = useMemo(() => priceCenter + zoomedPriceRange * 0.58, [priceCenter, zoomedPriceRange]);
-  const minPrice = useMemo(() => Math.max(0, priceCenter - zoomedPriceRange * 0.58), [priceCenter, zoomedPriceRange]);
+  const minPrice = useMemo(() => priceCenter - zoomedPriceRange * 0.58, [priceCenter, zoomedPriceRange]);
 
   const priceToY = (price: number) => {
     const range = maxPrice - minPrice || 1;
@@ -298,8 +315,7 @@ export default function ClusterChart({
 
   const yToPrice = (y: number) => {
     const range = maxPrice - minPrice || 1;
-    const rawPrice = minPrice + (1 - (y - margin.top) / Math.max(1, chartHeight)) * range;
-    return Math.max(0, rawPrice);
+    return minPrice + (1 - (y - margin.top) / Math.max(1, chartHeight)) * range;
   };
 
   // Standard trading wheel zoom engine (Standard wheel = zoom both directions at cursor; Ctrl+wheel = Horizontal zoom; Shift+wheel = Vertical zoom)
@@ -317,101 +333,140 @@ export default function ClusterChart({
       const isCtrl = e.ctrlKey || e.metaKey;
       const isShift = e.shiftKey;
 
+      const curCandleWidth = candleWidthRef.current;
+      const curVerticalScale = verticalScaleRef.current;
+      const curPriceCenterOffset = priceCenterOffsetRef.current;
+
+      const rect = container.getBoundingClientRect();
+
+      // Dynamic local helper to extract unclamped price from a physical Y coordinate given vertical scale and offset
+      const extractPriceFromY = (yCoord: number, scaleVal: number, offsetVal: number) => {
+        const zoomedRange = priceRange / Math.max(0.1, scaleVal);
+        const centerPrice = basePriceCenter + offsetVal;
+        const maxP = centerPrice + zoomedRange * 0.58;
+        const minP = centerPrice - zoomedRange * 0.58;
+        const range = maxP - minP || 1;
+        return minP + (1 - (yCoord - margin.top) / Math.max(1, chartHeight)) * range;
+      };
+
       if (isShift) {
         // Shift + Wheel -> zoom/stretch vertically centered on mouse position!
-        const rect = container.getBoundingClientRect();
         const relativeY = e.clientY - rect.top;
         if (relativeY >= margin.top && relativeY <= margin.top + chartHeight) {
-          const mousePrice = yToPrice(relativeY);
-          const multiplier = direction < 0 ? 1.15 : 0.85;
-          const nextVerticalScale = Math.min(2000.0, Math.max(0.1, verticalScale * multiplier));
-          const actualMultiplier = nextVerticalScale / verticalScale;
+          const mousePrice = extractPriceFromY(relativeY, curVerticalScale, curPriceCenterOffset);
+          const multiplier = direction < 0 ? 1.08 : 0.92;
+          const nextVerticalScale = Math.min(2000.0, Math.max(0.1, curVerticalScale * multiplier));
+          const actualMultiplier = nextVerticalScale / curVerticalScale;
 
           if (actualMultiplier !== 1) {
-            const currentPriceCenter = basePriceCenter + priceCenterOffset;
+            const currentPriceCenter = basePriceCenter + curPriceCenterOffset;
             const newPriceCenter = mousePrice - (mousePrice - currentPriceCenter) / actualMultiplier;
             const nextPriceCenterOffset = newPriceCenter - basePriceCenter;
 
             setVerticalScale(nextVerticalScale);
             setPriceCenterOffset(nextPriceCenterOffset);
+
+            // Update refs synchronously for any consecutive ticks in the same frame
+            verticalScaleRef.current = nextVerticalScale;
+            priceCenterOffsetRef.current = nextPriceCenterOffset;
           }
         }
       } else if (isCtrl) {
         // Ctrl + Wheel -> zoom horizontally centered on mouse position!
-        const prevWidth = candleWidth;
-        const widthDeltaCount = 12;
-        let nextWidth = prevWidth - direction * widthDeltaCount;
+        const multiplier = direction < 0 ? 1.08 : 0.92;
+        const nextWidth = curCandleWidth * multiplier;
         const minW = (candleType === "japanese" || candleType === "auto") ? 2 : 8;
-        nextWidth = Math.min(450, Math.max(minW, nextWidth));
+        const nextWidthClamped = Math.min(450, Math.max(minW, nextWidth));
 
-        if (nextWidth !== prevWidth) {
-          const rect = container.getBoundingClientRect();
+        if (nextWidthClamped !== curCandleWidth) {
           const mouseRelativeX = e.clientX - rect.left;
           const currentScrollLeft = container.scrollLeft;
           const chartCursorX = currentScrollLeft + mouseRelativeX;
           
-          const marginLeftVal = margin.left;
-          const activeChartX = chartCursorX - marginLeftVal;
+          const activeChartX = chartCursorX - margin.left;
           
-          const prevSpacing = Math.max(1, prevWidth < 30 ? Math.floor(prevWidth * 0.35) : 12);
-          const nextSpacing = Math.max(1, nextWidth < 30 ? Math.floor(nextWidth * 0.35) : 12);
+          const prevSpacing = Math.max(1, curCandleWidth < 30 ? Math.floor(curCandleWidth * 0.35) : 12);
+          const nextSpacing = Math.max(1, nextWidthClamped < 30 ? Math.floor(nextWidthClamped * 0.35) : 12);
           
-          const ratio = (nextWidth + nextSpacing) / (prevWidth + prevSpacing);
-          const newChartCursorX = marginLeftVal + activeChartX * ratio;
+          const ratio = (nextWidthClamped + nextSpacing) / (curCandleWidth + prevSpacing);
+          const newChartCursorX = margin.left + activeChartX * ratio;
           const nextScrollLeft = Math.max(0, newChartCursorX - mouseRelativeX);
 
-          setCandleWidth(nextWidth);
+          // Synchronously resize the HTML scroll spacer before scrolling to prevent clamping/drift
+          const currentScrollRightPadding = Math.round(Number(container.clientWidth || 800) * 0.85);
+          const nextScrollWidth = candles.length * (nextWidthClamped + nextSpacing) + margin.left + margin.right + currentScrollRightPadding;
+          const spacer = container.querySelector("#procluster-chart-spacer") as HTMLElement;
+          if (spacer) {
+            spacer.style.width = `${nextScrollWidth}px`;
+          }
+
+          setCandleWidth(nextWidthClamped);
           container.scrollLeft = nextScrollLeft;
           setVisibleScrollLeft(nextScrollLeft);
+
+          // Update ref synchronously for any consecutive ticks in the same frame
+          candleWidthRef.current = nextWidthClamped;
         }
       } else {
         // Standard Wheel -> zoom BOTH horizontally and vertically centered on mouse position!
         
         // 1. Horizontal zoom
-        const prevWidth = candleWidth;
-        const widthDeltaCount = 12;
-        let nextWidth = prevWidth - direction * widthDeltaCount;
+        const hMultiplier = direction < 0 ? 1.08 : 0.92;
+        const nextWidth = curCandleWidth * hMultiplier;
         const minW = (candleType === "japanese" || candleType === "auto") ? 2 : 8;
-        nextWidth = Math.min(450, Math.max(minW, nextWidth));
+        const nextWidthClamped = Math.min(450, Math.max(minW, nextWidth));
 
-        let updatedScrollLeft = container.scrollLeft;
-        if (nextWidth !== prevWidth) {
-          const rect = container.getBoundingClientRect();
+        let updatedScaleCandleWidth = curCandleWidth;
+        if (nextWidthClamped !== curCandleWidth) {
           const mouseRelativeX = e.clientX - rect.left;
           const currentScrollLeft = container.scrollLeft;
           const chartCursorX = currentScrollLeft + mouseRelativeX;
           
-          const marginLeftVal = margin.left;
-          const activeChartX = chartCursorX - marginLeftVal;
+          const activeChartX = chartCursorX - margin.left;
           
-          const prevSpacing = Math.max(1, prevWidth < 30 ? Math.floor(prevWidth * 0.35) : 12);
-          const nextSpacing = Math.max(1, nextWidth < 30 ? Math.floor(nextWidth * 0.35) : 12);
+          const prevSpacing = Math.max(1, curCandleWidth < 30 ? Math.floor(curCandleWidth * 0.35) : 12);
+          const nextSpacing = Math.max(1, nextWidthClamped < 30 ? Math.floor(nextWidthClamped * 0.35) : 12);
           
-          const ratio = (nextWidth + nextSpacing) / (prevWidth + prevSpacing);
-          const newChartCursorX = marginLeftVal + activeChartX * ratio;
-          updatedScrollLeft = Math.max(0, newChartCursorX - mouseRelativeX);
+          const ratio = (nextWidthClamped + nextSpacing) / (curCandleWidth + prevSpacing);
+          const newChartCursorX = margin.left + activeChartX * ratio;
+          const nextScrollLeft = Math.max(0, newChartCursorX - mouseRelativeX);
 
-          setCandleWidth(nextWidth);
-          container.scrollLeft = updatedScrollLeft;
-          setVisibleScrollLeft(updatedScrollLeft);
+          // Synchronously resize the HTML scroll spacer before scrolling to prevent clamping/drift
+          const currentScrollRightPadding = Math.round(Number(container.clientWidth || 800) * 0.85);
+          const nextScrollWidth = candles.length * (nextWidthClamped + nextSpacing) + margin.left + margin.right + currentScrollRightPadding;
+          const spacer = container.querySelector("#procluster-chart-spacer") as HTMLElement;
+          if (spacer) {
+            spacer.style.width = `${nextScrollWidth}px`;
+          }
+
+          setCandleWidth(nextWidthClamped);
+          container.scrollLeft = nextScrollLeft;
+          setVisibleScrollLeft(nextScrollLeft);
+
+          // Update ref synchronously for any consecutive ticks in the same frame
+          candleWidthRef.current = nextWidthClamped;
+          updatedScaleCandleWidth = nextWidthClamped;
         }
 
         // 2. Vertical zoom
-        const rect = container.getBoundingClientRect();
         const relativeY = e.clientY - rect.top;
         if (relativeY >= margin.top && relativeY <= margin.top + chartHeight) {
-          const mousePrice = yToPrice(relativeY);
-          const multiplier = direction < 0 ? 1.15 : 0.85;
-          const nextVerticalScale = Math.min(2000.0, Math.max(0.1, verticalScale * multiplier));
-          const actualMultiplier = nextVerticalScale / verticalScale;
+          const mousePrice = extractPriceFromY(relativeY, curVerticalScale, curPriceCenterOffset);
+          const vMultiplier = direction < 0 ? 1.08 : 0.92; // Use matching multiplier style for professional visual experience
+          const nextVerticalScale = Math.min(2000.0, Math.max(0.1, curVerticalScale * vMultiplier));
+          const actualMultiplier = nextVerticalScale / curVerticalScale;
 
           if (actualMultiplier !== 1) {
-            const currentPriceCenter = basePriceCenter + priceCenterOffset;
+            const currentPriceCenter = basePriceCenter + curPriceCenterOffset;
             const newPriceCenter = mousePrice - (mousePrice - currentPriceCenter) / actualMultiplier;
             const nextPriceCenterOffset = newPriceCenter - basePriceCenter;
 
             setVerticalScale(nextVerticalScale);
             setPriceCenterOffset(nextPriceCenterOffset);
+
+            // Update refs synchronously for any consecutive ticks in the same frame
+            verticalScaleRef.current = nextVerticalScale;
+            priceCenterOffsetRef.current = nextPriceCenterOffset;
           }
         }
       }
@@ -423,14 +478,9 @@ export default function ClusterChart({
     };
   }, [
     candles.length, 
-    candleWidth, 
-    candleSpacing, 
     candleType, 
-    verticalScale, 
-    priceCenterOffset, 
     basePriceCenter, 
-    maxPrice, 
-    minPrice, 
+    priceRange, 
     chartHeight
   ]);
 
@@ -571,7 +621,7 @@ export default function ClusterChart({
   const scrollWidth = candles.length * (candleWidth + candleSpacing) + margin.left + margin.right + scrollRightPadding;
 
   // Zoom threshold: Detailed cluster footprint mode vs default Candlestick view
-  const isDetailedModeCalculated = candleWidth >= 60;
+  const isDetailedModeCalculated = candleWidth >= 15;
   const isDetailedMode = candleType === "japanese"
     ? false
     : (candleType === "footprint" || candleType === "clusters"
@@ -1631,21 +1681,7 @@ export default function ClusterChart({
     ctx.save();
     ctx.translate(-visibleScrollLeft, 0);
 
-    // 1. Horizontal Grid Lines
-    Array.from({ length: 6 }).forEach((_, i) => {
-      const ratio = i / 5;
-      const price = minPrice + ratio * (maxPrice - minPrice);
-      const gridY = priceToY(price);
-      
-      ctx.beginPath();
-      ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.12)" : "rgba(255, 255, 255, 0.08)";
-      ctx.lineWidth = 0.8;
-      ctx.setLineDash([3, 3]);
-      ctx.moveTo(margin.left, gridY);
-      ctx.lineTo(scrollWidth, gridY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    });
+    // 1. Horizontal Grid Lines (Removed per user request to hide minor horizontal grid)
 
     // Solid horizontal separator line between main chart panel and subcharts
     if (activeIndicators.delta || activeIndicators.cvd) {
@@ -1713,6 +1749,33 @@ export default function ClusterChart({
 
     const startIdx = Math.max(0, Math.floor((visibleScrollLeft - margin.left - candleWidth) / (candleWidth + candleSpacing)));
     const endIdx = Math.min(candles.length - 1, Math.ceil((visibleScrollLeft + viewportWidth - margin.left) / (candleWidth + candleSpacing)));
+    const visibleCandlesCount = endIdx - startIdx + 1;
+    const hideFootprintNumbers = visibleCandlesCount > 70;
+
+    // 3.5 Draw Vertical Daily Session Separators (Vertical grid of daily session boundary)
+    const tzOpt = selectedTimezone === "local" ? undefined : selectedTimezone;
+    ctx.save();
+    ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.22)" : "rgba(255, 255, 255, 0.15)";
+    ctx.lineWidth = 1.0;
+    ctx.setLineDash([5, 5]);
+
+    for (let cIdx = Math.max(1, startIdx); cIdx <= endIdx; cIdx++) {
+      const prevCandle = candles[cIdx - 1];
+      const currCandle = candles[cIdx];
+      const d1 = new Date(prevCandle.timestamp);
+      const d2 = new Date(currCandle.timestamp);
+      const d1Str = d1.toLocaleDateString("en-US", { timeZone: tzOpt });
+      const d2Str = d2.toLocaleDateString("en-US", { timeZone: tzOpt });
+
+      if (d1Str !== d2Str) {
+        const x = margin.left + cIdx * (candleWidth + candleSpacing) - candleSpacing / 2;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top);
+        ctx.lineTo(x, totalSvgHeight - margin.bottom);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
 
     // 4. Draw each visible candlestick
     for (let cIdx = startIdx; cIdx <= endIdx; cIdx++) {
@@ -1738,15 +1801,7 @@ export default function ClusterChart({
         : -1;
       const isHoveredCol = crosshair && cIdx === hoveredCandleIdx;
 
-      // Draw vertical alignment gridline behind column
-      ctx.beginPath();
-      ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.03)" : "rgba(255, 255, 255, 0.03)";
-      ctx.lineWidth = 0.8;
-      ctx.setLineDash([2, 3]);
-      ctx.moveTo(x + candleWidth / 2, margin.top);
-      ctx.lineTo(x + candleWidth / 2, margin.top + chartHeight);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      // Column alignment gridline removed per user request to hide minor background grids
 
       // Clip candlesticks, footprints and any extra overflow elements to the main chart region [margin.top, margin.top + chartHeight]
       ctx.save();
@@ -1995,7 +2050,7 @@ export default function ClusterChart({
           // Stacked imbalance outline highlights removed at user request
 
           // Bid Ask standard text rendering or delta/volume mode
-          if (cellHeight >= 4.0) {
+          if (cellHeight >= 4.0 && !hideFootprintNumbers) {
             ctx.save();
             ctx.shadowColor = isLight ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.9)";
             ctx.shadowBlur = 1.0;
@@ -3364,7 +3419,7 @@ export default function ClusterChart({
           ) : (
             <>
               {/* Dummy scroll spacer to enable native scrollbar and wheel scroll dynamics */}
-              <div style={{ width: `${scrollWidth}px`, height: "1px", pointerEvents: "none" }} />
+              <div id="procluster-chart-spacer" style={{ width: `${scrollWidth}px`, height: "1px", pointerEvents: "none" }} />
               
               {/* Absolutely positioned canvas that stays in view and draws only-visible content */}
               <canvas
