@@ -28,6 +28,7 @@ import { fetchBinanceDepth } from "./lib/marketData";
 import { getClusterCandles } from "./lib/api";
 import { getActiveGroupLimits as getActiveGroupLimitsFromTier } from "./lib/tierLimits";
 import { storage } from "./lib/storage";
+import { MODULAR_INDICATORS } from "./indicators";
 
 export default function App() {
   // Theme management state
@@ -506,82 +507,15 @@ export default function App() {
 
   // Indicators Configuration State
   const [indicators, setIndicators] = useState<Indicator[]>(() => {
-    const defaultList: Indicator[] = [
-      {
-        id: "volumeOnChart",
-        label: "(PROCLUSTER) Volume on Chart",
-        category: "Все индикаторы",
-        type: "Оверлей",
-        isFavorite: true,
-        isActive: true,
-        settings: { 
-          opacity: 0.4, 
-          volumeOnChartDeltaThreshold: 500, 
-          volumeOnChartMaxHeightPercent: 20 
-        }
-      },
-      {
-        id: "delta",
-        label: "(PROCLUSTER) Delta",
-        category: "Все индикаторы",
-        type: "Подвальный",
-        isFavorite: true,
-        isActive: true,
-        settings: { showLabels: true, sensitivity: 5 }
-      },
-      {
-        id: "cvd",
-        label: "(PROCLUSTER) CVD",
-        category: "Все индикаторы",
-        type: "Подвальный",
-        isFavorite: true,
-        isActive: true,
-        settings: { smoothing: 10 }
-      },
-      {
-        id: "clusterSearch",
-        label: "(PROCLUSTER) Cluster Search",
-        category: "Все индикаторы",
-        type: "Оверлей",
-        isFavorite: true,
-        isActive: true,
-        settings: {
-          mode: "Volume",
-          direction: "Both",
-          location: "Any",
-          sensitivity: 4,
-          useMinMax: false,
-          csMergeLevels: 1,
-          csImbalancePercent: 60,
-          csMedMinVolume: 100,
-          csMedMaxVolume: 500,
-          csMedMinSize: 4,
-          csMedMaxSize: 12,
-          csMedShape: "circle",
-          csMedColorBid: "#ef4444",
-          csMedColorAsk: "#10b981",
-          csMedOpacity: 0.7,
-          csMedTgAlert: false,
-          csLargeMinVolume: 500,
-          csLargeMinSize: 10,
-          csLargeMaxSize: 20,
-          csLargeShape: "rhombus",
-          csLargeColorBid: "#f43f5e",
-          csLargeColorAsk: "#34d399",
-          csLargeOpacity: 0.9,
-          csLargeTgAlert: false
-        }
-      },
-      {
-        id: "stackedImbalance",
-        label: "(PROCLUSTER) Stacked Imbalance",
-        category: "Все индикаторы",
-        type: "Оверлей",
-        isFavorite: true,
-        isActive: false,
-        settings: { ratio: 3.0 }
-      }
-    ];
+    const defaultList: Indicator[] = MODULAR_INDICATORS.map(m => ({
+      id: m.id,
+      label: m.label,
+      category: m.category,
+      type: m.type,
+      isFavorite: true,
+      isActive: m.isActiveDefault ?? false,
+      settings: m.defaultSettings
+    }));
 
     const parsed = storage.getJson<any[]>("procluster_indicators", null);
     if (parsed && Array.isArray(parsed)) {

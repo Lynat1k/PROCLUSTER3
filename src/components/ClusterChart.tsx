@@ -7,6 +7,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "re
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator } from "../types";
 import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight, TrendingUp } from "lucide-react";
 import { storage } from "../lib/storage";
+import { volumeOnChartIndicator, deltaIndicator, cvdIndicator, clusterSearchIndicator } from "../indicators";
 
 interface ClusterChartProps {
   candles: ClusterCandle[];
@@ -1384,11 +1385,10 @@ export default function ClusterChart({
 
   // Generate Cumulative Delta Line Coordinates (memoized)
   const cumulativeDeltaPoints = useMemo(() => {
-    let runningDelta = 0;
-    return candles.map((c, i) => {
-      runningDelta += c.delta;
+    const rawCvd = cvdIndicator.calculateCVD(candles);
+    return rawCvd.map((item, i) => {
       const cx = margin.left + i * (candleWidth + candleSpacing) + candleWidth / 2;
-      return { cx, value: runningDelta };
+      return { cx, value: item.value };
     });
   }, [candles, candleWidth, candleSpacing]);
 
@@ -1817,45 +1817,29 @@ export default function ClusterChart({
       ctx.rect(margin.left, margin.top, scrollWidth - margin.left + 50, chartHeight);
       ctx.clip();
 
-      // Draw volumeOnChart background histogram if active
-      if (activeIndicators && activeIndicators.volumeOnChart) {
-        const vocSettings = indicatorSettings?.volumeOnChart || {};
-        const deltaThreshold = vocSettings.volumeOnChartDeltaThreshold ?? 500;
-        const maxHPercent = vocSettings.volumeOnChartMaxHeightPercent ?? 20;
-        const vocOpacity = vocSettings.opacity != null ? vocSettings.opacity : 0.4;
+       // Draw volumeOnChart background histogram if active
+       if (activeIndicators && activeIndicators.volumeOnChart) {
+         const vocSettings = indicatorSettings?.volumeOnChart || {};
+         const deltaThreshold = vocSettings.volumeOnChartDeltaThreshold ?? volumeOnChartIndicator.defaultSettings.volumeOnChartDeltaThreshold;
+         const maxHPercent = vocSettings.volumeOnChartMaxHeightPercent ?? volumeOnChartIndicator.defaultSettings.volumeOnChartMaxHeightPercent;
+         const vocOpacity = vocSettings.opacity != null ? vocSettings.opacity : volumeOnChartIndicator.defaultSettings.opacity;
 
-        const maxBarHeight = chartHeight * (maxHPercent / 100);
-        const barH = visibleMaxCandleVolume > 0 
-          ? (candle.volume / visibleMaxCandleVolume) * maxBarHeight 
-          : 0;
+         const barH = volumeOnChartIndicator.calculateBarHeight(candle.volume, visibleMaxCandleVolume, chartHeight, maxHPercent);
+         const baseY = margin.top + chartHeight;
+         const barY = baseY - barH;
 
-        const baseY = margin.top + chartHeight;
-        const barY = baseY - barH;
+         const { fillStyle, strokeStyle } = volumeOnChartIndicator.getStyles(candle.delta, deltaThreshold, isLight);
 
-        let fillStyle = "";
-        let strokeStyle = "";
+         ctx.save();
+         ctx.globalAlpha = vocOpacity;
+         ctx.fillStyle = fillStyle;
+         ctx.strokeStyle = strokeStyle;
+         ctx.lineWidth = 1.0;
 
-        if (candle.delta > deltaThreshold) {
-          fillStyle = isLight ? "rgba(16, 185, 129, 0.28)" : "rgba(16, 185, 129, 0.35)";
-          strokeStyle = isLight ? "rgba(5, 150, 105, 0.55)" : "rgba(16, 185, 129, 0.65)";
-        } else if (candle.delta < -deltaThreshold) {
-          fillStyle = isLight ? "rgba(244, 63, 94, 0.28)" : "rgba(244, 63, 94, 0.35)";
-          strokeStyle = isLight ? "rgba(220, 38, 38, 0.55)" : "rgba(244, 63, 94, 0.65)";
-        } else {
-          fillStyle = isLight ? "rgba(100, 116, 139, 0.18)" : "rgba(148, 163, 184, 0.22)";
-          strokeStyle = isLight ? "rgba(71, 85, 105, 0.38)" : "rgba(148, 163, 184, 0.48)";
-        }
-
-        ctx.save();
-        ctx.globalAlpha = vocOpacity;
-        ctx.fillStyle = fillStyle;
-        ctx.strokeStyle = strokeStyle;
-        ctx.lineWidth = 1.0;
-
-        ctx.fillRect(x + 1, barY, candleWidth - 2, barH);
-        ctx.strokeRect(x + 1, barY, candleWidth - 2, barH);
-        ctx.restore();
-      }
+         ctx.fillRect(x + 1, barY, candleWidth - 2, barH);
+         ctx.strokeRect(x + 1, barY, candleWidth - 2, barH);
+         ctx.restore();
+       }
 
       // Determine colors based on palette
       const useAltPalette = candlePalette === "alternative";
@@ -2410,37 +2394,7 @@ export default function ClusterChart({
         itemsToDraw.forEach(item => {
           const centerX = x + candleWidth / 2;
           const centerY = priceToY(item.price);
-          
-          ctx.save();
-          ctx.fillStyle = item.color;
-          ctx.globalAlpha = item.opacity;
-          ctx.beginPath();
-          
-          if (item.shape === "square") {
-            ctx.rect(centerX - item.size / 2, centerY - item.size / 2, item.size, item.size);
-            ctx.fill();
-            ctx.strokeStyle = isLight ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.3)";
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          } else if (item.shape === "rhombus") {
-            ctx.moveTo(centerX, centerY - item.size / 2);
-            ctx.lineTo(centerX + item.size / 2, centerY);
-            ctx.lineTo(centerX, centerY + item.size / 2);
-            ctx.lineTo(centerX - item.size / 2, centerY);
-            ctx.closePath();
-            ctx.fill();
-            ctx.strokeStyle = isLight ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.3)";
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          } else {
-            // circle
-            ctx.arc(centerX, centerY, item.size / 2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = isLight ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.3)";
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
-          ctx.restore();
+          clusterSearchIndicator.drawShape(ctx, item.shape, centerX, centerY, item.size / 2, item.color, item.opacity, isLight);
         });
       }
 
@@ -2466,7 +2420,8 @@ export default function ClusterChart({
         const barY = candle.delta >= 0 ? deltaMidY - barHeight : deltaMidY;
 
         // Draw Delta volume bar
-        ctx.fillStyle = candle.delta >= 0 ? "rgba(16, 185, 129, 0.3)" : "rgba(244, 63, 94, 0.3)";
+        const dStyles = deltaIndicator.getDeltaStyle(candle.delta, isLight);
+        ctx.fillStyle = dStyles.fillStyle;
         ctx.strokeStyle = candle.delta >= 0 ? "rgba(16, 185, 129, 0.85)" : "rgba(244, 63, 94, 0.85)";
         ctx.lineWidth = 1.2;
         ctx.fillRect(x + 4, barY, candleWidth - 8, barHeight);
@@ -2476,7 +2431,7 @@ export default function ClusterChart({
         if (candleWidth >= 45) {
           ctx.font = "bold 8.5px 'Inter', sans-serif";
           ctx.textAlign = "center";
-          ctx.fillStyle = candle.delta >= 0 ? (isLight ? "#047857" : "#10b981") : (isLight ? "#be123c" : "#f43f5e");
+          ctx.fillStyle = dStyles.textStyle;
           const lblY = candle.delta >= 0 ? deltaMidY - barHeight - 4 : deltaMidY + barHeight + 11;
           const deltaText = (candle.delta >= 0 ? "+" : "") + candle.delta.toFixed(0) + "K";
           ctx.fillText(deltaText, x + candleWidth / 2, lblY);
@@ -3915,7 +3870,7 @@ export default function ClusterChart({
       {hoveredClusterSearch && (() => {
         const isLeftIdx = hoveredClusterSearch.x > (visibleClientWidth || 800) - 275;
         const isTopIdx = hoveredClusterSearch.y > (totalSvgHeight || 550) - 180;
-        const leftPos = isLeftIdx ? hoveredClusterSearch.x - 260 : hoveredClusterSearch.x + 30;
+        const leftPos = isLeftIdx ? hoveredClusterSearch.x - 200 : hoveredClusterSearch.x + 55;
         const topPos = isTopIdx ? hoveredClusterSearch.y - 155 : hoveredClusterSearch.y + 15;
 
         const maxPercent = Math.max(hoveredClusterSearch.bidPercent, hoveredClusterSearch.askPercent);
