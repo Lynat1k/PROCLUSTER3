@@ -4,6 +4,7 @@ import { deltaIndicator } from "./delta";
 import { cvdIndicator } from "./cvd";
 import { clusterSearchIndicator } from "./clusterSearch";
 import { stackedImbalanceIndicator } from "./stackedImbalance";
+import { depthOfMarketIndicator } from "./depthOfMarket";
 
 // Re-export individual modules so other files can import them directly
 export * from "./types";
@@ -12,6 +13,7 @@ export * from "./delta";
 export * from "./cvd";
 export * from "./clusterSearch";
 export * from "./stackedImbalance";
+export * from "./depthOfMarket";
 
 // The complete array registry of active modular indicators
 export const MODULAR_INDICATORS: IndicatorModule[] = [
@@ -19,7 +21,8 @@ export const MODULAR_INDICATORS: IndicatorModule[] = [
   deltaIndicator,
   cvdIndicator,
   clusterSearchIndicator,
-  stackedImbalanceIndicator
+  stackedImbalanceIndicator,
+  depthOfMarketIndicator
 ];
 
 /**

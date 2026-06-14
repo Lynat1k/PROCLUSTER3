@@ -1224,6 +1224,35 @@ export default function IndicatorsModal({
                         />
                       </div>
 
+                      {/* Delta Plot Type Picker */}
+                      <div className="flex flex-col gap-1.5 border-t border-dashed border-slate-700/20 pt-3">
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Тип отображения</span>
+                        <div className="flex gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5">
+                          <button
+                            type="button"
+                            onClick={() => updateSettings({ deltaPlotType: "candles" })}
+                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all duration-200 ${
+                              (selectedIndicator.settings.deltaPlotType || "candles") === "candles"
+                                ? (isLight ? "bg-white text-slate-800 shadow-sm" : "bg-slate-850 text-white shadow")
+                                : "text-slate-400 hover:text-slate-300"
+                            }`}
+                          >
+                            Свечи
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateSettings({ deltaPlotType: "bars" })}
+                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all duration-200 ${
+                              selectedIndicator.settings.deltaPlotType === "bars"
+                                ? (isLight ? "bg-white text-slate-800 shadow-sm" : "bg-slate-850 text-white shadow")
+                                : "text-slate-400 hover:text-slate-300"
+                            }`}
+                          >
+                            Столбики
+                          </button>
+                        </div>
+                      </div>
+
                       <label className={`flex items-center gap-2.5 p-1 rounded cursor-pointer mt-1 ${isLight ? "hover:bg-slate-100" : "hover:bg-white/5"}`}>
                         <input
                           type="checkbox"
@@ -1242,12 +1271,12 @@ export default function IndicatorsModal({
                       isLight ? "bg-slate-100/40 border-slate-200/85" : "bg-slate-950/20 border-white/5"
                     }`}>
                       <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
-                        ПАРАМЕТРЫ СГЛАЖИВАНИЯ CVD
+                        ПАРАМЕТРЫ СГЛАЖИВАНИЯ И СТИЛИЗАЦИИ CVD
                       </span>
 
                       <div className="flex flex-col gap-2 mt-1">
                         <div className="flex justify-between font-bold">
-                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Cumulative smoothing period</span>
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Smoothing period</span>
                           <span className={`font-mono font-bold ${isLight ? "text-blue-700" : "text-yellow-500"}`}>
                             {selectedIndicator.settings.smoothing || 10}
                           </span>
@@ -1261,6 +1290,71 @@ export default function IndicatorsModal({
                           className={`w-full accent-blue-600 rounded-lg h-1 ${isLight ? "bg-slate-250" : "bg-slate-800"}`}
                         />
                       </div>
+
+                      {/* CVD Color Picker */}
+                      <div className="flex items-center justify-between border-t border-dashed border-slate-700/20 pt-3 mt-1">
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Цвет линии индикатора</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={selectedIndicator.settings.cvdLineColor ?? "#a855f7"}
+                            onChange={(e) => updateSettings({ cvdLineColor: e.target.value })}
+                            className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0"
+                          />
+                          <span className="text-[10px] font-mono text-slate-400 truncate w-14">
+                            {selectedIndicator.settings.cvdLineColor ?? "#a855f7"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* CVD Period Picker */}
+                      <div className="flex flex-col gap-1.5 border-t border-dashed border-slate-700/20 pt-3">
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Период группировки</span>
+                        <select
+                          value={selectedIndicator.settings.cvdPeriod ?? "all"}
+                          onChange={(e) => updateSettings({ cvdPeriod: e.target.value })}
+                          className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                            isLight
+                              ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                              : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40 hover:border-white/20"
+                          }`}
+                        >
+                          <option value="all">Все бары</option>
+                          <option value="day">День</option>
+                          <option value="week">Неделя</option>
+                          <option value="month">Месяц</option>
+                          <option value="visible">Видимые бары</option>
+                        </select>
+                      </div>
+
+                      {/* CVD Plot Type Picker */}
+                      <div className="flex flex-col gap-1.5 border-t border-dashed border-slate-700/20 pt-3">
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Тип отображения</span>
+                        <div className="flex gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5">
+                          <button
+                            type="button"
+                            onClick={() => updateSettings({ cvdPlotType: "line" })}
+                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all duration-200 ${
+                              (selectedIndicator.settings.cvdPlotType || "line") === "line"
+                                ? (isLight ? "bg-white text-slate-800 shadow-sm" : "bg-slate-850 text-white shadow")
+                                : "text-slate-400 hover:text-slate-300"
+                            }`}
+                          >
+                            Линия
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateSettings({ cvdPlotType: "candles" })}
+                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all duration-200 ${
+                              selectedIndicator.settings.cvdPlotType === "candles"
+                                ? (isLight ? "bg-white text-slate-800 shadow-sm" : "bg-slate-850 text-white shadow")
+                                : "text-slate-400 hover:text-slate-300"
+                            }`}
+                          >
+                            Свечи
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1270,19 +1364,20 @@ export default function IndicatorsModal({
                       isLight ? "bg-slate-100/40 border-slate-200/85" : "bg-slate-950/20 border-white/5"
                     }`}>
                       <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
-                        ПАРАМЕТРЫ ДИСБАЛАНСА
+                        ПАРАМЕТРЫ ATAS STACKED IMBALANCE
                       </span>
 
-                      <div className="grid grid-cols-2 gap-3 mt-1">
+                      <div className="grid grid-cols-2 gap-4 mt-1">
+                        {/* Imbalance Ratio Percentage */}
                         <label className="flex flex-col gap-1.5 font-sans text-xs">
-                          <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Ratio Threshold</span>
+                          <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Дисбаланс (%)</span>
                           <input
                             type="number"
-                            step="0.5"
-                            min="1.5"
-                            max="6.0"
-                            value={selectedIndicator.settings.ratio || 3.0}
-                            onChange={(e) => updateSettings({ ratio: parseFloat(e.target.value) })}
+                            step="10"
+                            min="50"
+                            max="1000"
+                            value={selectedIndicator.settings.siRatio ?? 300}
+                            onChange={(e) => updateSettings({ siRatio: parseInt(e.target.value) || 300 })}
                             className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
                               isLight
                                 ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
@@ -1290,6 +1385,202 @@ export default function IndicatorsModal({
                             }`}
                           />
                         </label>
+
+                        {/* Sequential Range of Imbalances */}
+                        <label className="flex flex-col gap-1.5 font-sans text-xs">
+                          <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Диапазон уровней</span>
+                          <input
+                            type="number"
+                            step="1"
+                            min="1"
+                            max="10"
+                            value={selectedIndicator.settings.siRange ?? 3}
+                            onChange={(e) => updateSettings({ siRange: parseInt(e.target.value) || 3 })}
+                            className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                              isLight
+                                ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40 hover:border-white/20"
+                            }`}
+                          />
+                        </label>
+
+                        {/* Minimum Volume threshold */}
+                        <label className="flex flex-col gap-1.5 font-sans text-xs">
+                          <span className={`font-bold ${isLight ? "text-slate-705" : "text-slate-300"}`}>Мин. объем стороны</span>
+                          <input
+                            type="number"
+                            step="1"
+                            min="0"
+                            value={selectedIndicator.settings.siVolume ?? 10}
+                            onChange={(e) => updateSettings({ siVolume: parseFloat(e.target.value) ?? 10 })}
+                            className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                              isLight
+                                ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40 hover:border-white/20"
+                            }`}
+                          />
+                        </label>
+
+                        {/* Line width/thickness */}
+                        <label className="flex flex-col gap-1.5 font-sans text-xs">
+                          <span className={`font-bold ${isLight ? "text-slate-707" : "text-slate-300"}`}>Толщина линий (px)</span>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0.5"
+                            max="10"
+                            value={selectedIndicator.settings.siLineWidth ?? 2}
+                            onChange={(e) => updateSettings({ siLineWidth: parseFloat(e.target.value) || 2 })}
+                            className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                              isLight
+                                ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                                : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40 hover:border-white/20"
+                            }`}
+                          />
+                        </label>
+                      </div>
+
+                      {/* Positive Color Picker */}
+                      <div className="flex items-center justify-between border-t border-dashed border-slate-700/20 pt-3 mt-1">
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>{"Положительный (Asks > Bids)"}</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={
+                              (selectedIndicator.settings.siColorPos ?? "#FF228B22").length === 9
+                                ? "#" + (selectedIndicator.settings.siColorPos ?? "#FF228B22").slice(3)
+                                : (selectedIndicator.settings.siColorPos ?? "#FF228B22")
+                            }
+                            onChange={(e) => updateSettings({ siColorPos: e.target.value })}
+                            className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0"
+                          />
+                          <span className="text-[10px] font-mono text-slate-400 truncate w-16">
+                            {selectedIndicator.settings.siColorPos ?? "#FF228B22"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Negative Color Picker */}
+                      <div className="flex items-center justify-between border-t border-dashed border-slate-700/20 pt-3">
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>{"Отрицательный (Bids > Asks)"}</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={
+                              (selectedIndicator.settings.siColorNeg ?? "#FFC80000").length === 9
+                                ? "#" + (selectedIndicator.settings.siColorNeg ?? "#FFC80000").slice(3)
+                                : (selectedIndicator.settings.siColorNeg ?? "#FFC80000")
+                            }
+                            onChange={(e) => updateSettings({ siColorNeg: e.target.value })}
+                            className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0"
+                          />
+                          <span className="text-[10px] font-mono text-slate-400 truncate w-16">
+                            {selectedIndicator.settings.siColorNeg ?? "#FFC80000"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Option 6: Depth of Market parameters */}
+                  {selectedIndicator.id === "depthOfMarket" && (
+                    <div className={`flex flex-col gap-4 font-sans text-xs p-4.5 rounded-2xl border transition-all duration-300 ${
+                      isLight ? "bg-slate-100/40 border-slate-200/85" : "bg-slate-950/20 border-white/5"
+                    }`}>
+                      <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
+                        ПАРАМЕТРЫ DEPTH OF MARKET (DOM)
+                      </span>
+
+                      <div className="grid grid-cols-2 gap-4 mt-1">
+                        {/* Width Mode Selection */}
+                        <label className="flex flex-col gap-1.5 font-sans text-xs col-span-2 sm:col-span-1">
+                          <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Режим ширины</span>
+                          <select
+                            value={selectedIndicator.settings.domWidthMode ?? "auto"}
+                            onChange={(e) => updateSettings({ domWidthMode: e.target.value })}
+                            className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                              isLight
+                                ? "bg-white border-slate-200 text-slate-800"
+                                : "bg-[#0b0f19] border border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
+                            }`}
+                          >
+                            <option value="auto">Авто (Макс. 100px)</option>
+                            <option value="manual">Вручную (Ввод ширины)</option>
+                          </select>
+                        </label>
+
+                        {/* Max Width Limit (for manual mode) */}
+                        <label className="flex flex-col gap-1.5 font-sans text-xs col-span-2 sm:col-span-1">
+                          <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Макс. ширина шкалы (px)</span>
+                          <input
+                            type="number"
+                            step="10"
+                            min="30"
+                            max="500"
+                            disabled={(selectedIndicator.settings.domWidthMode ?? "auto") === "auto"}
+                            value={selectedIndicator.settings.domMaxWidth ?? 100}
+                            onChange={(e) => updateSettings({ domMaxWidth: parseInt(e.target.value) || 100 })}
+                            className={`rounded-xl px-3 py-2 text-xs outline-none transition-all duration-300 border ${
+                              (selectedIndicator.settings.domWidthMode ?? "auto") === "auto"
+                                ? "opacity-50 cursor-not-allowed bg-slate-150"
+                                : ""
+                            } ${
+                              isLight
+                                ? "bg-white border-slate-200 text-slate-800"
+                                : "bg-[#0b0f19] border border-white/10 text-slate-200"
+                            }`}
+                          />
+                        </label>
+
+                        {/* Opacity (10-100) */}
+                        <label className="flex flex-col gap-1.5 font-sans text-xs col-span-2">
+                          <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Прозрачность гистограммы ({selectedIndicator.settings.domOpacity ?? 40}%)</span>
+                          <input
+                            type="range"
+                            min="10"
+                            max="100"
+                            step="5"
+                            value={selectedIndicator.settings.domOpacity ?? 40}
+                            onChange={(e) => updateSettings({ domOpacity: parseInt(e.target.value) || 40 })}
+                            className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+                          />
+                        </label>
+                      </div>
+
+                      {/* Bid Color Picker (Buy density color) */}
+                      <div className="flex items-center justify-between border-t border-dashed border-slate-700/20 pt-3 mt-1">
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Цвет Лимитов Покупок (Bids)</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={
+                              (selectedIndicator.settings.domColorBid ?? "#228B22")
+                            }
+                            onChange={(e) => updateSettings({ domColorBid: e.target.value })}
+                            className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0"
+                          />
+                          <span className="text-[10px] font-mono text-slate-400 truncate w-16">
+                            {selectedIndicator.settings.domColorBid ?? "#228B22"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Ask Color Picker (Sell density color) */}
+                      <div className="flex items-center justify-between border-t border-dashed border-slate-700/20 pt-3">
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Цвет Лимитов Продаж (Asks)</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={
+                              (selectedIndicator.settings.domColorAsk ?? "#C80000")
+                            }
+                            onChange={(e) => updateSettings({ domColorAsk: e.target.value })}
+                            className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0"
+                          />
+                          <span className="text-[10px] font-mono text-slate-400 truncate w-16">
+                            {selectedIndicator.settings.domColorAsk ?? "#C80000"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1301,7 +1592,8 @@ export default function IndicatorsModal({
                     selectedIndicator.id !== "volumeProfile" &&
                     selectedIndicator.id !== "delta" &&
                     selectedIndicator.id !== "cvd" &&
-                    selectedIndicator.id !== "stackedImbalance" && (
+                    selectedIndicator.id !== "stackedImbalance" &&
+                    selectedIndicator.id !== "depthOfMarket" && (
                       <div className="text-slate-500 italic text-xs py-3 font-sans">
                         Дополнительные параметры конфигурирования будут добавлены в следующих обновлениях.
                       </div>

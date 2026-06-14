@@ -4,10 +4,25 @@
  */
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
-import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator } from "../types";
+import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator, OrderBook } from "../types";
 import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight, TrendingUp } from "lucide-react";
 import { storage } from "../lib/storage";
 import { volumeOnChartIndicator, deltaIndicator, cvdIndicator, clusterSearchIndicator } from "../indicators";
+
+const parseHexColor = (hex: string): string => {
+  if (!hex) return "#ffffff";
+  let h = hex.trim();
+  if (h.startsWith("#")) h = h.slice(1);
+  if (h.length === 8) {
+    // ARGB to RGBA: AARRGGBB -> RRGGBBAA
+    const aa = h.slice(0, 2);
+    const rr = h.slice(2, 4);
+    const gg = h.slice(4, 6);
+    const bb = h.slice(6, 8);
+    return `#${rr}${gg}${bb}${aa}`;
+  }
+  return hex;
+};
 
 interface ClusterChartProps {
   candles: ClusterCandle[];
@@ -28,6 +43,7 @@ interface ClusterChartProps {
   workspaceLayout?: "1" | "2h" | "2v";
   onWorkspaceLayoutChange?: (layout: "1" | "2h" | "2v") => void;
   workspacesCount?: number;
+  orderBook?: OrderBook;
 }
 
 export default function ClusterChart({
@@ -39,7 +55,8 @@ export default function ClusterChart({
     delta: true,
     volume: true,
     cvd: true,
-    stackedImbalance: false
+    stackedImbalance: false,
+    depthOfMarket: false
   },
   indicatorSettings,
   marketType = "SPOT",
@@ -54,10 +71,25 @@ export default function ClusterChart({
   language = "EN",
   workspaceLayout,
   onWorkspaceLayoutChange,
-  workspacesCount = 1
+  workspacesCount = 1,
+  orderBook
 }: ClusterChartProps) {
   
   const isLight = theme === "light";
+
+  // CVD indicator specific settings
+  const cvdSettings = indicatorSettings?.cvd || {};
+  const cvdPeriod = cvdSettings.cvdPeriod || "all";
+  const cvdLineColor = cvdSettings.cvdLineColor || "#a855f7";
+  const cvdPlotType = cvdSettings.cvdPlotType || "line";
+
+  // Delta indicator specific settings
+  const deltaSettings = indicatorSettings?.delta || {};
+  const deltaPlotType = deltaSettings.deltaPlotType || "candles";
+
+  // Stacked Imbalance indicator specific settings
+  const siSettings = indicatorSettings?.stackedImbalance || {};
+  const siLineWidth = typeof siSettings.siLineWidth === "number" ? siSettings.siLineWidth : 2;
 
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
   const [drawings, setDrawings] = useState<any[]>([]);
@@ -1370,6 +1402,23 @@ export default function ClusterChart({
     return maxCandleDelta / Math.max(0.01, deltaScale);
   }, [maxCandleDelta, deltaScale]);
 
+  // Compute maximum wick value across all candles for candlestick delta panel scaling
+  const maxWickValue = useMemo(() => {
+    let max = 1;
+    for (let i = 0; i < candlesToScale.length; i++) {
+      const candle = candlesToScale[i];
+      const ask = (candle.volume + candle.delta) / 2;
+      const bid = (candle.volume - candle.delta) / 2;
+      const val = Math.max(ask, bid);
+      if (val > max) max = val;
+    }
+    return max;
+  }, [candlesToScale]);
+
+  const zoomedMaxWickValue = useMemo(() => {
+    return maxWickValue / Math.max(0.01, deltaScale);
+  }, [maxWickValue, deltaScale]);
+
   // Find overall maximum cell delta to properly scale imbalance highlights (memoized)
   const maxCellDelta = useMemo(() => {
     let max = 1;
@@ -1385,12 +1434,13 @@ export default function ClusterChart({
 
   // Generate Cumulative Delta Line Coordinates (memoized)
   const cumulativeDeltaPoints = useMemo(() => {
-    const rawCvd = cvdIndicator.calculateCVD(candles);
+    const startIdx = Math.max(0, Math.floor((visibleScrollLeft - margin.left - candleWidth) / (candleWidth + candleSpacing)));
+    const rawCvd = cvdIndicator.calculateCVD(candles, cvdPeriod, startIdx);
     return rawCvd.map((item, i) => {
       const cx = margin.left + i * (candleWidth + candleSpacing) + candleWidth / 2;
-      return { cx, value: item.value };
+      return { cx, value: item.value, open: item.open, high: item.high, low: item.low, close: item.close };
     });
-  }, [candles, candleWidth, candleSpacing]);
+  }, [candles, candleWidth, candleSpacing, cvdPeriod, visibleScrollLeft, margin.left]);
 
   // Dynamically calculate visible min and max cumulative delta for local auto-scaling to fill 80% height
   const { minCumDeltaVal, maxCumDeltaVal, cvdDeltaRange } = useMemo(() => {
@@ -1405,24 +1455,28 @@ export default function ClusterChart({
     let maxVal = -Infinity;
     for (let i = startIdx; i <= endIdx; i++) {
       if (cumulativeDeltaPoints[i]) {
-        const val = cumulativeDeltaPoints[i].value;
-        if (val < minVal) minVal = val;
-        if (val > maxVal) maxVal = val;
+        const item = cumulativeDeltaPoints[i];
+        const valMin = cvdPlotType === "candles" ? item.low : item.value;
+        const valMax = cvdPlotType === "candles" ? item.high : item.value;
+        if (valMin < minVal) minVal = valMin;
+        if (valMax > maxVal) maxVal = valMax;
       }
     }
     if (minVal === Infinity || maxVal === -Infinity) {
       // Fallback if none are visible
-      minVal = cumulativeDeltaPoints[0].value;
-      maxVal = cumulativeDeltaPoints[0].value;
+      minVal = cumulativeDeltaPoints[0].low ?? cumulativeDeltaPoints[0].value;
+      maxVal = cumulativeDeltaPoints[0].high ?? cumulativeDeltaPoints[0].value;
       for (let i = 0; i < cumulativeDeltaPoints.length; i++) {
-        const val = cumulativeDeltaPoints[i].value;
-        if (val < minVal) minVal = val;
-        if (val > maxVal) maxVal = val;
+        const item = cumulativeDeltaPoints[i];
+        const valMin = cvdPlotType === "candles" ? item.low : item.value;
+        const valMax = cvdPlotType === "candles" ? item.high : item.value;
+        if (valMin < minVal) minVal = valMin;
+        if (valMax > maxVal) maxVal = valMax;
       }
     }
     const range = Math.max(1, maxVal - minVal);
     return { minCumDeltaVal: minVal, maxCumDeltaVal: maxVal, cvdDeltaRange: range };
-  }, [cumulativeDeltaPoints, visibleScrollLeft, visibleClientWidth, candleWidth, candleSpacing]);
+  }, [cumulativeDeltaPoints, visibleScrollLeft, visibleClientWidth, candleWidth, candleSpacing, cvdPlotType]);
 
   const zoomedCvdDeltaRange = useMemo(() => cvdDeltaRange / Math.max(0.01, cvdScale), [cvdDeltaRange, cvdScale]);
   const cvdCenterVal = useMemo(() => (maxCumDeltaVal + minCumDeltaVal) / 2, [maxCumDeltaVal, minCumDeltaVal]);
@@ -1459,6 +1513,124 @@ export default function ClusterChart({
     }
     return max;
   }, [visibleCandlesList]);
+
+  // --- ATAS STACKED IMBALANCE CALCULATION ENGINE ---
+  const stackedImbalanceLines = useMemo(() => {
+    if (!activeIndicators.stackedImbalance || candles.length === 0) return [];
+
+    const siSettings = indicatorSettings?.stackedImbalance || {};
+    const siRatio = typeof siSettings.siRatio === "number" ? siSettings.siRatio : 300;
+    const siRange = typeof siSettings.siRange === "number" ? siSettings.siRange : 3;
+    const siVolume = typeof siSettings.siVolume === "number" ? siSettings.siVolume : 10;
+    const siColorPos = parseHexColor(siSettings.siColorPos || "#FF228B22");
+    const siColorNeg = parseHexColor(siSettings.siColorNeg || "#FFC80000");
+
+    const lines: {
+      price: number;
+      startIdx: number;
+      endIdx: number | null;
+      type: "buy" | "sell";
+      color: string;
+    }[] = [];
+
+    // Scan all candles to find stacked imbalances
+    for (let cIdx = 0; cIdx < candles.length; cIdx++) {
+      const candle = candles[cIdx];
+      const cells = candle.cells || [];
+      if (cells.length < 2) continue;
+
+      // Ensure cells are sorted descending by price
+      const sortedCells = [...cells].sort((a, b) => b.price - a.price);
+
+      const count = sortedCells.length;
+      const isBuyImb = new Array(count - 1).fill(false);
+      const isSellImb = new Array(count - 1).fill(false);
+
+      for (let i = 0; i < count - 1; i++) {
+        const upperCell = sortedCells[i];
+        const lowerCell = sortedCells[i + 1];
+
+        // Buying diagonal imbalance (Ask at upper level vs Bid at lower level)
+        const upperAsk = upperCell.ask;
+        const lowerBid = lowerCell.bid;
+        const satisfiesBuyRatio = lowerBid === 0 ? (upperAsk >= siVolume) : (upperAsk >= lowerBid * (siRatio / 100));
+        isBuyImb[i] = satisfiesBuyRatio && (upperAsk >= siVolume);
+
+        // Selling diagonal imbalance (Bid at lower level vs Ask at upper level)
+        const lowerBidVal = lowerCell.bid;
+        const upperAskVal = upperCell.ask;
+        const satisfiesSellRatio = upperAskVal === 0 ? (lowerBidVal >= siVolume) : (lowerBidVal >= upperAskVal * (siRatio / 100));
+        isSellImb[i] = satisfiesSellRatio && (lowerBidVal >= siVolume);
+      }
+
+      // Find stacked BUY imbalances of consecutive range length
+      for (let i = 0; i <= isBuyImb.length - siRange; i++) {
+        let allBuy = true;
+        for (let r = 0; r < siRange; r++) {
+          if (!isBuyImb[i + r]) {
+            allBuy = false;
+            break;
+          }
+        }
+        if (allBuy) {
+          // Add price levels
+          for (let r = 0; r < siRange; r++) {
+            const price = sortedCells[i + r].price;
+            if (!lines.some(l => l.startIdx === cIdx && l.price === price && l.type === "buy")) {
+              lines.push({
+                price,
+                startIdx: cIdx,
+                endIdx: null,
+                type: "buy",
+                color: siColorPos
+              });
+            }
+          }
+        }
+      }
+
+      // Find stacked SELL imbalances of consecutive range length
+      for (let i = 0; i <= isSellImb.length - siRange; i++) {
+        let allSell = true;
+        for (let r = 0; r < siRange; r++) {
+          if (!isSellImb[i + r]) {
+            allSell = false;
+            break;
+          }
+        }
+        if (allSell) {
+          // Add price levels (Bid is at lower cell index i + r + 1)
+          for (let r = 0; r < siRange; r++) {
+            const price = sortedCells[i + r + 1].price;
+            if (!lines.some(l => l.startIdx === cIdx && l.price === price && l.type === "sell")) {
+              lines.push({
+                price,
+                startIdx: cIdx,
+                endIdx: null,
+                type: "sell",
+                color: siColorNeg
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Determine mitigation for each line by subsequent candles
+    for (let j = 0; j < lines.length; j++) {
+      const line = lines[j];
+      const sIdx = line.startIdx;
+      for (let c2 = sIdx + 1; c2 < candles.length; c2++) {
+        const nextC = candles[c2];
+        if (nextC.low <= line.price && nextC.high >= line.price) {
+          line.endIdx = c2;
+          break;
+        }
+      }
+    }
+
+    return lines;
+  }, [candles, indicatorSettings, activeIndicators.stackedImbalance]);
 
   // Window-level mouse resize tracker for indicator panels
   useEffect(() => {
@@ -2403,10 +2575,13 @@ export default function ClusterChart({
       // C. Bottom Delta Sub-panel drawing
       if (activeIndicators.delta) {
         ctx.save();
+        ctx.beginPath();
+        ctx.rect(margin.left, deltaTopY, scrollWidth - margin.left + 50, deltaPanelHeight);
+        ctx.clip();
         ctx.translate(0, deltaTopY);
 
         const deltaMidY = deltaPanelHeight / 2;
-        const maxBarScaledHeight = deltaPanelHeight * 0.40;
+        const maxBarScaledHeight = deltaPanelHeight * 0.45;
 
         // Axis
         ctx.beginPath();
@@ -2417,15 +2592,51 @@ export default function ClusterChart({
         ctx.stroke();
 
         const barHeight = Math.max(2, (Math.abs(candle.delta) / zoomedMaxCandleDelta) * maxBarScaledHeight);
-        const barY = candle.delta >= 0 ? deltaMidY - barHeight : deltaMidY;
-
-        // Draw Delta volume bar
         const dStyles = deltaIndicator.getDeltaStyle(candle.delta, isLight);
-        ctx.fillStyle = dStyles.fillStyle;
-        ctx.strokeStyle = candle.delta >= 0 ? "rgba(16, 185, 129, 0.85)" : "rgba(244, 63, 94, 0.85)";
-        ctx.lineWidth = 1.2;
-        ctx.fillRect(x + 4, barY, candleWidth - 8, barHeight);
-        ctx.strokeRect(x + 4, barY, candleWidth - 8, barHeight);
+
+        if (deltaPlotType === "candles") {
+          const scaleFactor = maxBarScaledHeight / Math.max(0.001, zoomedMaxWickValue);
+          const ask = (candle.volume + candle.delta) / 2;
+          const bid = (candle.volume - candle.delta) / 2;
+
+          const yOpen = deltaMidY;
+          const yClose = deltaMidY - candle.delta * scaleFactor;
+          const yHigh = deltaMidY - ask * scaleFactor;
+          const yLow = deltaMidY + bid * scaleFactor;
+
+          const isBullish = candle.delta >= 0;
+
+          // Draw wicks
+          ctx.beginPath();
+          ctx.strokeStyle = isBullish 
+            ? (isLight ? "rgba(5, 150, 105, 0.55)" : "rgba(16, 185, 129, 0.65)")
+            : (isLight ? "rgba(220, 38, 38, 0.55)" : "rgba(244, 63, 94, 0.65)");
+          ctx.lineWidth = 1.0;
+          ctx.moveTo(x + candleWidth / 2, yLow);
+          ctx.lineTo(x + candleWidth / 2, yHigh);
+          ctx.stroke();
+
+          // Draw body
+          ctx.fillStyle = dStyles.fillStyle;
+          ctx.strokeStyle = isBullish 
+            ? "rgba(16, 185, 129, 0.85)" 
+            : "rgba(244, 63, 94, 0.85)";
+          ctx.lineWidth = 1.2;
+
+          const rectY = Math.min(yOpen, yClose);
+          const rectH = Math.max(2, Math.abs(yClose - yOpen));
+          ctx.fillRect(x + 4, rectY, candleWidth - 8, rectH);
+          ctx.strokeRect(x + 4, rectY, candleWidth - 8, rectH);
+        } else {
+          const barY = candle.delta >= 0 ? deltaMidY - barHeight : deltaMidY;
+
+          // Draw Delta volume bar
+          ctx.fillStyle = dStyles.fillStyle;
+          ctx.strokeStyle = candle.delta >= 0 ? "rgba(16, 185, 129, 0.85)" : "rgba(244, 63, 94, 0.85)";
+          ctx.lineWidth = 1.2;
+          ctx.fillRect(x + 4, barY, candleWidth - 8, barHeight);
+          ctx.strokeRect(x + 4, barY, candleWidth - 8, barHeight);
+        }
 
         // Delta quantity text label
         if (candleWidth >= 45) {
@@ -2440,7 +2651,50 @@ export default function ClusterChart({
       }
     }
 
-    // 5. Drawing Cumulative Volume Delta (CVD) trend line
+    // --- DRAW ATAS STACKED IMBALANCE HORIZONTAL LEVEL OVERLAYS ---
+    if (activeIndicators.stackedImbalance && stackedImbalanceLines.length > 0) {
+      ctx.save();
+      ctx.beginPath();
+      // Clip strictly within main candlestick screen area bounded by margin and chartHeight
+      ctx.rect(margin.left, margin.top, scrollWidth - margin.left + 50, chartHeight);
+      ctx.clip();
+
+      stackedImbalanceLines.forEach(line => {
+        // Calculate horizontal starting X-coordinate (center of the candle)
+        const xStart = margin.left + line.startIdx * (candleWidth + candleSpacing) + candleWidth / 2;
+        // Calculate ending X-coordinate (center of mitigation candle, or right edge of chart)
+        const xEnd = line.endIdx !== null 
+          ? (margin.left + line.endIdx * (candleWidth + candleSpacing) + candleWidth / 2)
+          : (scrollWidth);
+        
+        const y = priceToY(line.price);
+        
+        ctx.beginPath();
+        ctx.strokeStyle = line.color;
+        ctx.lineWidth = siLineWidth;
+        ctx.moveTo(xStart, y);
+        ctx.lineTo(xEnd, y);
+        ctx.stroke();
+
+        if (line.endIdx !== null) {
+          // Mitigated level: Draw a small aesthetic termination dot at the point of touching
+          ctx.beginPath();
+          ctx.fillStyle = line.color;
+          ctx.arc(xEnd, y, siLineWidth * 1.5, 0, 2 * Math.PI);
+          ctx.fill();
+        } else {
+          // Unmitigated level: Draw small text indicator "SI <Price>" at the right edge
+          ctx.font = "bold 9px 'JetBrains Mono', monospace";
+          ctx.fillStyle = line.color;
+          ctx.textAlign = "left";
+          ctx.fillText(`SI ${line.price.toFixed(1)}`, xEnd + 5, y + 3);
+        }
+      });
+
+      ctx.restore();
+    }
+
+    // 5. Drawing Cumulative Volume Delta (CVD) trend line or candles
     if (activeIndicators.cvd && cumulativeDeltaPoints.length > 0) {
       ctx.save();
       ctx.beginPath();
@@ -2458,30 +2712,75 @@ export default function ClusterChart({
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.beginPath();
-      let pathStarted = false;
       const cvdStartIdx = Math.max(0, startIdx - 1);
       const cvdEndIdx = Math.min(cumulativeDeltaPoints.length - 1, endIdx + 1);
-      for (let idx = cvdStartIdx; idx <= cvdEndIdx; idx++) {
-        const p = cumulativeDeltaPoints[idx];
-        const cy = getCvdY(p.value, cvdPanelHeight);
-        if (!pathStarted) {
-          ctx.moveTo(p.cx, cy);
-          pathStarted = true;
-        } else {
-          ctx.lineTo(p.cx, cy);
+
+      if (cvdPlotType === "candles") {
+        // Draw CVD as Candlesticks
+        for (let idx = cvdStartIdx; idx <= cvdEndIdx; idx++) {
+          const p = cumulativeDeltaPoints[idx];
+          if (p.open === undefined || p.close === undefined) continue;
+
+          // Align center X
+          const x = p.cx - candleWidth / 2;
+
+          const yOpen = getCvdY(p.open, cvdPanelHeight);
+          const yClose = getCvdY(p.close, cvdPanelHeight);
+          const yHigh = getCvdY(p.high, cvdPanelHeight);
+          const yLow = getCvdY(p.low, cvdPanelHeight);
+
+          const isBullish = p.close >= p.open;
+
+          // Draw wicks
+          ctx.beginPath();
+          ctx.strokeStyle = isBullish 
+            ? (isLight ? "#10b981" : "#10b981") 
+            : (isLight ? "#ef4444" : "#f43f5e");
+          ctx.lineWidth = 1.0;
+          ctx.moveTo(p.cx, yLow);
+          ctx.lineTo(p.cx, yHigh);
+          ctx.stroke();
+
+          // Draw body
+          ctx.fillStyle = isBullish 
+            ? (isLight ? "rgba(16, 185, 129, 0.75)" : "rgba(16, 185, 129, 0.85)")
+            : (isLight ? "rgba(239, 68, 68, 0.75)" : "rgba(244, 63, 94, 0.85)");
+          ctx.strokeStyle = isBullish 
+            ? (isLight ? "#059669" : "#10b981") 
+            : (isLight ? "#dc2626" : "#f43f5e");
+          ctx.lineWidth = 1.0;
+
+          const rectY = Math.min(yOpen, yClose);
+          const rectH = Math.max(1.5, Math.abs(yClose - yOpen));
+          ctx.fillRect(x + 1, rectY, candleWidth - 2, rectH);
+          ctx.strokeRect(x + 1, rectY, candleWidth - 2, rectH);
         }
+      } else {
+        // Draw CVD as a continuous trend line
+        ctx.beginPath();
+        let pathStarted = false;
+        for (let idx = cvdStartIdx; idx <= cvdEndIdx; idx++) {
+          const p = cumulativeDeltaPoints[idx];
+          const cy = getCvdY(p.value, cvdPanelHeight);
+          if (!pathStarted) {
+            ctx.moveTo(p.cx, cy);
+            pathStarted = true;
+          } else {
+            ctx.lineTo(p.cx, cy);
+          }
+        }
+
+        // Add customizable glow effect and color
+        ctx.shadowColor = cvdLineColor;
+        ctx.shadowBlur = 6;
+        ctx.strokeStyle = cvdLineColor;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.stroke();
+        ctx.shadowBlur = 0; // reset shadow
       }
 
-      // Add purple glowing effect
-      ctx.shadowColor = isLight ? "rgba(124, 58, 237, 0.4)" : "rgba(192, 132, 252, 0.8)";
-      ctx.shadowBlur = 6;
-      ctx.strokeStyle = isLight ? "#7c3aed" : "#c084fc";
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
-      ctx.shadowBlur = 0; // reset shadow
       ctx.restore();
     }
 
@@ -2927,6 +3226,102 @@ export default function ClusterChart({
     }
 
     ctx.restore(); // Undoes translation of -visibleScrollLeft for viewport-wide elements
+
+    // 5.4 Draw Depth of Market (DOM) Histogram fixed on the right (similar to ATAS & Tiger Trade)
+    const domActive = activeIndicators?.depthOfMarket || false;
+    if (domActive && orderBook) {
+      ctx.save();
+      
+      // Clip strictly within the main candlestick vertical area
+      ctx.beginPath();
+      ctx.rect(margin.left, margin.top, viewportWidth - margin.left, chartHeight);
+      ctx.clip();
+
+      const domSettings = indicatorSettings?.depthOfMarket || {};
+      const domWidthMode = domSettings.domWidthMode || "auto";
+      const domMaxWidth = typeof domSettings.domMaxWidth === "number" ? domSettings.domMaxWidth : 100;
+      const domColorBidRaw = domSettings.domColorBid || "#FF228B22";
+      const domColorAskRaw = domSettings.domColorAsk || "#FFC80000";
+      const domOpacity = typeof domSettings.domOpacity === "number" ? domSettings.domOpacity : 40;
+
+      const domColorBid = parseHexColor(domColorBidRaw);
+      const domColorAsk = parseHexColor(domColorAskRaw);
+
+      // Apply opacity cleanly to parsed colors
+      const applyOpacity = (hex: string, opacityPercent: number): string => {
+        if (hex.startsWith("#")) {
+          const clean = hex.slice(1);
+          if (clean.length === 6) {
+            const r = parseInt(clean.slice(0, 2), 16);
+            const g = parseInt(clean.slice(2, 4), 16);
+            const b = parseInt(clean.slice(4, 6), 16);
+            return `rgba(${r}, ${g}, ${b}, ${opacityPercent / 100})`;
+          } else if (clean.length === 8) {
+            const r = parseInt(clean.slice(0, 2), 16);
+            const g = parseInt(clean.slice(2, 4), 16);
+            const b = parseInt(clean.slice(4, 6), 16);
+            const a = parseInt(clean.slice(6, 8), 16) / 255;
+            return `rgba(${r}, ${g}, ${b}, ${a * (opacityPercent / 100)})`;
+          }
+        }
+        return hex;
+      };
+
+      const bidColorFill = applyOpacity(domColorBid, domOpacity);
+      const askColorFill = applyOpacity(domColorAsk, domOpacity);
+
+      // Determine maximum amount to scale the bars
+      let maxAmount = 1;
+      orderBook.bids.forEach(b => { if (b.amount > maxAmount) maxAmount = b.amount; });
+      orderBook.asks.forEach(a => { if (a.amount > maxAmount) maxAmount = a.amount; });
+
+      const scaleMaxWidth = domWidthMode === "auto" ? 100 : domMaxWidth;
+      const chartRightX = viewportWidth;
+
+      // Price step in pixels
+      const oneTickHeight = Math.abs(priceToY(activePair.price) - priceToY(activePair.price + activePair.priceStep));
+      const barH = Math.max(1.5, Math.min(18, oneTickHeight - 0.5));
+
+      // Draw Ask limit order levels
+      orderBook.asks.forEach(item => {
+        const y = priceToY(item.price);
+        if (y >= margin.top && y <= margin.top + chartHeight) {
+          const barWidth = (item.amount / maxAmount) * scaleMaxWidth;
+          
+          ctx.fillStyle = askColorFill;
+          ctx.fillRect(chartRightX - barWidth, y - barH / 2, barWidth, barH);
+
+          // Left border line for the bar structure
+          ctx.strokeStyle = applyOpacity(domColorAsk, Math.min(100, domOpacity * 1.5));
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(chartRightX - barWidth, y - barH / 2);
+          ctx.lineTo(chartRightX - barWidth, y + barH / 2);
+          ctx.stroke();
+        }
+      });
+
+      // Draw Bid limit order levels
+      orderBook.bids.forEach(item => {
+        const y = priceToY(item.price);
+        if (y >= margin.top && y <= margin.top + chartHeight) {
+          const barWidth = (item.amount / maxAmount) * scaleMaxWidth;
+
+          ctx.fillStyle = bidColorFill;
+          ctx.fillRect(chartRightX - barWidth, y - barH / 2, barWidth, barH);
+
+          // Left border line
+          ctx.strokeStyle = applyOpacity(domColorBid, Math.min(100, domOpacity * 1.5));
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(chartRightX - barWidth, y - barH / 2);
+          ctx.lineTo(chartRightX - barWidth, y + barH / 2);
+          ctx.stroke();
+        }
+      });
+
+      ctx.restore();
+    }
 
     // 5.5 Draw the solid timeline footer strip and time axis labels on top of everything else (to hide overlapping candles/wicks)
     ctx.save();
@@ -3774,8 +4169,19 @@ export default function ClusterChart({
         >
           {/* Label / Dynamic value indicator */}
           <div className="flex items-center gap-1.5 font-mono text-[10px] sm:text-[11px] font-bold tracking-wider">
+            <span 
+              className="w-1.5 h-1.5 rounded-full" 
+              style={{ backgroundColor: cvdLineColor }} 
+            />
             <span className={isLight ? "text-slate-800" : "text-white"}>(PROCLUSTER) CVD</span>
-            <span className={hoveredCandleIdx >= 0 && hoveredCandleIdx < cumulativeDeltaPoints.length ? "text-purple-400 font-extrabold" : "text-slate-500"}>
+            <span 
+              className="font-extrabold"
+              style={{ 
+                color: hoveredCandleIdx >= 0 && hoveredCandleIdx < cumulativeDeltaPoints.length 
+                  ? cvdLineColor 
+                  : "#64748b" 
+              }}
+            >
               {cvdValueText}
             </span>
           </div>

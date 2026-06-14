@@ -3,6 +3,7 @@ import { IndicatorModule } from "./types";
 export interface DeltaSettings {
   showLabels: boolean;
   sensitivity: number;
+  deltaPlotType?: "candles" | "bars";
 }
 
 export const deltaIndicator: IndicatorModule & {
@@ -26,7 +27,8 @@ export const deltaIndicator: IndicatorModule & {
   details: "Отвечает на вопрос, кто прямо сейчас доминирует на рынке — быки или медведи. Положительная (зеленая) дельта означает перевес рыночных покупок, отрицательная (красная) — преобладание рыночных продаж.",
   defaultSettings: {
     showLabels: true,
-    sensitivity: 5
+    sensitivity: 5,
+    deltaPlotType: "candles"
   },
   isActiveDefault: true,
 

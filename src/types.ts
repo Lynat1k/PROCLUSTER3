@@ -123,6 +123,29 @@ export interface IndicatorSettings {
   // Volume on Chart specific settings
   volumeOnChartDeltaThreshold?: number;
   volumeOnChartMaxHeightPercent?: number;
+
+  // CVD custom settings
+  cvdLineColor?: string;
+  cvdPeriod?: "all" | "day" | "week" | "month" | "visible";
+  cvdPlotType?: "line" | "candles";
+
+  // Delta custom settings
+  deltaPlotType?: "candles" | "bars";
+
+  // Stacked Imbalance settings
+  siRatio?: number;
+  siRange?: number;
+  siVolume?: number;
+  siColorNeg?: string;
+  siColorPos?: string;
+  siLineWidth?: number;
+
+  // Depth of Market settings
+  domWidthMode?: "auto" | "manual";
+  domMaxWidth?: number;
+  domColorBid?: string;
+  domColorAsk?: string;
+  domOpacity?: number;
 }
 
 export interface Indicator {

@@ -2134,7 +2134,8 @@ export default function App() {
           volume: (indicators.find(i => i.id === "volume" || i.id === "volumeProfile")?.isActive ?? false) && (indicators.find(i => i.id === "volume" || i.id === "volumeProfile")?.isVisible !== false),
           volumeOnChart: (indicators.find(i => i.id === "volumeOnChart")?.isActive ?? false) && (indicators.find(i => i.id === "volumeOnChart")?.isVisible !== false),
           cvd: (indicators.find(i => i.id === "cvd")?.isActive ?? false) && (indicators.find(i => i.id === "cvd")?.isVisible !== false),
-          stackedImbalance: (indicators.find(i => i.id === "stackedImbalance")?.isActive ?? false) && (indicators.find(i => i.id === "stackedImbalance")?.isVisible !== false)
+          stackedImbalance: (indicators.find(i => i.id === "stackedImbalance")?.isActive ?? false) && (indicators.find(i => i.id === "stackedImbalance")?.isVisible !== false),
+          depthOfMarket: (indicators.find(i => i.id === "depthOfMarket")?.isActive ?? false) && (indicators.find(i => i.id === "depthOfMarket")?.isVisible !== false)
         };
 
         const indicatorSettings = {
@@ -2143,7 +2144,8 @@ export default function App() {
           delta: indicators.find(i => i.id === "delta")?.settings || {},
           cvd: indicators.find(i => i.id === "cvd")?.settings || {},
           volumeOnChart: indicators.find(i => i.id === "volumeOnChart")?.settings || {},
-          stackedImbalance: indicators.find(i => i.id === "stackedImbalance")?.settings || {}
+          stackedImbalance: indicators.find(i => i.id === "stackedImbalance")?.settings || {},
+          depthOfMarket: indicators.find(i => i.id === "depthOfMarket")?.settings || {}
         };
 
         return (
@@ -2243,6 +2245,7 @@ export default function App() {
                     workspaceLayout={workspaceLayout}
                     onWorkspaceLayoutChange={setWorkspaceLayout}
                     workspacesCount={getActiveGroupLimits().workspacesCount}
+                    orderBook={orderBook0}
                   />
                 </div>
 
@@ -2319,6 +2322,7 @@ export default function App() {
                       workspaceLayout={workspaceLayout}
                       onWorkspaceLayoutChange={setWorkspaceLayout}
                       workspacesCount={getActiveGroupLimits().workspacesCount}
+                      orderBook={orderBook1}
                     />
                   </div>
                 )}
