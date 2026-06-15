@@ -2967,30 +2967,30 @@ export default function ClusterChart({
 
         ctx.save();
         if (isHovered) {
-          ctx.font = "bold 9px 'Inter', sans-serif";
+          ctx.font = "bold 11.5px 'Inter', sans-serif";
           const textWidth = ctx.measureText(timeStr).width;
-          const padX = 6;
-          const padY = 3;
+          const padX = 8;
           const rectW = textWidth + padX * 2;
-          const rectH = 15;
+          const rectH = 19;
           const rectX = x + candleWidth / 2 - rectW / 2;
           const rectY = totalSvgHeight - margin.bottom + 16 - rectH / 2;
 
           ctx.beginPath();
           if (ctx.roundRect) {
-            ctx.roundRect(rectX, rectY, rectW, rectH, 3);
+            ctx.roundRect(rectX, rectY, rectW, rectH, 4);
           } else {
             ctx.rect(rectX, rectY, rectW, rectH);
           }
-          ctx.fillStyle = isLight ? "rgba(15, 23, 42, 0.08)" : "rgba(245, 158, 11, 0.15)";
+          ctx.fillStyle = isLight ? "rgba(15, 23, 42, 0.12)" : "rgba(245, 158, 11, 0.22)";
           ctx.fill();
 
-          ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.18)" : "rgba(245, 158, 11, 0.35)";
-          ctx.lineWidth = 1;
+          ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.25)" : "rgba(245, 158, 11, 0.55)";
+          ctx.lineWidth = 1.2;
           ctx.stroke();
 
-          ctx.fillStyle = isLight ? "#0f172a" : "#f59e0b";
+          ctx.fillStyle = isLight ? "#0f172a" : "#facc15";
           ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
           ctx.fillText(timeStr, x + candleWidth / 2, totalSvgHeight - margin.bottom + 16);
         } else {
           ctx.font = "bold 9px 'Inter', sans-serif";
