@@ -48,10 +48,10 @@ export default function IndicatorsModal({
   const [selectedId, setSelectedId] = useState<string>("clusterSearch");
 
   // Dynamic sizing state
-  const [size, setSize] = useState({ width: 855, height: 580 });
+  const [size, setSize] = useState({ width: 855, height: 800 });
   const [resizing, setResizing] = useState(false);
   const resizeStart = useRef({ x: 0, y: 0 });
-  const sizeStart = useRef({ width: 855, height: 580 });
+  const sizeStart = useRef({ width: 855, height: 800 });
   const resizeOffsetStart = useRef({ x: 0, y: 0 });
 
   // Accordion collapsed state for categories
@@ -100,7 +100,7 @@ export default function IndicatorsModal({
       // Deep copy to ensure safety of draft manipulation
       setDraft(JSON.parse(JSON.stringify(indicators)));
       setOffset({ x: 0, y: 0 }); // Reset window offset on open
-      setSize({ width: 855, height: 580 }); // Reset size on open
+      setSize({ width: 855, height: 800 }); // Reset size on open
     }
   }, [isOpen, indicators]);
 
@@ -599,7 +599,7 @@ export default function IndicatorsModal({
                 </div>
 
                 {/* Информационное Описание Индикатора */}
-                <div className={`p-4 rounded-2xl border transition-all duration-300 flex flex-col gap-2.5 ${
+                <div className={`p-4 rounded-2xl border transition-all duration-300 flex flex-col gap-2 ${
                   isLight 
                     ? "bg-blue-50/40 border-blue-250/20" 
                     : "bg-blue-500/5 border-blue-500/10 text-slate-300"
@@ -609,23 +609,10 @@ export default function IndicatorsModal({
                       isLight ? "text-blue-700" : "text-blue-450"
                     }`}>
                       <Activity className="w-3.5 h-3.5" />
-                      Что делает индикатор:
+                      Описание и отображение на графике:
                     </span>
                     <p className={`text-xs leading-relaxed ${isLight ? "text-slate-750" : "text-slate-250"}`}>
-                      {INDICATOR_DESCRIPTIONS[selectedIndicator.id]?.desc || "Отображает математический и статистический анализ ценовых графиков."}
-                    </p>
-                  </div>
-                  
-                  <div className={`h-[1px] w-full ${isLight ? "bg-slate-205/50 border-t border-dashed border-slate-200/40" : "bg-white/5"}`} />
-                  
-                  <div className="flex flex-col gap-1">
-                    <span className={`text-[10px] uppercase font-bold font-mono tracking-wider flex items-center gap-1.5 ${
-                      isLight ? "text-indigo-700" : "text-indigo-400"
-                    }`}>
-                      <Layers className="w-3.5 h-3.5" />
-                      Что отображается на графике:
-                    </span>
-                    <p className={`text-xs leading-relaxed ${isLight ? "text-slate-750" : "text-slate-250"}`}>
+                      {INDICATOR_DESCRIPTIONS[selectedIndicator.id]?.desc || "Отображает математический и статистический анализ ценовых графиков."}{" "}
                       {INDICATOR_DESCRIPTIONS[selectedIndicator.id]?.details || "Визуализирует распределение объемов, плотностей и дисбалансов покупателей и продавцов на рабочей панели."}
                     </p>
                   </div>
@@ -1642,10 +1629,10 @@ export default function IndicatorsModal({
         {/* RESIZE HANDLE */}
         <div
           onMouseDown={handleResizeMouseDown}
-          className="absolute bottom-1 right-1 w-5 h-5 cursor-se-resize flex items-end justify-end p-0.5 select-none z-50 no-drag"
+          className="absolute bottom-[6px] right-[6px] w-[21px] h-[21px] cursor-se-resize flex items-end justify-end p-0.5 select-none z-50 no-drag"
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" className="text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
-            <path d="M10 0 L0 10 M10 4 L4 10 M10 7 L7 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <svg width="11" height="11" viewBox="0 0 11 11" className="text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+            <path d="M11 0 L0 11 M11 4 L4 11 M11 8 L8 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </div>
       </motion.div>
