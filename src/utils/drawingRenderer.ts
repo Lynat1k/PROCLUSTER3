@@ -21,6 +21,8 @@ export interface DrawingItem {
   text: string;
   stage?: number;
   offsetPrice?: number;
+  color?: string;
+  fontSize?: number;
 }
 
 interface RenderContext {
@@ -91,19 +93,13 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
     } 
     else if (d.type === "horizontal") {
       ctx.beginPath();
-      ctx.strokeStyle = "#10b981";
+      ctx.strokeStyle = isLight ? "#ea580c" : "#f97316";
       ctx.lineWidth = 1.8;
-      ctx.setLineDash([5, 5]);
+      ctx.setLineDash([6, 4]);
       ctx.moveTo(visibleScrollLeft + margin.left, y1);
       ctx.lineTo(visibleScrollLeft + viewportWidth - margin.right, y1);
       ctx.stroke();
       ctx.setLineDash([]);
-
-      ctx.fillStyle = "rgba(16, 185, 129, 0.25)";
-      ctx.fillRect(visibleScrollLeft + margin.left, y1 - 8, 55, 16);
-      ctx.font = "bold 9px monospace";
-      ctx.fillStyle = "#10b981";
-      ctx.fillText(d.startPrice.toFixed(1), visibleScrollLeft + margin.left + 4, y1);
     } 
     else if (d.type === "rect") {
       ctx.beginPath();
@@ -205,14 +201,10 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
       ctx.textAlign = "left";
     } 
     else if (d.type === "text") {
-      ctx.fillStyle = isLight ? "#1e293b" : "#f1f5f9";
-      ctx.font = "bold 11px sans-serif";
-      ctx.fillText(`💬 ${d.text || "TEXT"}`, x1, y1 - 6);
-
-      ctx.fillStyle = "#a855f7";
-      ctx.beginPath();
-      ctx.arc(x1, y1, 4.5, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = d.color || (isLight ? "#1e293b" : "#f1f5f9");
+      const fSize = d.fontSize || 11;
+      ctx.font = `bold ${fSize}px sans-serif`;
+      ctx.fillText(d.text || "TEXT", x1, y1);
     } 
     else if (d.type === "arrow") {
       ctx.save();

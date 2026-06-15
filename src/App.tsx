@@ -1909,8 +1909,8 @@ export default function App() {
                         layoutId="activeCandleType"
                         className={`absolute inset-0 rounded-md ${
                           theme === "light"
-                            ? "bg-white border border-slate-300 shadow-sm"
-                            : "bg-blue-500/10 border border-blue-500/25 shadow-inner"
+                            ? "bg-amber-100 border border-amber-400 shadow-sm"
+                            : "bg-amber-500/10 border border-amber-500/25 shadow-inner"
                         }`}
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
                         style={{ zIndex: 0 }}
@@ -1919,8 +1919,8 @@ export default function App() {
                     <span className={`relative z-10 flex items-center justify-center transition-colors duration-200 ${
                       isSelected
                         ? theme === "light"
-                          ? "text-blue-800 font-black"
-                          : "text-blue-400 font-extrabold"
+                          ? "text-amber-950 font-black"
+                          : "text-yellow-400 font-extrabold"
                         : theme === "light"
                           ? "text-slate-600 hover:text-slate-900 font-bold"
                           : "text-slate-400 hover:text-slate-200"
@@ -2042,8 +2042,8 @@ export default function App() {
                         layoutId="activeCandleDataType"
                         className={`absolute inset-0 rounded-md ${
                           theme === "light"
-                            ? "bg-white border border-slate-300 shadow-sm"
-                            : "bg-blue-500/10 border border-blue-500/25 shadow-inner"
+                            ? "bg-amber-100 border border-amber-400 shadow-sm"
+                            : "bg-amber-500/10 border border-amber-500/25 shadow-inner"
                         }`}
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
                         style={{ zIndex: 0 }}
@@ -2052,8 +2052,8 @@ export default function App() {
                     <span className={`relative z-10 font-mono text-[10px] sm:text-[11px] whitespace-nowrap transition-colors duration-200 ${
                       isSelected
                         ? theme === "light"
-                          ? "text-blue-800 font-black"
-                          : "text-blue-400 font-extrabold"
+                          ? "text-amber-950 font-black"
+                          : "text-yellow-400 font-extrabold"
                         : theme === "light"
                           ? "text-slate-600 hover:text-slate-900 font-bold"
                           : "text-slate-400 hover:text-slate-200"

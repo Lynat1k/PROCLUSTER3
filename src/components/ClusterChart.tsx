@@ -97,6 +97,16 @@ export default function ClusterChart({
   const [drawingInProgress, setDrawingInProgress] = useState<any | null>(null);
   const [selectedDrawingId, setSelectedDrawingId] = useState<number | null>(null);
   const [drawingDragState, setDrawingDragState] = useState<any | null>(null);
+  const [textInputModal, setTextInputModal] = useState<{
+    id: number;
+    startX: number;
+    startPrice: number;
+    endX: number;
+    endPrice: number;
+  } | null>(null);
+  const [textInputValue, setTextInputValue] = useState("");
+  const [textInputFontSize, setTextInputFontSize] = useState<number>(11);
+  const [textInputColor, setTextInputColor] = useState<string>("#3b82f6");
 
   const [selectedTimezone, setSelectedTimezone] = useState<string>(() => {
     return storage.get("procluster_chart_timezone") || "local";
@@ -1047,11 +1057,14 @@ export default function ClusterChart({
       }
 
       if (drawingInProgress.type === "text") {
-        // Prompt for text
-        const txt = prompt(language === "RU" ? "Введите текст для графика:" : "Enter your chart text:");
-        if (txt && txt.trim()) {
-          setDrawings(prev => [...prev, { ...drawingInProgress, text: txt }]);
-        }
+        setTextInputModal({
+          id: drawingInProgress.id,
+          startX: drawingInProgress.startX,
+          startPrice: drawingInProgress.startPrice,
+          endX: drawingInProgress.endX,
+          endPrice: drawingInProgress.endPrice,
+        });
+        setTextInputValue("");
       } else {
         // Minimum distance safe check or let all slide
         setDrawings(prev => [...prev, drawingInProgress]);
@@ -3586,6 +3599,42 @@ export default function ClusterChart({
             return null;
           })()}
 
+          {/* Horizontal Level Drawing Object price badges on the fixed scale */}
+          {[...drawings, ...(drawingInProgress ? [drawingInProgress] : [])]
+            .filter((d) => d.type === "horizontal")
+            .map((d) => {
+              const y = priceToY(d.startPrice);
+              if (y >= margin.top && y <= margin.top + chartHeight) {
+                // Render custom, high-contrast badges for each horizontal line
+                return (
+                  <g key={`fixed-level-badge-${d.id}`}>
+                    <rect
+                      x={3}
+                      y={y - 8}
+                      width={82}
+                      height={16}
+                      fill={isLight ? "#ffedd5" : "rgba(249, 115, 22, 0.2)"}
+                      rx="2"
+                      stroke={isLight ? "#f97316" : "#f97316"}
+                      strokeWidth="1.2"
+                    />
+                    <text
+                      x={8}
+                      y={y + 4}
+                      fill={isLight ? "#ea580c" : "#f97316"}
+                      fontSize="9.5"
+                      fontFamily="'Inter', -apple-system, sans-serif"
+                      fontWeight="bold"
+                      textAnchor="start"
+                    >
+                      ${d.startPrice.toLocaleString(undefined, { minimumFractionDigits: activePair.priceStep < 0.1 ? 3 : 1 })}
+                    </text>
+                  </g>
+                );
+              }
+              return null;
+            })}
+
           {/* Panel Dividers for right pricing panel */}
           {(activeIndicators.delta || activeIndicators.cvd) && (
             <line
@@ -3968,6 +4017,119 @@ export default function ClusterChart({
           </div>
         );
       })()}
+
+      {/* Modern, non-blocking custom modal dialog for the text annotation tool */}
+      {textInputModal && (
+        <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-xs select-none">
+          <div className={`p-5 rounded-2xl border w-96 max-w-full shadow-2xl flex flex-col gap-4 ${
+            isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0c0e17] border-white/10 text-slate-100"
+          }`}>
+            <h3 className="text-sm font-bold tracking-tight">
+              {language === "RU" ? "Добавить текстовую заметку" : "Add Text Annotation"}
+            </h3>
+            <textarea
+              className={`w-full p-2.5 rounded-lg border text-xs focus:outline-none focus:ring-1 ${
+                isLight 
+                  ? "border-slate-300 bg-slate-50 focus:ring-amber-500 focus:border-amber-500 text-slate-800" 
+                  : "border-white/10 bg-white/5 focus:ring-amber-500 focus:border-amber-500 text-slate-100"
+              }`}
+              rows={3}
+              placeholder={language === "RU" ? "Введите ваш текст здесь..." : "Type your annotation here..."}
+              value={textInputValue}
+              onChange={(e) => setTextInputValue(e.target.value)}
+              autoFocus
+            />
+
+            {/* Custom Color Selector */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-bold tracking-tight uppercase opacity-60">
+                {language === "RU" ? "Цвет текста:" : "Text Color:"}
+              </span>
+              <div className="flex gap-2">
+                {[
+                  "#ef4444", // Red
+                  "#10b981", // Green
+                  "#f59e0b", // Gold
+                  "#3b82f6", // Blue
+                  "#a855f7", // Purple
+                  "#ec4899", // Pink
+                  isLight ? "#0f172a" : "#f1f5f9" // Theme contrasting
+                ].map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setTextInputColor(color)}
+                    style={{ backgroundColor: color }}
+                    className={`w-6 h-6 rounded-full cursor-pointer relative transition-all border ${
+                      textInputColor === color 
+                        ? "scale-110 ring-2 ring-amber-500 ring-offset-2 ring-offset-slate-950 border-white"
+                        : "border-transparent opacity-80 hover:opacity-100"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Font Size Selector */}
+            <div className="flex flex-col gap-1.5 mb-1">
+              <span className="text-[11px] font-bold tracking-tight uppercase opacity-60">
+                {language === "RU" ? "Размер шрифта:" : "Font Size:"}
+              </span>
+              <div className="flex gap-1.5">
+                {[9, 11, 13, 16, 20, 26].map((sz) => (
+                  <button
+                    key={sz}
+                    onClick={() => setTextInputFontSize(sz)}
+                    className={`px-3 py-1 rounded text-xs font-mono font-bold transition-all cursor-pointer border ${
+                      textInputFontSize === sz
+                        ? "bg-amber-500 text-slate-950 border-amber-600 font-extrabold"
+                        : isLight
+                          ? "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                          : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10"
+                    }`}
+                  >
+                    {sz}px
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5">
+              <button
+                onClick={() => setTextInputModal(null)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+                  isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium" : "bg-white/5 hover:bg-white/10 text-slate-300"
+                }`}
+              >
+                {language === "RU" ? "Отмена" : "Cancel"}
+              </button>
+              <button
+                onClick={() => {
+                  if (textInputValue.trim()) {
+                    setDrawings(prev => [
+                      ...prev,
+                      {
+                        id: textInputModal.id,
+                        type: "text" as const,
+                        startX: textInputModal.startX,
+                        startPrice: textInputModal.startPrice,
+                        endX: textInputModal.endX,
+                        endPrice: textInputModal.endPrice,
+                        text: textInputValue.trim(),
+                        color: textInputColor,
+                        fontSize: textInputFontSize,
+                      },
+                    ]);
+                  }
+                  setTextInputModal(null);
+                }}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-slate-950 cursor-pointer"
+              >
+                {language === "RU" ? "Создать" : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
