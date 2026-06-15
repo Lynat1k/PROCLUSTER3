@@ -33,6 +33,10 @@ interface HeaderProps {
   onOpenProfile?: () => void;
   onOpenHome?: () => void;
   onOpenRoadmap?: () => void;
+  onToggleMobileSettings?: () => void;
+  isMobileSettingsOpen?: boolean;
+  activeMobileTab?: "chart" | "dom";
+  setActiveMobileTab?: (tab: "chart" | "dom") => void;
 }
 
 export default function Header({
@@ -48,7 +52,11 @@ export default function Header({
   onChangeUserRole,
   onOpenProfile,
   onOpenHome,
-  onOpenRoadmap
+  onOpenRoadmap,
+  onToggleMobileSettings,
+  isMobileSettingsOpen = false,
+  activeMobileTab,
+  setActiveMobileTab
 }: HeaderProps) {
   
   const isLight = theme === "light";
@@ -151,19 +159,19 @@ export default function Header({
 
   // Custom stenciled PROCLUSTER Logo - responsive Vector SVG / Typography design
   const Logo = () => (
-    <div className="flex items-center gap-3 select-none cursor-pointer group hover:opacity-95 transition-all duration-200">
+    <div className="flex items-center gap-1.5 sm:gap-3 select-none cursor-pointer group hover:opacity-95 transition-all duration-200" title="ProCluster">
       {/* Visual Identity Icon Frame */}
-      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 via-amber-500 to-amber-600 flex items-center justify-center shadow-md scale-100 group-hover:scale-105 active:scale-95 transition-all duration-200 ${
+      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 via-amber-500 to-amber-600 flex items-center justify-center shadow-md scale-100 group-hover:scale-105 active:scale-95 transition-all duration-200 ${
         isLight ? "shadow-amber-600/10" : "shadow-amber-500/15"
       }`}>
-        <Layers className="w-5.5 h-5.5 text-slate-950 stroke-[2.5]" />
+        <Layers className="text-slate-950 stroke-[2.5]" style={{ width: "17px", height: "17px" }} />
       </div>
-      <div className="flex flex-col">
-        <span className="text-lg font-black tracking-tight leading-none font-sans">
+      <div className="hidden sm:flex flex-col text-left leading-none">
+        <span className="text-sm sm:text-lg font-black tracking-tight leading-none font-sans">
           <span className={isLight ? "text-slate-900" : "text-white"}>PRO</span>
           <span className={isLight ? "text-amber-600" : "text-amber-400"}>CLUSTER</span>
         </span>
-        <span className={`text-[9px] font-mono tracking-widest font-bold uppercase leading-none mt-1.5 ${
+        <span className={`text-[7px] sm:text-[9px] font-mono tracking-widest font-bold uppercase leading-none mt-0.5 sm:mt-1.5 ${
           isLight ? "text-slate-500" : "text-slate-400"
         }`}>
           Cluster Analytics
@@ -173,7 +181,7 @@ export default function Header({
   );
 
   return (
-    <header className={`border-b px-6 py-3 flex flex-wrap items-center justify-between gap-4 z-50 sticky top-0 transition-all duration-300 relative ${
+    <header className={`border-b px-2 py-2 sm:px-6 sm:py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-1.5 lg:gap-4 z-50 sticky top-0 transition-all duration-300 relative ${
       isLight ? "border-slate-200/50 shadow-sm" : "border-white/10 shadow-2xl"
     }`}>
       {/* Background layer decoupled to avoid nested backdrop-filter browser rendering conflicts */}
@@ -181,12 +189,239 @@ export default function Header({
         isLight ? "bg-white/55 backdrop-blur-3xl saturate-150" : "bg-slate-950/45 backdrop-blur-md"
       }`} />
 
-      <div className="flex items-center gap-8 relative z-10">
+      {/* MOBILE FIRST ROW: Logo (left), Right controls: Theme, Profile, Admin | DESKTOP LEFT COLS */}
+      <div className="flex w-full lg:w-auto items-center justify-between gap-2 relative z-10">
         <Logo />
+
+        {/* Mobile Right Controls: Theme, Profile, Admin */}
+        <div className="flex lg:hidden items-center gap-1.5" ref={dropdownRef}>
+          {/* LIGHT/DARK THEME TOGGLE BUTTON */}
+          <button
+            onClick={onToggleTheme}
+            className={`flex items-center justify-center p-1.5 rounded-xl border cursor-pointer hover:scale-105 active:scale-95 transition-all ${
+              isLight
+                ? "bg-slate-200 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
+                : "bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-yellow-400 hover:text-yellow-300 shadow-inner"
+            }`}
+            title={isLight 
+              ? headerUiTexts[language].enableDarkTheme
+              : headerUiTexts[language].enableLightTheme
+            }
+          >
+            {isLight ? (
+              <Moon className="w-3.5 h-3.5 text-slate-705 font-bold" />
+            ) : (
+              <Sun className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500/10" />
+            )}
+          </button>
+
+          {/* PROFILE / SIGN IN BUTTONS */}
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className={`flex items-center gap-1 p-1 rounded-xl transition-all duration-200 cursor-pointer border shadow-inner ${
+                  isLight
+                    ? "border-slate-200 bg-slate-100 hover:bg-slate-200/80"
+                    : "border-white/5 bg-slate-950/40 hover:bg-slate-900/60"
+                }`}
+              >
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  referrerPolicy="no-referrer"
+                  className={`w-6 h-6 rounded-lg object-cover select-none border ${
+                    isLight ? "border-slate-300" : "border-white/25"
+                  }`}
+                />
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${
+                  isLight ? "text-slate-700" : "text-slate-400"
+                } ${dropdownOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              <AnimatePresence>
+                {dropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className={`absolute right-0 mt-2 w-60 rounded-[20px] p-4 z-[99] text-left select-none font-sans border shadow-2xl ${
+                      isLight
+                        ? "bg-white border-slate-200 text-slate-800"
+                        : "muddy-glass-popover text-slate-100"
+                    }`}
+                  >
+                    <div className={`flex items-center gap-2.5 pb-3 mb-3 border-b ${
+                      isLight ? "border-slate-100" : "border-white/5"
+                    }`}>
+                      <img
+                        src={user.avatar}
+                        alt={user.name}
+                        referrerPolicy="no-referrer"
+                        className={`w-8 h-8 rounded-full object-cover border shadow-sm ${
+                          isLight ? "border-slate-200" : "border-white/10"
+                        }`}
+                      />
+                      <div className="min-w-0">
+                        <div className={`text-[12px] font-black leading-none ${
+                          isLight ? "text-slate-800" : "text-slate-100"
+                        }`}>
+                          {user.name.toLowerCase()}
+                        </div>
+                        <div className={`text-[9px] font-mono mt-1 leading-none truncate ${
+                          isLight ? "text-slate-505" : "text-slate-400"
+                        }`}>
+                          {user.email.toLowerCase()}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <button 
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          if (onOpenProfile) onOpenProfile();
+                        }}
+                        className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer transition text-left ${
+                        isLight ? "text-slate-700 hover:text-slate-900 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-white/5"
+                      }`}>
+                        <User className="w-3.5 h-3.5 text-slate-505" />
+                        <span>{headerUiTexts[language].profileAvatar}</span>
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          if (onOpenHome) onOpenHome();
+                        }}
+                        className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer transition text-left ${
+                        isLight ? "text-slate-700 hover:text-slate-900 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-white/5"
+                      }`}>
+                        <Home className="w-3.5 h-3.5 text-slate-505" />
+                        <span>{headerUiTexts[language].home}</span>
+                      </button>
+
+                      <button className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer transition text-left ${
+                        isLight ? "text-slate-700 hover:bg-red-50 hover:text-rose-600" : "text-slate-300 hover:text-white hover:bg-white/5"
+                      }`}>
+                        <Bug className="w-3.5 h-3.5 text-rose-505" />
+                        <span>{headerUiTexts[language].foundError}</span>
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText("7D53CEC5");
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                        className={`flex items-center justify-between gap-2 w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono font-bold cursor-pointer transition text-left ${
+                          isLight ? "text-slate-605 hover:text-slate-800 hover:bg-slate-100" : "text-slate-400 hover:text-white hover:bg-white/5"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Copy className="w-3.5 h-3.5 text-slate-505" />
+                          <span className={`tracking-wider text-[10px] ${isLight ? "text-slate-800 font-bold" : "text-slate-300"}`}>7D53CEC5</span>
+                        </div>
+                        {copied ? (
+                          <Check className="w-3 h-3 text-emerald-500" />
+                        ) : (
+                          <span className={`text-[7px] uppercase tracking-widest font-bold px-1 py-0.5 rounded border ${
+                            isLight ? "bg-slate-205 border-slate-300 text-slate-700" : "bg-white/5 border-white/5 text-slate-505"
+                          }`}>
+                            {headerUiTexts[language].copy}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className={`mt-3 pt-3 border-t ${isLight ? "border-slate-100" : "border-white/5"}`}>
+                      <div className={`grid grid-cols-3 gap-1 p-[2px] rounded-xl border ${
+                        isLight ? "bg-slate-100 border-slate-200/50" : "bg-slate-950/60 border-white/5"
+                      }`}>
+                        {["RU", "EN", "KZ"].map((lang) => {
+                          const isSelected = language === lang;
+                          return (
+                            <button
+                              key={lang}
+                              onClick={() => onLanguageChange(lang as any)}
+                              className="py-1 rounded-lg text-[9.5px] font-bold font-mono cursor-pointer text-center relative border-0 outline-none"
+                            >
+                              {isSelected && (
+                                <motion.div
+                                  layoutId="activeLanguageMobile"
+                                  className={`absolute inset-0 rounded-lg ${
+                                    isLight 
+                                      ? "bg-slate-300 border border-slate-400 shadow-sm"
+                                      : "bg-slate-800 border border-white/10 shadow-md"
+                                  }`}
+                                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                                  style={{ zIndex: 0 }}
+                                />
+                              )}
+                              <span className={`relative z-10 ${
+                                isSelected
+                                  ? isLight ? "text-slate-900 font-black" : "text-white font-black"
+                                  : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
+                              }`}>
+                                {lang}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className={`mt-3 pt-3 border-t text-left ${isLight ? "border-slate-100" : "border-white/5"}`}>
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-505/5 cursor-pointer transition text-left"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>{headerUiTexts[language].logout}</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setAuthError("");
+                setAuthTab("login");
+                setShowLoginModal(true);
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border font-bold text-[10px] uppercase tracking-wide cursor-pointer transition select-none ${
+                isLight
+                  ? "bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900 shadow-sm"
+                  : "bg-yellow-500/10 hover:bg-yellow-500/15 border-yellow-500/20 text-yellow-500"
+              }`}
+            >
+              <LogIn className="w-3.5 h-3.5 text-yellow-500" />
+              <span>Sign In</span>
+            </button>
+          )}
+
+          {/* ADMIN TRIGGER */}
+          {user && (user.name === "Admin" || user.email === "admin@procluster.io") && (
+            <button
+              onClick={onOpenAdmin}
+              className={`flex items-center justify-center p-1.5 rounded-xl border cursor-pointer hover:scale-105 active:scale-95 transition-all text-[10px] font-bold ${
+                isLight
+                  ? "bg-red-50 hover:bg-red-100 border-red-200 text-red-700 shadow-sm"
+                  : "bg-red-950/20 hover:bg-red-900/40 border-red-900/30 text-red-400 shadow-inner"
+              }`}
+              title={headerUiTexts[language].adminPanelTooltip}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Centered BETA Badge with dynamic styling and link to project roadmap */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex items-center">
+      {/* MID SECTION FOR DESKTOP ONLY: BETA Badge */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center">
         <button
           onClick={onOpenRoadmap}
           className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all duration-300 hover:scale-105 active:scale-98 select-none ${
@@ -202,32 +437,94 @@ export default function Header({
         </button>
       </div>
 
-      {/* Right Controls: Simple & Clean Authorized Profile / Login Section */}
-      <div className="flex items-center gap-3 relative z-10" ref={dropdownRef}>
-        {/* ADMIN MODAL TRIGGER */}
+      {/* MOBILE SECOND ROW: Settings Toggle button on the left, Chart & DOM switch on the right */}
+      {activeMobileTab && setActiveMobileTab && (
+        <div className="flex lg:hidden w-full items-center justify-between gap-2.5 pt-1.5 border-t border-slate-200/50 dark:border-white/5 relative z-10">
+          {/* Settings Trigger for Mobile */}
+          <button
+            onClick={onToggleMobileSettings}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all duration-200 select-none ${
+              isMobileSettingsOpen
+                ? "bg-yellow-500 text-slate-955 border-yellow-500 shadow-sm font-black"
+                : isLight
+                  ? "bg-amber-50/70 hover:bg-amber-100 border-amber-200 text-amber-700 shadow-xs"
+                  : "bg-yellow-500/10 hover:bg-yellow-500/15 border-yellow-500/20 text-yellow-400 shadow-inner"
+            }`}
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>
+              {language === "RU" ? "Настройки" : language === "KZ" ? "Реттеу" : "Params"}
+            </span>
+          </button>
+
+          {/* Chart & DOM Switcher */}
+          <div className={`flex items-center p-0.5 rounded-lg border text-[10px] font-bold select-none gap-0.5 transition-all duration-300 ${
+            isLight ? "bg-slate-100 border-slate-300/60" : "bg-slate-900/60 border-white/5"
+          }`}>
+            <button
+              onClick={() => setActiveMobileTab("chart")}
+              className={`px-3 py-1 rounded-md transition-all duration-200 cursor-pointer flex items-center gap-1 ${
+                activeMobileTab === "chart"
+                  ? isLight
+                    ? "bg-white text-slate-900 border border-slate-300/80 shadow-xs font-black"
+                    : "bg-yellow-500/25 border border-yellow-500/30 text-yellow-500 font-extrabold"
+                  : isLight
+                    ? "text-slate-500 hover:text-slate-900"
+                    : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <span>📊</span>
+              <span className="font-bold">
+                {language === "RU" ? "ГРАФИК" : language === "KZ" ? "ГРАФИКА" : "CHART"}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveMobileTab("dom")}
+              className={`px-3 py-1 rounded-md transition-all duration-200 cursor-pointer flex items-center gap-1 ${
+                activeMobileTab === "dom"
+                  ? isLight
+                    ? "bg-white text-slate-900 border border-slate-300/80 shadow-xs font-black"
+                    : "bg-yellow-500/25 border border-yellow-500/30 text-yellow-500 font-extrabold"
+                  : isLight
+                    ? "text-slate-550 hover:text-slate-900"
+                    : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <span>🧱</span>
+              <span className="font-bold">
+                {language === "RU" ? "СТАКАН" : language === "KZ" ? "СТАКАН" : "DOM"}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* DESKTOP RIGHTS PANEL (Hidden on Mobile) */}
+      <div className="hidden lg:flex items-center gap-1.5 sm:gap-3 relative z-10" ref={dropdownRef}>
+        {/* ADMIN MODAL TRIGGER (Desktop) */}
         {user && (user.name === "Admin" || user.email === "admin@procluster.io") && (
           <button
             onClick={onOpenAdmin}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border cursor-pointer hover:scale-105 active:scale-95 transition-all text-xs font-bold leading-none select-none ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border cursor-pointer hover:scale-105 active:scale-95 transition-all text-xs font-bold leading-none select-none ${
               isLight
                 ? "bg-red-50 hover:bg-red-105 border-red-200 text-red-700 shadow-sm"
                 : "bg-red-950/20 hover:bg-red-900/40 border-red-900/30 text-red-400 shadow-inner hover:text-red-300"
             }`}
             title={headerUiTexts[language].adminPanelTooltip}
           >
-            <Sliders className="w-3.5 h-3.5 animate-pulse" />
-            <span className="hidden sm:inline">
+            <Sliders className="w-3.5 h-3.5" />
+            <span className="inline">
               {headerUiTexts[language].adminLabel}
             </span>
           </button>
         )}
 
-        {/* LIGHT/DARK THEME TOGGLE BUTTON right next to the profile chip */}
+        {/* LIGHT/DARK THEME TOGGLE BUTTON (Desktop) */}
         <button
           onClick={onToggleTheme}
           className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer hover:scale-105 active:scale-95 transition-all ${
             isLight
-              ? "bg-slate-200 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
+              ? "bg-slate-205 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
               : "bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-yellow-400 hover:text-yellow-300 shadow-inner"
           }`}
           title={isLight 
@@ -243,13 +540,13 @@ export default function Header({
         </button>
 
         {user ? (
-          // USER IS LOGGED IN: Beautiful glassy profile chip
+          // USER IS LOGGED IN (Desktop)
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all duration-200 cursor-pointer border shadow-inner hover:scale-[1.01] active:scale-[0.99] ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-3 py-1 rounded-xl transition-all duration-200 cursor-pointer border shadow-inner hover:scale-[1.01] active:scale-[0.99] ${
                 isLight
-                  ? "border-slate-200 bg-slate-100 hover:bg-slate-200/80"
+                  ? "border-slate-200 bg-slate-105 hover:bg-slate-205"
                   : "border-white/5 bg-slate-950/40 hover:bg-slate-900/60"
               }`}
             >
@@ -261,7 +558,7 @@ export default function Header({
                   isLight ? "border-slate-300" : "border-white/25"
                 }`}
               />
-              <div className="text-left hidden sm:block">
+              <div className="text-left hidden md:block">
                 <div className={`text-[11px] font-sans font-black leading-tight ${
                   isLight ? "text-slate-900" : "text-slate-200"
                 }`}>
@@ -273,12 +570,12 @@ export default function Header({
                   PRO MEMBER
                 </div>
               </div>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${
+              <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${
                 isLight ? "text-slate-700" : "text-slate-400"
               } ${dropdownOpen ? "rotate-180" : ""}`} />
             </button>
 
-            {/* Dropdown Menu */}
+            {/* Dropdown Menu (Desktop) */}
             <AnimatePresence>
               {dropdownOpen && (
                 <motion.div
@@ -286,7 +583,7 @@ export default function Header({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className={`absolute right-0 mt-2.5 w-64 rounded-[28px] p-5 z-[99] text-left select-none font-sans transition-all border ${
+                  className={`absolute right-0 mt-2.5 w-64 rounded-[28px] p-5 z-[99] text-left select-none font-sans border ${
                     isLight
                       ? "bg-white border-slate-200 text-slate-800 shadow-2xl"
                       : "muddy-glass-popover text-slate-100"
@@ -301,7 +598,7 @@ export default function Header({
                       alt={user.name}
                       referrerPolicy="no-referrer"
                       className={`w-11 h-11 rounded-full object-cover border-2 shadow-sm ${
-                        isLight ? "border-slate-200" : "border-white/10"
+                        isLight ? "border-slate-205" : "border-white/10"
                       }`}
                     />
                     <div className="min-w-0">
@@ -345,13 +642,12 @@ export default function Header({
                     </button>
 
                     <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[12px] font-bold cursor-pointer transition text-left ${
-                      isLight ? "text-slate-700 hover:bg-red-50 hover:text-rose-600" : "text-slate-300 hover:text-white hover:bg-white/5"
+                      isLight ? "text-slate-705 hover:bg-red-50 hover:text-rose-600" : "text-slate-305 hover:text-white hover:bg-white/5"
                     }`}>
                       <Bug className="w-4 h-4 text-rose-500" />
                       <span>{headerUiTexts[language].foundError}</span>
                     </button>
 
-                    {/* Copyable Workspace Segment */}
                     <button 
                       onClick={() => {
                         navigator.clipboard.writeText("7D53CEC5");
@@ -364,13 +660,13 @@ export default function Header({
                     >
                       <div className="flex items-center gap-3">
                         <Copy className="w-4 h-4 text-slate-500" />
-                        <span className={`tracking-wider text-[11px] ${isLight ? "text-slate-800 font-bold" : "text-slate-300"}`}>7D53CEC5</span>
+                        <span className={`tracking-wider text-[11px] ${isLight ? "text-slate-800 font-bold" : "text-slate-305"}`}>7D53CEC5</span>
                       </div>
                       {copied ? (
                         <Check className="w-3.5 h-3.5 text-emerald-500" />
                       ) : (
                         <span className={`text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border ${
-                          isLight ? "bg-slate-200 border-slate-300 text-slate-700" : "bg-white/5 border-white/5 text-slate-500"
+                          isLight ? "bg-slate-205 border-slate-305 text-slate-700" : "bg-white/5 border-white/5 text-slate-500"
                         }`}>
                           {headerUiTexts[language].copy}
                         </span>
@@ -381,12 +677,12 @@ export default function Header({
                   {/* Language selection block */}
                   <div className={`mt-4 pt-3.5 border-t ${isLight ? "border-slate-100" : "border-white/5"}`}>
                     <span className={`text-[9px] font-mono font-extrabold tracking-widest uppercase block mb-2 px-1 ${
-                      isLight ? "text-slate-500" : "text-slate-400"
+                      isLight ? "text-slate-550" : "text-slate-405"
                     }`}>
                       {headerUiTexts[language].language}
                     </span>
                     <div className={`grid grid-cols-3 gap-1.5 p-[3px] rounded-2xl border shadow-inner ${
-                      isLight ? "bg-slate-100/80 border-slate-200/50" : "bg-slate-950/60 border-white/5"
+                      isLight ? "bg-slate-105 border-slate-200/50" : "bg-slate-950/60 border-white/5"
                     }`}>
                       {["RU", "EN", "KZ"].map((lang) => {
                         const isSelected = language === lang;
@@ -398,12 +694,12 @@ export default function Header({
                           >
                             {isSelected && (
                               <motion.div
-                                layoutId="activeLanguage"
+                                layoutId="activeLanguageDesktop"
                                 className={`absolute inset-0 rounded-xl ${
                                   isLight 
                                     ? "bg-slate-300 border border-slate-400 shadow-sm"
                                     : "bg-slate-800 border border-white/10 shadow-md"
-                                }`}
+                                  }`}
                                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
                                 style={{ zIndex: 0 }}
                               />
@@ -421,7 +717,6 @@ export default function Header({
                     </div>
                   </div>
 
-                  {/* VIP & Admin Role Selector (Simulating subscription tier overrides) */}
                   {userRole === "Admin" && (
                     <div className={`mt-4 pt-3.5 border-t ${isLight ? "border-slate-100" : "border-white/5"}`}>
                       <span className={`text-[9px] font-mono font-extrabold tracking-widest uppercase block mb-2 px-1 ${
@@ -432,7 +727,7 @@ export default function Header({
                       <div className={`grid ${
                         user && (user.name === "Admin" || user.email === "admin@procluster.io") ? "grid-cols-5" : "grid-cols-3"
                       } gap-1 p-[3px] rounded-2xl border shadow-inner ${
-                        isLight ? "bg-slate-100/80 border-slate-200/50" : "bg-slate-950/60 border-white/5"
+                        isLight ? "bg-slate-105 border-slate-200/50" : "bg-slate-950/60 border-white/5"
                       }`}>
                         {(user && (user.name === "Admin" || user.email === "admin@procluster.io") 
                           ? ["Guest", "Free", "Pro", "VIP", "Admin"] 
@@ -467,17 +762,9 @@ export default function Header({
                                   style={{ zIndex: 0 }}
                                 />
                               )}
-                              <span className={`relative z-10 transition-colors duration-200 ${
+                              <span className={`relative z-10 transition-colors duration-200 text-[8px] sm:text-[9.5px] font-bold ${
                                 isSelected
-                                  ? roleOption === "Admin"
-                                    ? "text-rose-500 font-extrabold"
-                                    : roleOption === "VIP"
-                                      ? "text-amber-500 font-extrabold"
-                                      : roleOption === "Pro"
-                                        ? "text-blue-500 font-extrabold"
-                                        : roleOption === "Free"
-                                          ? "text-slate-500 font-extrabold"
-                                          : isLight ? "text-purple-650 font-extrabold" : "text-purple-400 font-extrabold"
+                                  ? isLight ? "text-slate-900" : "text-white"
                                   : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
                               }`}>
                                 {roleLabel}
@@ -489,8 +776,7 @@ export default function Header({
                     </div>
                   )}
 
-                  {/* Exiting separator */}
-                  <div className={`mt-4 pt-3 border-t text-left ${isLight ? "border-slate-100" : "border-white/5"}`}>
+                  <div className={`mt-4 pt-3.5 border-t ${isLight ? "border-slate-100" : "border-white/5"}`}>
                     <button
                       onClick={handleLogout}
                       className="flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[11px] font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50/55 cursor-pointer transition duration-150 text-left"
@@ -504,7 +790,6 @@ export default function Header({
             </AnimatePresence>
           </div>
         ) : (
-          // USER IS NOT LOGGED IN: Beautiful glassy Sign In Button next to the light/dark toggle
           <button
             onClick={() => {
               setAuthError("");

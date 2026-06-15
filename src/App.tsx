@@ -19,7 +19,7 @@ import AdminPanel from "./components/AdminPanel";
 import UserProfile from "./components/UserProfile";
 import RoadmapModal from "./components/RoadmapModal";
 import defaultAvatar from "./assets/images/trump_avatar_1780681677035.png";
-import { TrendingUp, TrendingDown, Layers, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid, Star } from "lucide-react";
+import { TrendingUp, TrendingDown, Layers, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid, Star, X, Sliders } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 import { AutoIcon, JapaneseIcon, FootprintIcon, ClustersIcon, CandlePreviewIcon } from "./components/icons";
@@ -545,6 +545,7 @@ export default function App() {
   }, [indicators]);
 
   const [isIndicatorsModalOpen, setIsIndicatorsModalOpen] = useState<boolean>(false);
+  const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState<boolean>(false);
   const [isRoadmapModalOpen, setIsRoadmapModalOpen] = useState<boolean>(false);
   const [currentView, setCurrentView] = useState<"terminal" | "admin" | "profile">("terminal");
   const [showTickerMenu, setShowTickerMenu] = useState<boolean>(false);
@@ -1672,6 +1673,10 @@ export default function App() {
         onOpenProfile={() => setCurrentView("profile")}
         onOpenHome={() => setCurrentView("terminal")}
         onOpenRoadmap={() => setIsRoadmapModalOpen(true)}
+        onToggleMobileSettings={() => setIsMobileSettingsOpen(!isMobileSettingsOpen)}
+        isMobileSettingsOpen={isMobileSettingsOpen}
+        activeMobileTab={activeMobileTab}
+        setActiveMobileTab={setActiveMobileTab}
       />
 
       {currentView === "admin" ? (
@@ -1705,426 +1710,753 @@ export default function App() {
         </div>
       ) : (
         <>
-          {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
-          <section className={`backdrop-blur-md border-b px-4 py-1.5 flex items-center select-none overflow-visible relative z-30 transition-shadow duration-300 gap-x-4 sm:gap-x-6 ${
-        theme === "light"
-          ? "bg-white/95 border-slate-300 shadow-md"
-          : "bg-slate-950/40 border-slate-900/60 shadow-md"
-      }`}>
-
-          {/* 1. Ticker Dropdown Select */}
-          <div className="shrink-0 relative z-40">
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-500" : "text-slate-400/80"
-            }`}>
-              Active Ticker
-            </span>
-            <div className="relative font-sans" ref={tickerMenuRef}>
-              <button
-                onClick={() => setShowTickerMenu(!showTickerMenu)}
-                className={`flex items-center justify-between gap-3 px-3 py-1 rounded-lg text-sm cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all min-w-[130px] h-[30px] select-none border ${
+          {/* MOBILE SETTINGS POPDOWN / DRAWER SHEET */}
+          <AnimatePresence>
+            {isMobileSettingsOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 28 }}
+                className={`lg:hidden border-b z-40 relative backdrop-blur-xl overflow-hidden select-none shadow-2xl transition-all duration-300 ${
                   theme === "light"
-                    ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-900 font-black shadow-sm"
-                    : "liquid-glass-button border-white/5 text-yellow-400 font-extrabold"
+                    ? "bg-white/95 border-slate-300 text-slate-900"
+                    : "bg-slate-950/95 border-slate-900/60 text-slate-100"
                 }`}
               >
-                <div className="flex items-center gap-1.5">
-                  <span className={`font-mono tracking-tight font-extrabold text-xs sm:text-sm ${theme === "light" ? "text-slate-800" : "text-white"}`}>{activePair.symbol}</span>
-                </div>
-                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${
-                  theme === "light" ? "text-slate-600" : "text-slate-400"
-                } ${showTickerMenu ? "rotate-180" : ""}`} />
-              </button>
+                <div className="p-4 flex flex-col gap-4 max-h-[80vh] overflow-y-auto">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <span className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
+                      <Sliders className="w-4 h-4 text-yellow-500" />
+                      <span>{language === "RU" ? "Настройки графика" : language === "KZ" ? "График реттеулері" : "Chart settings"}</span>
+                    </span>
+                    <button
+                      onClick={() => setIsMobileSettingsOpen(false)}
+                      className={`p-1.5 rounded-lg border transition ${
+                        theme === "light"
+                          ? "hover:bg-slate-200 border-slate-300 text-slate-800"
+                          : "hover:bg-white/10 border-white/5 text-slate-400"
+                      }`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
 
-              <AnimatePresence>
-                {showTickerMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                    className={`absolute left-0 mt-1.5 w-48 rounded-xl p-2 z-50 text-left select-none shadow-2xl backdrop-blur-md border transition-all duration-300 ${
-                      theme === "light"
-                        ? "bg-white border-slate-300 text-slate-900 shadow-2xl"
-                        : "bg-[#090d16]/98 border border-white/10 text-slate-100"
+                  <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
+                    {/* 1. Ticker */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
+                        theme === "light" ? "text-slate-500" : "text-slate-400/80"
+                      }`}>
+                        {language === "EN" ? "Active Ticker" : "Пара (Ticker)"}
+                      </span>
+                      <select
+                        value={activePair.symbol}
+                        onChange={(e) => {
+                          const selected = pairs.find(p => p.symbol === e.target.value);
+                          if (selected) setActivePair(selected);
+                        }}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                          theme === "light"
+                            ? "bg-slate-100 border-slate-300 text-slate-900 shadow-inner"
+                            : "bg-slate-900 border-white/5 text-yellow-500 liquid-glass-button"
+                        }`}
+                      >
+                        {pairs.map((p) => (
+                          <option key={p.symbol} value={p.symbol} className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>
+                            {p.symbol}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 2. Market Type */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
+                        theme === "light" ? "text-slate-500" : "text-slate-400/80"
+                      }`}>
+                        {language === "EN" ? "Market Type" : "Тип рынка (Market)"}
+                      </span>
+                      <div className={`grid grid-cols-2 gap-0.5 p-[2px] rounded-lg h-[35px] items-center select-none border ${
+                        theme === "light" ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
+                      }`}>
+                        {(["SPOT", "FUTURES"] as const).map((type) => (
+                          <button
+                            key={type}
+                            onClick={() => {
+                              setMarketType(type);
+                            }}
+                            className={`py-1 rounded-md text-[10px] font-bold font-mono transition-colors duration-200 cursor-pointer text-center leading-none h-[29px] ${
+                              marketType === type
+                                ? theme === "light"
+                                  ? "bg-white text-slate-900 font-extrabold border border-slate-300 shadow-sm"
+                                  : "bg-yellow-500/10 border border-yellow-500/25 text-yellow-500 font-extrabold shadow-inner"
+                                : theme === "light"
+                                  ? "text-slate-650 hover:text-slate-900"
+                                  : "text-slate-400 hover:text-slate-200"
+                            }`}
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 3. Interval */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
+                        theme === "light" ? "text-slate-500" : "text-slate-400/80"
+                      }`}>
+                        {language === "EN" ? "Interval" : "Таймфрейм / Interval"}
+                      </span>
+                      <select
+                        value={interval}
+                        onChange={(e) => setInterval(e.target.value)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                          theme === "light"
+                            ? "bg-slate-100 border-slate-300 text-slate-900 shadow-inner"
+                            : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
+                        }`}
+                      >
+                        {(marketType === "SPOT" ? ["15m", "30m", "1h", "4h"] : ["1m", "5m", "15m", "30m", "1h", "4h", "50t"]).map((item) => (
+                          <option key={item} value={item} className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 4. Candle Type */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
+                        theme === "light" ? "text-slate-550" : "text-slate-400/80"
+                      }`}>
+                        {language === "EN" ? "Candle Type" : "Тип Свечей"}
+                      </span>
+                      <select
+                        value={candleType}
+                        onChange={(e) => setCandleType(e.target.value as any)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-sans cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                          theme === "light"
+                            ? "bg-slate-100 border-slate-300 text-slate-800 shadow-inner"
+                            : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
+                        }`}
+                      >
+                        <option value="auto" className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>
+                          {language === "EN" ? "Auto" : "Автоматический / Auto"}
+                        </option>
+                        <option value="japanese" className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>
+                          {language === "EN" ? "Japanese" : "Японские / Japanese"}
+                        </option>
+                        <option value="footprint" className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>
+                          {language === "EN" ? "Footprint" : "Футпринт / Footprint"}
+                        </option>
+                        <option value="clusters" className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>
+                          {language === "EN" ? "Clusters" : "Кластера / Clusters"}
+                        </option>
+                      </select>
+                    </div>
+
+                    {/* 5. Palette */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
+                        theme === "light" ? "text-slate-500" : "text-slate-400/80"
+                      }`}>
+                        {language === "EN" ? "Palette" : "Палитра"}
+                      </span>
+                      <select
+                        value={candlePalette}
+                        onChange={(e) => setCandlePalette(e.target.value as any)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-sans cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                          theme === "light"
+                            ? "bg-slate-100 border-slate-300 text-slate-800 shadow-inner"
+                            : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
+                        }`}
+                      >
+                        <option value="default" className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>
+                          {language === "EN" ? "Default" : "Стандарт / Default"}
+                        </option>
+                        <option value="alternative" className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>
+                          {language === "EN" ? "Alternative" : "Альт / Alternative"}
+                        </option>
+                      </select>
+                    </div>
+
+                    {/* 6. Candle Data Type */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
+                        theme === "light" ? "text-slate-500" : "text-slate-400/80"
+                      }`}>
+                        {language === "EN" ? "Candle Data" : "Данные свечей"}
+                      </span>
+                      <select
+                        value={candleDataType}
+                        onChange={(e) => setCandleDataType(e.target.value as any)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-sans cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                          theme === "light"
+                            ? "bg-slate-100 border-slate-300 text-slate-800 shadow-inner"
+                            : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
+                        }`}
+                      >
+                        <option value="bid_ask" className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>Bid Ask</option>
+                        <option value="delta" className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>Delta</option>
+                        <option value="volume" className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>
+                          {language === "EN" ? "Volume" : "Объем / Volume"}
+                        </option>
+                      </select>
+                    </div>
+
+                    {/* 7. Compression */}
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
+                        theme === "light" ? "text-slate-550" : "text-slate-400/80"
+                      }`}>
+                        {language === "EN" ? "Compression" : "Сжатие шага"}
+                      </span>
+                      <select
+                        value={compressionMultiplier}
+                        onChange={(e) => setCompressionMultiplier(parseInt(e.target.value))}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                          theme === "light"
+                            ? "bg-slate-100 border-slate-300 text-slate-800 shadow-inner"
+                            : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
+                        }`}
+                      >
+                        {[1, 2, 3, 4, 5, 6].map((multiplier) => {
+                          const limits = getActiveGroupLimits();
+                          const isLocked = multiplier > limits.compressionLevels;
+                          const isBtc = activePair.symbol.toUpperCase().includes("BTC");
+                          const baseComp = isBtc 
+                            ? (marketType === "FUTURES" ? 25 : 500) 
+                            : 25;
+                          const actualValue = baseComp * multiplier;
+                          return (
+                            <option 
+                              key={multiplier} 
+                              value={multiplier} 
+                              disabled={isLocked}
+                              className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-350"}
+                            >
+                              {multiplier}x ({actualValue}){isLocked ? " 🔒" : ""}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    {/* 8. Indicators settings triggers */}
+                    <div className="flex flex-col gap-1 justify-end">
+                      <button
+                        onClick={() => {
+                          setIsIndicatorsModalOpen(true);
+                          setIsMobileSettingsOpen(false);
+                        }}
+                        className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-black text-xs cursor-pointer h-[35px] hover:scale-[1.01] active:scale-[0.99] transition-all border ${
+                          theme === "light"
+                            ? "bg-slate-200 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
+                            : "liquid-glass-button text-slate-300 hover:text-slate-105 border-white/5"
+                        }`}
+                      >
+                        <Layers className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
+                        <span>{language === "EN" ? "Indicators" : "Индикаторы"}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
+          <section className={`hidden lg:flex backdrop-blur-md border-b px-2 py-2 sm:px-4 flex-wrap lg:flex-nowrap items-end select-none overflow-visible relative z-30 transition-shadow duration-300 gap-2 sm:gap-3 lg:gap-x-5 ${
+            theme === "light"
+              ? "bg-white/95 border-slate-300 shadow-md"
+              : "bg-slate-950/40 border-slate-900/60 shadow-md"
+          }`}>
+
+            {/* 1. Ticker Dropdown Select */}
+            <div className="shrink-0 relative z-40">
+              <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+                theme === "light" ? "text-slate-500" : "text-slate-400/80"
+              }`}>
+                Active Ticker
+              </span>
+              <div className="relative font-sans" ref={tickerMenuRef}>
+                <button
+                  onClick={() => setShowTickerMenu(!showTickerMenu)}
+                  className={`flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg text-sm cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all min-w-[110px] sm:min-w-[130px] h-[30px] select-none border ${
+                    theme === "light"
+                      ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-900 font-black shadow-sm"
+                      : "liquid-glass-button border-white/5 text-yellow-400 font-extrabold"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={`font-mono tracking-tight font-extrabold text-xs sm:text-sm ${theme === "light" ? "text-slate-800" : "text-white"}`}>{activePair.symbol}</span>
+                  </div>
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${
+                    theme === "light" ? "text-slate-600" : "text-slate-400"
+                  } ${showTickerMenu ? "rotate-180" : ""}`} />
+                </button>
+
+                <AnimatePresence>
+                  {showTickerMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                      className={`absolute left-0 mt-1.5 w-48 rounded-xl p-2 z-50 text-left select-none shadow-2xl backdrop-blur-md border transition-all duration-300 ${
+                        theme === "light"
+                          ? "bg-white border-slate-300 text-slate-900 shadow-2xl"
+                          : "bg-[#090d16]/98 border border-white/10 text-slate-100"
+                      }`}
+                    >
+                      <div className={`text-[9px] font-bold px-2 pb-1 border-b mb-1.5 uppercase tracking-widest ${
+                        theme === "light" ? "text-slate-500 border-slate-100" : "text-slate-400 border-white/5"
+                      }`}>
+                        {language === "EN" ? "Available Pairs" : language === "KZ" ? "Қолжетімді жұптар" : "Доступные пары"}
+                      </div>
+                      <div className="flex flex-col gap-0.5 max-h-[300px] overflow-y-auto pr-1">
+                        {[...pairs]
+                          .sort((a, b) => {
+                            const aFav = favorites[marketType]?.includes(a.symbol) ? 1 : 0;
+                            const bFav = favorites[marketType]?.includes(b.symbol) ? 1 : 0;
+                            if (aFav !== bFav) return bFav - aFav; // Favorites at the top
+                            return a.symbol.localeCompare(b.symbol); // Alphabetical secondary
+                          })
+                          .map((p) => {
+                            const isFav = favorites[marketType]?.includes(p.symbol);
+                            const isActive = activePair.symbol === p.symbol;
+                            return (
+                              <div
+                                key={p.symbol}
+                                className={`flex items-center justify-between px-2 py-1 rounded-lg transition-all ${
+                                  isActive
+                                    ? theme === "light"
+                                      ? "bg-amber-50 text-amber-700 font-extrabold border border-amber-200/50 shadow-sm"
+                                      : "bg-yellow-500/10 text-yellow-500 font-extrabold border border-yellow-500/25"
+                                    : theme === "light"
+                                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                                      : "text-slate-300 hover:text-white hover:bg-white/5"
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFavorite(p.symbol, marketType);
+                                    }}
+                                    className={`p-0.5 rounded cursor-pointer transition-all duration-100 active:scale-90 ${
+                                      isFav
+                                        ? "text-yellow-400 hover:text-yellow-500"
+                                        : theme === "light"
+                                        ? "text-slate-300 hover:text-slate-500"
+                                        : "text-slate-600 hover:text-slate-400"
+                                    }`}
+                                    title={language === "EN" ? "Toggle favorite" : "В избранное"}
+                                  >
+                                    <Star
+                                      className={`w-3.5 h-3.5 ${isFav ? "fill-current" : ""}`}
+                                    />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActivePair(p);
+                                      setShowTickerMenu(false);
+                                    }}
+                                    className="flex-1 text-left font-mono text-xs font-bold truncate cursor-pointer bg-transparent border-none p-0 outline-none"
+                                  >
+                                    {p.symbol}
+                                  </button>
+                                </div>
+                                {isActive && (
+                                  <Check className="w-3 h-3 shrink-0 ml-1" />
+                                )}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* 2. Market Type (SPOT / FUTURES) Segment Control */}
+            <div className="shrink-0">
+              <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+                theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
+              }`}>
+                Market Type
+              </span>
+              <div className={`grid grid-cols-2 gap-0.5 p-[2px] rounded-lg h-[30px] items-center min-w-[110px] sm:min-w-[130px] select-none transition-all duration-300 border ${
+                theme === "light" ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
+              }`}>
+                {(["SPOT", "FUTURES"] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setMarketType(type)}
+                    className={`px-1 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold font-mono transition-all duration-200 cursor-pointer text-center leading-none ${
+                      marketType === type
+                        ? theme === "light"
+                          ? "bg-white text-slate-900 font-extrabold border border-slate-300 shadow-sm"
+                          : "bg-yellow-500/10 border border-yellow-500/25 text-yellow-500 font-extrabold shadow-inner"
+                        : theme === "light"
+                          ? "text-slate-600 hover:text-slate-900 hover:bg-white/40"
+                          : "text-slate-400 hover:text-slate-200"
                     }`}
                   >
-                    <div className={`text-[9px] font-bold px-2 pb-1 border-b mb-1.5 uppercase tracking-widest ${
-                      theme === "light" ? "text-slate-500 border-slate-100" : "text-slate-400 border-white/5"
-                    }`}>
-                      {language === "EN" ? "Available Pairs" : language === "KZ" ? "Қолжетімді жұптар" : "Доступные пары"}
-                    </div>
-                    <div className="flex flex-col gap-0.5 max-h-[300px] overflow-y-auto pr-1">
-                      {[...pairs]
-                        .sort((a, b) => {
-                          const aFav = favorites[marketType]?.includes(a.symbol) ? 1 : 0;
-                          const bFav = favorites[marketType]?.includes(b.symbol) ? 1 : 0;
-                          if (aFav !== bFav) return bFav - aFav; // Favorites at the top
-                          return a.symbol.localeCompare(b.symbol); // Alphabetical secondary
-                        })
-                        .map((p) => {
-                          const isFav = favorites[marketType]?.includes(p.symbol);
-                          const isActive = activePair.symbol === p.symbol;
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. Interval (таймфреймы) */}
+            <div className="shrink-0">
+              <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+                theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
+              }`}>
+                Interval
+              </span>
+              
+              {/* Desktop and Tablet buttons (hidden on mobile) */}
+              <div className="hidden sm:flex items-center gap-1">
+                {(marketType === "SPOT" ? ["15m", "30m", "1h", "4h"] : ["1m", "5m", "15m", "30m", "1h", "4h", "50t"]).map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => setInterval(item)}
+                    className={`px-2 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer transition-all duration-200 h-[30px] ${
+                      interval === item
+                        ? theme === "light"
+                          ? "bg-amber-100 text-amber-900 border border-amber-400 font-black shadow-sm"
+                          : "liquid-glass-active text-yellow-400 font-black"
+                        : theme === "light"
+                          ? "bg-slate-200 hover:bg-slate-300 hover:text-slate-900 text-slate-700 font-bold border border-slate-300 shadow-sm"
+                          : "liquid-glass-button text-slate-400 hover:text-slate-100"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+
+              {/* Mobile Selector Dropdown (visible on mobile only) */}
+              <div className="flex sm:hidden">
+                <select
+                  value={interval}
+                  onChange={(e) => setInterval(e.target.value)}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full min-w-[70px] ${
+                    theme === "light"
+                      ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-800 shadow-sm"
+                      : "bg-slate-950/60 border-white/5 text-slate-300 hover:text-slate-100 liquid-glass-button"
+                  }`}
+                >
+                  {(marketType === "SPOT" ? ["15m", "30m", "1h", "4h"] : ["1m", "5m", "15m", "30m", "1h", "4h", "50t"]).map((item) => (
+                    <option key={item} value={item} className={theme === "light" ? "bg-white text-slate-900 font-mono" : "bg-slate-950 text-slate-100 font-mono"}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* 4. Candle Type Switcher */}
+            <div className="shrink-0">
+              <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+                theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
+              }`}>
+                {language === "EN" ? "Candle Type" : language === "KZ" ? "Шамдар түрі" : "Тип свечей"}
+              </span>
+
+              {/* Desktop View (xl and up) */}
+              <div className={`hidden xl:flex items-center p-[2px] rounded-lg h-[30px] select-none transition-all duration-300 border ${
+                theme === "light" ? "bg-slate-100 border-slate-200" : "bg-slate-950/60 border-white/5"
+              }`}>
+                {[
+                  { id: "auto", label: language === "EN" ? "Auto" : "Авто", icon: AutoIcon },
+                  { id: "japanese", label: language === "EN" ? "Japanese Candlesticks" : language === "KZ" ? "Жапон шамдары" : "Японские свечи", icon: JapaneseIcon },
+                  { id: "footprint", label: language === "EN" ? "Footprint" : "Футпринт", icon: FootprintIcon },
+                  { id: "clusters", label: language === "EN" ? "Clusters" : language === "KZ" ? "Кластерлер" : "Кластера", icon: ClustersIcon }
+                ].map((item) => {
+                  const IconComponent = item.icon;
+                  const isSelected = candleType === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setCandleType(item.id as any)}
+                      title={item.label}
+                      className="relative flex-1 px-2 py-0.5 rounded-md text-xs font-bold cursor-pointer text-center leading-none h-[24px] flex items-center justify-center border-0 outline-none select-none"
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="activeCandleType"
+                          className={`absolute inset-0 rounded-md ${
+                            theme === "light"
+                              ? "bg-amber-100 border border-amber-400 shadow-sm"
+                              : "bg-amber-500/10 border border-amber-500/25 shadow-inner"
+                          }`}
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                          style={{ zIndex: 0 }}
+                        />
+                      )}
+                      <span className={`relative z-10 flex items-center justify-center transition-colors duration-200 ${
+                        isSelected
+                          ? theme === "light"
+                            ? "text-amber-950 font-black"
+                            : "text-yellow-400 font-extrabold"
+                          : theme === "light"
+                            ? "text-slate-600 hover:text-slate-900 font-bold"
+                            : "text-slate-400 hover:text-slate-200"
+                      }`}>
+                        <IconComponent className="w-3.5 h-3.5" />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Tablet & Mobile View (under xl) */}
+              <div className="flex xl:hidden">
+                <select
+                  value={candleType}
+                  onChange={(e) => setCandleType(e.target.value as any)}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold font-sans cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full min-w-[110px] ${
+                    theme === "light"
+                      ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-800 shadow-sm font-semibold"
+                      : "bg-slate-950/60 border-white/5 text-slate-300 hover:text-slate-100 liquid-glass-button font-semibold"
+                  }`}
+                >
+                  <option value="auto" className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-100 font-sans"}>
+                    {language === "EN" ? "Auto" : "Авто / Auto"}
+                  </option>
+                  <option value="japanese" className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-100 font-sans"}>
+                    {language === "EN" ? "Japanese" : language === "KZ" ? "Жапон" : "Японские / Japanese"}
+                  </option>
+                  <option value="footprint" className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-100 font-sans"}>
+                    {language === "EN" ? "Footprint" : "Футпринт / Footprint"}
+                  </option>
+                  <option value="clusters" className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-100 font-sans"}>
+                    {language === "EN" ? "Clusters" : language === "KZ" ? "Кластерлер" : "Кластера / Clusters"}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            {/* 5. Candle Palette Dropdown */}
+            <div className="shrink-0 relative z-40">
+              <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+                theme === "light" ? "text-slate-500 font-bold" : "text-slate-400/80"
+              }`}>
+                Palette
+              </span>
+              <div className="relative font-sans" ref={paletteMenuRef}>
+                <button
+                  onClick={() => setShowPaletteMenu(!showPaletteMenu)}
+                  className={`flex items-center justify-between gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all min-w-[110px] sm:min-w-[135px] h-[30px] select-none border ${
+                    theme === "light"
+                      ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-800 font-extrabold shadow-sm"
+                      : "liquid-glass-button border-white/5 text-slate-200 font-black"
+                  }`}
+                >
+                  <div className="flex items-center gap-1 leading-none">
+                    <CandlePreviewIcon palette={candlePalette} theme={theme} />
+                    <span className={`font-mono text-[10px] whitespace-nowrap ${theme === "light" ? "text-slate-700 font-black" : "text-white font-extrabold"}`}>
+                      {candlePalette === "default" 
+                        ? (language === "EN" ? "Default" : language === "KZ" ? "Әдепкі" : "Стандарт")
+                        : (language === "EN" ? "Alternative" : language === "KZ" ? "Балама" : "Альт")}
+                    </span>
+                  </div>
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 shrink-0 ${
+                    theme === "light" ? "text-slate-600" : "text-slate-400"
+                  } ${showPaletteMenu ? "rotate-180" : ""}`} />
+                </button>
+
+                <AnimatePresence>
+                  {showPaletteMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                      style={{ originY: 0 }}
+                      className={`absolute left-0 mt-1.5 w-44 rounded-xl p-1.5 z-50 text-left select-none shadow-2xl backdrop-blur-md border transition-all duration-300 ${
+                        theme === "light"
+                          ? "bg-white border-slate-300 text-slate-900 shadow-xl"
+                          : "bg-[#090d16]/98 border border-white/10 text-slate-100"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        {[
+                          { id: "default", label: language === "EN" ? "Default" : language === "KZ" ? "Әдепкі" : "Стандарт" },
+                          { id: "alternative", label: language === "EN" ? "Alternative" : language === "KZ" ? "Балама" : "Альт" }
+                        ].map((item) => {
+                          const isSelected = candlePalette === item.id;
                           return (
-                            <div
-                              key={p.symbol}
-                              className={`flex items-center justify-between px-2 py-1 rounded-lg transition-all ${
-                                isActive
+                            <button
+                              key={item.id}
+                              onClick={() => {
+                                setCandlePalette(item.id as any);
+                                setShowPaletteMenu(false);
+                              }}
+                              className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-left cursor-pointer transition-all ${
+                                isSelected
                                   ? theme === "light"
-                                    ? "bg-amber-50 text-amber-700 font-extrabold border border-amber-200/50 shadow-sm"
-                                    : "bg-yellow-500/10 text-yellow-500 font-extrabold border border-yellow-500/25"
+                                    ? "bg-slate-100 text-slate-800 font-extrabold"
+                                    : "bg-white/5 text-white font-extrabold"
                                   : theme === "light"
                                     ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                                     : "text-slate-300 hover:text-white hover:bg-white/5"
                               }`}
                             >
-                              <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleFavorite(p.symbol, marketType);
-                                  }}
-                                  className={`p-0.5 rounded cursor-pointer transition-all duration-100 active:scale-90 ${
-                                    isFav
-                                      ? "text-yellow-400 hover:text-yellow-500"
-                                      : theme === "light"
-                                      ? "text-slate-300 hover:text-slate-500"
-                                      : "text-slate-600 hover:text-slate-400"
-                                  }`}
-                                  title={language === "EN" ? "Toggle favorite" : "В избранное"}
-                                >
-                                  <Star
-                                    className={`w-3.5 h-3.5 ${isFav ? "fill-current" : ""}`}
-                                  />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActivePair(p);
-                                    setShowTickerMenu(false);
-                                  }}
-                                  className="flex-1 text-left font-mono text-xs font-bold truncate cursor-pointer bg-transparent border-none p-0 outline-none"
-                                >
-                                  {p.symbol}
-                                </button>
+                              <div className="flex items-center gap-1.5 select-none">
+                                <CandlePreviewIcon palette={item.id as any} theme={theme} />
+                                <span className="font-mono text-[10px] font-bold">{item.label}</span>
                               </div>
-                              {isActive && (
-                                <Check className="w-3 h-3 shrink-0 ml-1" />
+                              {isSelected && (
+                                <Check className="w-3 tracking-tight ml-1 text-amber-500 shrink-0" />
                               )}
-                            </div>
+                            </button>
                           );
                         })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
-          </div>
 
-          {/* 2. Market Type (SPOT / FUTURES) Segment Control */}
-          <div className="shrink-0">
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
-            }`}>
-              Market Type
-            </span>
-            <div className={`grid grid-cols-2 gap-0.5 p-[2px] rounded-lg h-[30px] items-center min-w-[130px] select-none transition-all duration-300 border ${
-              theme === "light" ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
-            }`}>
-              {(["SPOT", "FUTURES"] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setMarketType(type)}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition-all duration-200 cursor-pointer text-center leading-none ${
-                    marketType === type
-                      ? theme === "light"
-                        ? "bg-white text-slate-900 font-extrabold border border-slate-300 shadow-sm"
-                        : "bg-yellow-500/10 border border-yellow-500/25 text-yellow-500 font-extrabold shadow-inner"
-                      : theme === "light"
-                        ? "text-slate-600 hover:text-slate-900 hover:bg-white/40"
-                        : "text-slate-400 hover:text-slate-200"
+            {/* 6. Candle Data Type Switcher */}
+            <div className="shrink-0">
+              <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+                theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
+              }`}>
+                {language === "EN" ? "Candle Data" : language === "KZ" ? "Шамдағы деректер" : "Данные в свечах"}
+              </span>
+
+              {/* Desktop View (xl and up) */}
+              <div className={`hidden xl:flex items-center p-[2px] rounded-lg h-[30px] select-none transition-all duration-300 border ${
+                theme === "light" ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
+              }`}>
+                {[
+                  { id: "bid_ask", label: "Bid Ask" },
+                  { id: "delta", label: "Delta" },
+                  { id: "volume", label: language === "EN" ? "Volume" : language === "KZ" ? "Көлем" : "Объем" }
+                ].map((item) => {
+                  const isSelected = candleDataType === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setCandleDataType(item.id as any)}
+                      className="relative flex-1 px-2 py-0.5 rounded-md text-xs font-bold cursor-pointer text-center leading-none h-[24px] flex items-center justify-center border-0 outline-none select-none"
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="activeCandleDataType"
+                          className={`absolute inset-0 rounded-md ${
+                            theme === "light"
+                              ? "bg-amber-100 border border-amber-400 shadow-sm"
+                              : "bg-amber-500/10 border border-amber-500/25 shadow-inner"
+                          }`}
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                          style={{ zIndex: 0 }}
+                        />
+                      )}
+                      <span className={`relative z-10 font-mono text-[10px] sm:text-[11px] whitespace-nowrap transition-colors duration-200 ${
+                        isSelected
+                          ? theme === "light"
+                            ? "text-amber-950 font-black"
+                            : "text-yellow-400 font-extrabold"
+                          : theme === "light"
+                            ? "text-slate-600 hover:text-slate-900 font-bold"
+                            : "text-slate-400 hover:text-slate-200"
+                      }`}>
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Tablet & Mobile View (under xl) */}
+              <div className="flex xl:hidden">
+                <select
+                  value={candleDataType}
+                  onChange={(e) => setCandleDataType(e.target.value as any)}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold font-sans cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full min-w-[100px] ${
+                    theme === "light"
+                      ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-800 shadow-sm font-semibold"
+                      : "bg-slate-950/60 border-white/5 text-slate-300 hover:text-slate-100 liquid-glass-button font-semibold"
                   }`}
                 >
-                  {type}
-                </button>
-              ))}
+                  <option value="bid_ask" className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-100 font-sans"}>Bid Ask</option>
+                  <option value="delta" className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-100 font-sans"}>Delta</option>
+                  <option value="volume" className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-100 font-sans"}>
+                    {language === "EN" ? "Volume" : language === "KZ" ? "Көлем" : "Объем / Volume"}
+                  </option>
+                </select>
+              </div>
             </div>
-          </div>
 
-          {/* 3. Interval (таймфреймы) */}
-          <div className="shrink-0">
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
-            }`}>
-              Interval
-            </span>
-            <div className="flex items-center gap-1">
-              {(marketType === "SPOT" ? ["15m", "30m", "1h", "4h"] : ["1m", "5m", "15m", "30m", "1h", "4h", "50t"]).map((item) => (
-                <button
-                  key={item}
-                  onClick={() => setInterval(item)}
-                  className={`px-2 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer transition-all duration-200 h-[30px] ${
-                    interval === item
-                      ? theme === "light"
-                        ? "bg-amber-100 text-amber-900 border border-amber-400 font-black shadow-sm"
-                        : "liquid-glass-active text-yellow-400 font-black"
-                      : theme === "light"
-                        ? "bg-slate-200 hover:bg-slate-300 hover:text-slate-900 text-slate-700 font-bold border border-slate-300 shadow-sm"
-                        : "liquid-glass-button text-slate-400 hover:text-slate-100"
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 4. Candle Type Switcher */}
-          <div className="shrink-0">
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
-            }`}>
-              {language === "EN" ? "Candle Type" : language === "KZ" ? "Шамдар түрі" : "Тип свечей"}
-            </span>
-            <div className={`flex items-center p-[2px] rounded-lg h-[30px] select-none transition-all duration-300 border ${
-              theme === "light" ? "bg-slate-100 border-slate-200" : "bg-slate-950/60 border-white/5"
-            }`}>
-              {[
-                { id: "auto", label: language === "EN" ? "Auto" : "Авто", icon: AutoIcon },
-                { id: "japanese", label: language === "EN" ? "Japanese Candlesticks" : language === "KZ" ? "Жапон шамдары" : "Японские свечи", icon: JapaneseIcon },
-                { id: "footprint", label: language === "EN" ? "Footprint" : "Футпринт", icon: FootprintIcon },
-                { id: "clusters", label: language === "EN" ? "Clusters" : language === "KZ" ? "Кластерлер" : "Кластера", icon: ClustersIcon }
-              ].map((item) => {
-                const IconComponent = item.icon;
-                const isSelected = candleType === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setCandleType(item.id as any)}
-                    title={item.label}
-                    className="relative flex-1 px-2 py-0.5 rounded-md text-xs font-bold cursor-pointer text-center leading-none h-[24px] flex items-center justify-center border-0 outline-none select-none"
-                  >
-                    {isSelected && (
-                      <motion.div
-                        layoutId="activeCandleType"
-                        className={`absolute inset-0 rounded-md ${
-                          theme === "light"
-                            ? "bg-amber-100 border border-amber-400 shadow-sm"
-                            : "bg-amber-500/10 border border-amber-500/25 shadow-inner"
-                        }`}
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        style={{ zIndex: 0 }}
-                      />
-                    )}
-                    <span className={`relative z-10 flex items-center justify-center transition-colors duration-200 ${
-                      isSelected
-                        ? theme === "light"
-                          ? "text-amber-950 font-black"
-                          : "text-yellow-400 font-extrabold"
-                        : theme === "light"
-                          ? "text-slate-600 hover:text-slate-900 font-bold"
-                          : "text-slate-400 hover:text-slate-200"
-                    }`}>
-                      <IconComponent className="w-3.5 h-3.5" />
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 5. Candle Palette Switcher */}
-          <div className="shrink-0 relative z-40">
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-500 font-bold" : "text-slate-400/80"
-            }`}>
-              {language === "EN" ? "Candle Palette" : language === "KZ" ? "Шам палитрасы" : "Палитра свечей"}
-            </span>
-            <div className="relative font-sans" ref={paletteMenuRef}>
-              <button
-                onClick={() => setShowPaletteMenu(!showPaletteMenu)}
-                className={`flex items-center justify-between gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all min-w-[135px] h-[30px] select-none border ${
+            {/* 7. Chart Compression Select */}
+            <div className="shrink-0">
+              <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+                theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
+              }`}>
+                {language === "EN" ? "Compression" : language === "KZ" ? "Сығылу" : "Сжатие"}
+              </span>
+              <select
+                value={compressionMultiplier}
+                onChange={(e) => setCompressionMultiplier(parseInt(e.target.value))}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full min-w-[80px] sm:min-w-[105px] ${
                   theme === "light"
-                    ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-800 font-extrabold shadow-sm"
-                    : "liquid-glass-button border-white/5 text-slate-200 font-black"
+                    ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-800 shadow-sm"
+                    : "bg-slate-950/60 border-white/5 text-slate-300 hover:text-slate-100 liquid-glass-button"
                 }`}
               >
-                <div className="flex items-center gap-1.5 leading-none">
-                  <CandlePreviewIcon palette={candlePalette} theme={theme} />
-                  <span className={`font-mono text-[10px] whitespace-nowrap ${theme === "light" ? "text-slate-700 font-black" : "text-white font-extrabold"}`}>
-                    {candlePalette === "default" 
-                      ? (language === "EN" ? "Default" : language === "KZ" ? "Әдепкі" : "Стандарт")
-                      : (language === "EN" ? "Alternative" : language === "KZ" ? "Балама" : "Альт")}
-                  </span>
-                </div>
-                <ChevronDown className={`w-3 h-3 transition-transform duration-200 shrink-0 ${
-                  theme === "light" ? "text-slate-600" : "text-slate-400"
-                } ${showPaletteMenu ? "rotate-180" : ""}`} />
+                {[1, 2, 3, 4, 5, 6].map((multiplier) => {
+                  const limits = getActiveGroupLimits();
+                  const isLocked = multiplier > limits.compressionLevels;
+                  const isBtc = activePair.symbol.toUpperCase().includes("BTC");
+                  const baseComp = isBtc 
+                    ? (marketType === "FUTURES" ? 25 : 500) 
+                    : 25;
+                  const actualValue = baseComp * multiplier;
+                  return (
+                    <option 
+                      key={multiplier} 
+                      value={multiplier} 
+                      disabled={isLocked}
+                      className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-350 font-sans"}
+                    >
+                      {multiplier}x ({actualValue}){isLocked ? " 🔒" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* 8. Indicators Trigger Button */}
+            <div className="shrink-0">
+              <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+                theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
+              }`}>
+                {language === "EN" ? "Controls" : language === "KZ" ? "Басқару" : "Управление"}
+              </span>
+              <button
+                onClick={() => setIsIndicatorsModalOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-black text-xs cursor-pointer h-[30px] hover:scale-[1.01] active:scale-[0.99] transition-all border ${
+                  theme === "light"
+                    ? "bg-slate-200 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
+                    : "liquid-glass-button text-slate-300 hover:text-slate-100"
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
+                <span>{language === "EN" ? "Indicators" : language === "KZ" ? "Индикаторлар" : "Индикаторы"}</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
-
-              <AnimatePresence>
-                {showPaletteMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                    style={{ originY: 0 }}
-                    className={`absolute left-0 mt-1.5 w-44 rounded-xl p-1.5 z-50 text-left select-none shadow-2xl backdrop-blur-md border transition-all duration-300 ${
-                      theme === "light"
-                        ? "bg-white border-slate-300 text-slate-900 shadow-xl"
-                        : "bg-[#090d16]/98 border border-white/10 text-slate-100"
-                    }`}
-                  >
-                    <div className="flex flex-col gap-0.5">
-                      {[
-                        { id: "default", label: language === "EN" ? "Default" : language === "KZ" ? "Әдепкі" : "Стандарт" },
-                        { id: "alternative", label: language === "EN" ? "Alternative" : language === "KZ" ? "Балама" : "Альт" }
-                      ].map((item) => {
-                        const isSelected = candlePalette === item.id;
-                        return (
-                          <button
-                            key={item.id}
-                            onClick={() => {
-                              setCandlePalette(item.id as any);
-                              setShowPaletteMenu(false);
-                            }}
-                            className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-left cursor-pointer transition-all ${
-                              isSelected
-                                ? theme === "light"
-                                  ? "bg-blue-50 text-blue-800 font-extrabold border border-blue-200 shadow-sm"
-                                  : "bg-blue-500/10 text-blue-400 font-extrabold border border-blue-500/25"
-                                : theme === "light"
-                                  ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                                  : "text-slate-300 hover:text-white hover:bg-white/5"
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5 select-none">
-                              <CandlePreviewIcon palette={item.id as any} theme={theme} />
-                              <span className="font-mono text-[10px] font-bold">{item.label}</span>
-                            </div>
-                            {isSelected && (
-                              <Check className="w-3 tracking-tight ml-1 text-blue-500 shrink-0" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
-          </div>
-
-          {/* 6. Candle Data Type Switcher */}
-          <div className="shrink-0">
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
-            }`}>
-              {language === "EN" ? "Candle Data" : language === "KZ" ? "Шамдағы деректер" : "Данные в свечах"}
-            </span>
-            <div className={`flex items-center p-[2px] rounded-lg h-[30px] select-none transition-all duration-300 border ${
-              theme === "light" ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
-            }`}>
-              {[
-                { id: "bid_ask", label: "Bid Ask" },
-                { id: "delta", label: "Delta" },
-                { id: "volume", label: language === "EN" ? "Volume" : language === "KZ" ? "Көлем" : "Объем" }
-              ].map((item) => {
-                const isSelected = candleDataType === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setCandleDataType(item.id as any)}
-                    className="relative flex-1 px-2 py-0.5 rounded-md text-xs font-bold cursor-pointer text-center leading-none h-[24px] flex items-center justify-center border-0 outline-none select-none"
-                  >
-                    {isSelected && (
-                      <motion.div
-                        layoutId="activeCandleDataType"
-                        className={`absolute inset-0 rounded-md ${
-                          theme === "light"
-                            ? "bg-amber-100 border border-amber-400 shadow-sm"
-                            : "bg-amber-500/10 border border-amber-500/25 shadow-inner"
-                        }`}
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        style={{ zIndex: 0 }}
-                      />
-                    )}
-                    <span className={`relative z-10 font-mono text-[10px] sm:text-[11px] whitespace-nowrap transition-colors duration-200 ${
-                      isSelected
-                        ? theme === "light"
-                          ? "text-amber-950 font-black"
-                          : "text-yellow-400 font-extrabold"
-                        : theme === "light"
-                          ? "text-slate-600 hover:text-slate-900 font-bold"
-                          : "text-slate-400 hover:text-slate-200"
-                    }`}>
-                      {item.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 7. Chart Compression Select */}
-          <div className="shrink-0">
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
-            }`}>
-              {language === "EN" ? "Compression" : language === "KZ" ? "Сығылу деңгейі" : "Сжатие графика"}
-            </span>
-            <select
-              value={compressionMultiplier}
-              onChange={(e) => setCompressionMultiplier(parseInt(e.target.value))}
-              className={`px-3 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full ${
-                theme === "light"
-                  ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-800 shadow-sm"
-                  : "bg-slate-950/60 border-white/5 text-slate-300 hover:text-slate-100 liquid-glass-button"
-              }`}
-            >
-              {[1, 2, 3, 4, 5, 6].map((multiplier) => {
-                const limits = getActiveGroupLimits();
-                const isLocked = multiplier > limits.compressionLevels;
-                const isBtc = activePair.symbol.toUpperCase().includes("BTC");
-                const baseComp = isBtc 
-                  ? (marketType === "FUTURES" ? 25 : 500) 
-                  : 25;
-                const actualValue = baseComp * multiplier;
-                return (
-                  <option 
-                    key={multiplier} 
-                    value={multiplier} 
-                    disabled={isLocked}
-                    className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-350 font-sans"}
-                  >
-                    {multiplier}x ({actualValue}){isLocked ? " 🔒 (Уровень закрыт)" : ""}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          {/* 8. Indicators Trigger Button */}
-          <div className="shrink-0">
-            <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
-              theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
-            }`}>
-              Active Controls
-            </span>
-            <button
-              onClick={() => setIsIndicatorsModalOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-black text-xs cursor-pointer h-[30px] hover:scale-[1.01] active:scale-[0.99] transition-all border ${
-                theme === "light"
-                  ? "bg-slate-200 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
-                  : "liquid-glass-button text-slate-300 hover:text-slate-100"
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
-              <span>{language === "EN" ? "Indicators" : language === "KZ" ? "Индикаторлар" : "Индикаторы"}</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-          </div>
-      </section>
+          </section>
 
       {/* MAIN WORKSTATION PANEL: CONTENT VIEWS */}
       {(() => {
@@ -2149,46 +2481,12 @@ export default function App() {
         };
 
         return (
-          <main className="flex-1 flex flex-col min-h-0 bg-transparent select-none relative z-10 p-1 sm:p-2 gap-1 sm:gap-1.5">
-            {/* Mobile/Tablet Adaptive View Switcher */}
-            <div className={`flex lg:hidden justify-center items-center p-1 rounded-xl w-full max-w-sm mx-auto border transition-all duration-300 shadow-sm shrink-0 select-none ${
-              theme === "light"
-                ? "bg-slate-200/90 border-slate-300"
-                : "bg-slate-950/60 border-white/5"
-            }`}>
-              <button
-                onClick={() => setActiveMobileTab("chart")}
-                className={`flex-1 py-1.5 px-4 text-center rounded-lg text-xs font-bold font-sans transition-all duration-200 cursor-pointer ${
-                  activeMobileTab === "chart"
-                    ? theme === "light"
-                      ? "bg-white text-slate-900 border border-slate-300 shadow-sm font-black"
-                      : "bg-yellow-500/10 border border-yellow-500/25 text-yellow-500 font-extrabold"
-                    : theme === "light"
-                      ? "text-slate-600 hover:text-slate-900"
-                      : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                📊 {language === "RU" ? "График" : language === "KZ" ? "График" : "Chart"}
-              </button>
-              <button
-                onClick={() => setActiveMobileTab("dom")}
-                className={`flex-1 py-1.5 px-4 text-center rounded-lg text-xs font-bold font-sans transition-all duration-200 cursor-pointer ${
-                  activeMobileTab === "dom"
-                    ? theme === "light"
-                      ? "bg-white text-slate-900 border border-slate-300 shadow-sm font-black"
-                      : "bg-yellow-500/10 border border-yellow-500/25 text-yellow-500 font-extrabold"
-                    : theme === "light"
-                      ? "text-slate-600 hover:text-slate-900"
-                      : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                🧱 {language === "RU" ? "Стакан" : language === "KZ" ? "Стакан" : "DOM Ladder"}
-              </button>
-            </div>
-
-            <div className={`flex-1 flex flex-col lg:flex-row min-h-0 min-w-0 items-stretch font-sans relative ${
-              isSidebarCollapsed ? "gap-3 lg:gap-0" : "gap-3 lg:gap-5"
-            }`}>
+          <main className="flex-1 flex flex-col min-h-0 bg-transparent select-none relative z-10 p-1 sm:p-2 gap-1.5 sm:gap-2">
+            {/* Main view workspace with compact layout */}
+            <div className="flex-1 flex flex-col min-h-0 min-w-0">
+              <div className={`flex-1 flex flex-col lg:flex-row min-h-0 min-w-0 items-stretch font-sans relative ${
+                isSidebarCollapsed ? "gap-3 lg:gap-0" : "gap-3 lg:gap-5"
+              }`}>
               {/* Left/Middle Column: Footprint Chart Section */}
               <div 
                 id="charts-workspace-container"
@@ -2362,6 +2660,7 @@ export default function App() {
                   <DOMSidebar orderBook={orderBook} activePair={activePair} theme={theme} />
                 </div>
               </div>
+            </div>
             </div>
           </main>
         );

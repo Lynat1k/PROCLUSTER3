@@ -78,6 +78,17 @@ export default function ClusterChart({
   
   const isLight = theme === "light";
 
+  const [isMobile, setIsMobile] = useState<boolean>(typeof window !== "undefined" ? window.innerWidth < 768 : false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // CVD indicator specific settings
   const cvdSettings = indicatorSettings?.cvd || {};
   const cvdPeriod = cvdSettings.cvdPeriod || "all";
@@ -3465,8 +3476,11 @@ export default function ClusterChart({
 
         {/* Dynamic Vector floating Watermark Overlay */}
         <div 
-          className="absolute right-[106px] pointer-events-none select-none z-20 opacity-30 sm:opacity-40 transition-all duration-300 flex items-center gap-1.5"
-          style={{ bottom: `${margin.bottom + deltaHeightTotal + cvdHeightTotal + 16}px` }}
+          className="absolute pointer-events-none select-none z-20 opacity-30 sm:opacity-40 transition-all duration-300 flex items-center gap-1.5"
+          style={{ 
+            right: `${isMobile ? 74 : 106}px`,
+            bottom: `${margin.bottom + deltaHeightTotal + cvdHeightTotal + 16}px` 
+          }}
         >
           <div className="w-5 h-5 rounded bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow">
             <Layers className="w-3 h-3 text-slate-955" strokeWidth={2.5} />
@@ -3509,259 +3523,270 @@ export default function ClusterChart({
             startVerticalScaleRef.current = verticalScale;
           }
         }}
-        className={`w-[90px] flex-none border-l select-none transition-all duration-300 relative flex flex-col justify-between cursor-ns-resize ${
+        className={`flex-none border-l select-none transition-all duration-300 relative flex flex-col justify-between cursor-ns-resize ${
           isLight ? "bg-[#f8fafc] border-slate-200" : "bg-[#06080f] border-white/5"
         }`}
-        style={{ height: totalSvgHeight }}
+        style={{ height: totalSvgHeight, width: isMobile ? "58px" : "90px" }}
       >
-        <svg width={90} height={totalSvgHeight} className="absolute inset-0 block pointer-events-none">
-          {/* Price Scale Background Panel */}
-          <rect
-            x={0}
-            y={0}
-            width={90}
-            height={totalSvgHeight}
-            fill={isLight ? "#f8fafc" : "#06080f"}
-          />
-          
-          {/* Primary left divider line to outline the scale */}
-          <line
-            x1={0}
-            y1={0}
-            x2={0}
-            y2={totalSvgHeight}
-            stroke={isLight ? "#cbd5e1" : "#1e293b"}
-            strokeWidth="1.5"
-          />
+        {(() => {
+          const scaleWidth = isMobile ? 58 : 90;
+          const labelX = isMobile ? 4 : 8;
+          const badgeWidth = scaleWidth - 8;
+          const formatPrice = (p: number) => {
+            const fd = isMobile ? 0 : (activePair.priceStep < 0.1 ? 3 : 1);
+            return "$" + p.toLocaleString(undefined, { minimumFractionDigits: fd, maximumFractionDigits: fd });
+          };
+          return (
+            <svg width={scaleWidth} height={totalSvgHeight} className="absolute inset-0 block pointer-events-none">
+              {/* Price Scale Background Panel */}
+              <rect
+                x={0}
+                y={0}
+                width={scaleWidth}
+                height={totalSvgHeight}
+                fill={isLight ? "#f8fafc" : "#06080f"}
+              />
+              
+              {/* Primary left divider line to outline the scale */}
+              <line
+                x1={0}
+                y1={0}
+                x2={0}
+                y2={totalSvgHeight}
+                stroke={isLight ? "#cbd5e1" : "#1e293b"}
+                strokeWidth="1.5"
+              />
 
-          {/* Price Ticks & Labels */}
-          {Array.from({ length: 6 }).map((_, i) => {
-            const ratio = i / 5;
-            const price = minPrice + ratio * (maxPrice - minPrice);
-            const gridY = priceToY(price);
-            return (
-              <g key={`fixed-grid-label-${i}`}>
-                {/* Tick Line */}
-                <line
-                  x1={0}
-                  y1={gridY}
-                  x2={5}
-                  y2={gridY}
-                  stroke={isLight ? "#94a3b8" : "#475569"}
-                  strokeWidth="1.2"
-                />
-                {/* Label Text */}
-                <text
-                  x={8}
-                  y={gridY + 4}
-                  fill={isLight ? "#1e293b" : "#cbd5e1"}
-                  fontSize="10.5"
-                  fontFamily="'Inter', -apple-system, sans-serif"
-                  fontWeight="600"
-                  textAnchor="start"
-                >
-                  ${price.toLocaleString(undefined, { minimumFractionDigits: activePair.priceStep < 0.1 ? 3 : 1 })}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Live Active Price level label */}
-          {(() => {
-            const activePriceY = priceToY(activePair.price);
-            if (activePriceY >= margin.top && activePriceY <= margin.top + chartHeight) {
-              return (
-                <g key="fixed-active-price">
-                  <rect
-                    x={3}
-                    y={activePriceY - 8}
-                    width={82}
-                    height={16}
-                    fill={isLight ? "#1e293b" : "#eab308"}
-                    rx="2"
-                    stroke={isLight ? "#1e293b" : "#f59e0b"}
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={8}
-                    y={activePriceY + 4}
-                    fill={isLight ? "#ffffff" : "#010409"}
-                    fontSize="9.5"
-                    fontFamily="'Inter', -apple-system, sans-serif"
-                    fontWeight="bold"
-                    textAnchor="start"
-                  >
-                    ${activePair.price.toLocaleString(undefined, { minimumFractionDigits: activePair.priceStep < 0.1 ? 3 : 1 })}
-                  </text>
-                </g>
-              );
-            }
-            return null;
-          })()}
-
-          {/* Horizontal Level Drawing Object price badges on the fixed scale */}
-          {[...drawings, ...(drawingInProgress ? [drawingInProgress] : [])]
-            .filter((d) => d.type === "horizontal")
-            .map((d) => {
-              const y = priceToY(d.startPrice);
-              if (y >= margin.top && y <= margin.top + chartHeight) {
-                // Render custom, high-contrast badges for each horizontal line
+              {/* Price Ticks & Labels */}
+              {Array.from({ length: 6 }).map((_, i) => {
+                const ratio = i / 5;
+                const price = minPrice + ratio * (maxPrice - minPrice);
+                const gridY = priceToY(price);
                 return (
-                  <g key={`fixed-level-badge-${d.id}`}>
-                    <rect
-                      x={3}
-                      y={y - 8}
-                      width={82}
-                      height={16}
-                      fill={isLight ? "#ffedd5" : "rgba(249, 115, 22, 0.2)"}
-                      rx="2"
-                      stroke={isLight ? "#f97316" : "#f97316"}
+                  <g key={`fixed-grid-label-${i}`}>
+                    {/* Tick Line */}
+                    <line
+                      x1={0}
+                      y1={gridY}
+                      x2={5}
+                      y2={gridY}
+                      stroke={isLight ? "#94a3b8" : "#475569"}
                       strokeWidth="1.2"
                     />
+                    {/* Label Text */}
                     <text
-                      x={8}
-                      y={y + 4}
-                      fill={isLight ? "#ea580c" : "#f97316"}
-                      fontSize="9.5"
+                      x={labelX}
+                      y={gridY + 4}
+                      fill={isLight ? "#1e293b" : "#cbd5e1"}
+                      fontSize={isMobile ? "8.5" : "10.5"}
                       fontFamily="'Inter', -apple-system, sans-serif"
-                      fontWeight="bold"
+                      fontWeight="600"
                       textAnchor="start"
                     >
-                      ${d.startPrice.toLocaleString(undefined, { minimumFractionDigits: activePair.priceStep < 0.1 ? 3 : 1 })}
+                      {formatPrice(price)}
                     </text>
                   </g>
                 );
-              }
-              return null;
-            })}
+              })}
 
-          {/* Panel Dividers for right pricing panel */}
-          {(activeIndicators.delta || activeIndicators.cvd) && (
-            <line
-              x1={0}
-              y1={margin.top + chartHeight}
-              x2={90}
-              y2={margin.top + chartHeight}
-              stroke={isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)"}
-              strokeWidth="1"
-            />
-          )}
-          {activeIndicators.delta && activeIndicators.cvd && (
-            <line
-              x1={0}
-              y1={deltaTopY + deltaPanelHeight + panelGap / 2}
-              x2={90}
-              y2={deltaTopY + deltaPanelHeight + panelGap / 2}
-              stroke={isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)"}
-              strokeWidth="1"
-            />
-          )}
+              {/* Live Active Price level label */}
+              {(() => {
+                const activePriceY = priceToY(activePair.price);
+                if (activePriceY >= margin.top && activePriceY <= margin.top + chartHeight) {
+                  return (
+                    <g key="fixed-active-price">
+                      <rect
+                        x={3}
+                        y={activePriceY - 8}
+                        width={badgeWidth}
+                        height={16}
+                        fill={isLight ? "#1e293b" : "#eab308"}
+                        rx="2"
+                        stroke={isLight ? "#1e293b" : "#f59e0b"}
+                        strokeWidth="1"
+                      />
+                      <text
+                        x={labelX}
+                        y={activePriceY + 4}
+                        fill={isLight ? "#ffffff" : "#010409"}
+                        fontSize={isMobile ? "8" : "9.5"}
+                        fontFamily="'Inter', -apple-system, sans-serif"
+                        fontWeight="bold"
+                        textAnchor="start"
+                      >
+                        {formatPrice(activePair.price)}
+                      </text>
+                    </g>
+                  );
+                }
+                return null;
+              })()}
 
-          {/* Delta subchart Y-axis labels */}
-          {activeIndicators.delta && (
-            <g key="delta-panel-ticks">
-              {/* Top Tick */}
-              <text
-                x={8}
-                y={deltaTopY + deltaPanelHeight * 0.1 + 4}
-                fill={isLight ? "#047857" : "#10b981"}
-                fontSize="9"
-                fontFamily="'Inter', -apple-system, sans-serif"
-                fontWeight="bold"
-              >
-                +{zoomedMaxCandleDelta.toFixed(1)}K
-              </text>
-              {/* Mid Tick */}
-              <text
-                x={8}
-                y={deltaTopY + deltaPanelHeight / 2 + 4}
-                fill={isLight ? "#475569" : "#94a3b8"}
-                fontSize="9"
-                fontFamily="'Inter', -apple-system, sans-serif"
-                fontWeight="bold"
-              >
-                0.0K
-              </text>
-              {/* Bottom Tick */}
-              <text
-                x={8}
-                y={deltaTopY + deltaPanelHeight * 0.9 + 4}
-                fill={isLight ? "#be123c" : "#f43f5e"}
-                fontSize="9"
-                fontFamily="'Inter', -apple-system, sans-serif"
-                fontWeight="bold"
-              >
-                -{zoomedMaxCandleDelta.toFixed(1)}K
-              </text>
-            </g>
-          )}
+              {/* Horizontal Level Drawing Object price badges on the fixed scale */}
+              {[...drawings, ...(drawingInProgress ? [drawingInProgress] : [])]
+                .filter((d) => d.type === "horizontal")
+                .map((d) => {
+                  const y = priceToY(d.startPrice);
+                  if (y >= margin.top && y <= margin.top + chartHeight) {
+                    // Render custom, high-contrast badges for each horizontal line
+                    return (
+                      <g key={`fixed-level-badge-${d.id}`}>
+                        <rect
+                          x={3}
+                          y={y - 8}
+                          width={badgeWidth}
+                          height={16}
+                          fill={isLight ? "#ffedd5" : "rgba(249, 115, 22, 0.2)"}
+                          rx="2"
+                          stroke={isLight ? "#f97316" : "#f97316"}
+                          strokeWidth="1.2"
+                        />
+                        <text
+                          x={labelX}
+                          y={y + 4}
+                          fill={isLight ? "#ea580c" : "#f97316"}
+                          fontSize={isMobile ? "8" : "9.5"}
+                          fontFamily="'Inter', -apple-system, sans-serif"
+                          fontWeight="bold"
+                          textAnchor="start"
+                        >
+                          {formatPrice(d.startPrice)}
+                        </text>
+                      </g>
+                    );
+                  }
+                  return null;
+                })}
 
-          {/* CVD subchart Y-axis labels */}
-          {activeIndicators.cvd && (
-            <g key="cvd-panel-ticks">
-              {/* Top Tick */}
-              <text
-                x={8}
-                y={cvdTopY + cvdPanelHeight * 0.1 + 4}
-                fill={isLight ? "#7c3aed" : "#c084fc"}
-                fontSize="9"
-                fontFamily="'Inter', -apple-system, sans-serif"
-                fontWeight="bold"
-              >
-                +{zoomedCvdMax.toFixed(1)}K
-              </text>
-              {/* Mid Tick */}
-              <text
-                x={8}
-                y={cvdTopY + cvdPanelHeight / 2 + 4}
-                fill={isLight ? "#475569" : "#94a3b8"}
-                fontSize="9"
-                fontFamily="'Inter', -apple-system, sans-serif"
-                fontWeight="bold"
-              >
-                {cvdCenterVal.toFixed(1)}K
-              </text>
-              {/* Bottom Tick */}
-              <text
-                x={8}
-                y={cvdTopY + cvdPanelHeight * 0.9 + 4}
-                fill={isLight ? "#7c3aed" : "#c084fc"}
-                fontSize="9"
-                fontFamily="'Inter', -apple-system, sans-serif"
-                fontWeight="bold"
-              >
-                {zoomedCvdMin.toFixed(1)}K
-              </text>
-            </g>
-          )}
+              {/* Panel Dividers for right pricing panel */}
+              {(activeIndicators.delta || activeIndicators.cvd) && (
+                <line
+                  x1={0}
+                  y1={margin.top + chartHeight}
+                  x2={scaleWidth}
+                  y2={margin.top + chartHeight}
+                  stroke={isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)"}
+                  strokeWidth="1"
+                />
+              )}
+              {activeIndicators.delta && activeIndicators.cvd && (
+                <line
+                  x1={0}
+                  y1={deltaTopY + deltaPanelHeight + panelGap / 2}
+                  x2={scaleWidth}
+                  y2={deltaTopY + deltaPanelHeight + panelGap / 2}
+                  stroke={isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)"}
+                  strokeWidth="1"
+                />
+              )}
 
-          {/* Hover Crosshair price label */}
-          {crosshair && (
-            <g key="fixed-crosshair-price">
-              <rect
-                x={2}
-                y={crosshair.y - 8}
-                width={82}
-                height={16}
-                fill={isLight ? "#2563eb" : "#3b82f6"}
-                rx="2"
-                stroke={isLight ? "#1d4ed8" : "#60a5fa"}
-                strokeWidth="1"
-              />
-              <text
-                x={8}
-                y={crosshair.y + 4}
-                fill="#ffffff"
-                fontSize="9.5"
-                fontFamily="'Inter', -apple-system, sans-serif"
-                fontWeight="black"
-                textAnchor="start"
-              >
-                ${crosshair.price.toLocaleString(undefined, { minimumFractionDigits: activePair.priceStep < 0.1 ? 3 : 1 })}
-              </text>
-            </g>
-          )}
-        </svg>
+              {/* Delta subchart Y-axis labels */}
+              {activeIndicators.delta && (
+                <g key="delta-panel-ticks">
+                  {/* Top Tick */}
+                  <text
+                    x={labelX}
+                    y={deltaTopY + deltaPanelHeight * 0.1 + 4}
+                    fill={isLight ? "#047857" : "#10b981"}
+                    fontSize={isMobile ? "8" : "9"}
+                    fontFamily="'Inter', -apple-system, sans-serif"
+                    fontWeight="bold"
+                  >
+                    +{zoomedMaxCandleDelta.toFixed(1)}K
+                  </text>
+                  {/* Mid Tick */}
+                  <text
+                    x={labelX}
+                    y={deltaTopY + deltaPanelHeight / 2 + 4}
+                    fill={isLight ? "#475569" : "#94a3b8"}
+                    fontSize={isMobile ? "8" : "9"}
+                    fontFamily="'Inter', -apple-system, sans-serif"
+                    fontWeight="bold"
+                  >
+                    0.0K
+                  </text>
+                  {/* Bottom Tick */}
+                  <text
+                    x={labelX}
+                    y={deltaTopY + deltaPanelHeight * 0.9 + 4}
+                    fill={isLight ? "#be123c" : "#f43f5e"}
+                    fontSize={isMobile ? "8" : "9"}
+                    fontFamily="'Inter', -apple-system, sans-serif"
+                    fontWeight="bold"
+                  >
+                    -{zoomedMaxCandleDelta.toFixed(1)}K
+                  </text>
+                </g>
+              )}
+
+              {/* CVD subchart Y-axis labels */}
+              {activeIndicators.cvd && (
+                <g key="cvd-panel-ticks">
+                  {/* Top Tick */}
+                  <text
+                    x={labelX}
+                    y={cvdTopY + cvdPanelHeight * 0.1 + 4}
+                    fill={isLight ? "#7c3aed" : "#c084fc"}
+                    fontSize={isMobile ? "8" : "9"}
+                    fontFamily="'Inter', -apple-system, sans-serif"
+                    fontWeight="bold"
+                  >
+                    +{zoomedCvdMax.toFixed(1)}K
+                  </text>
+                  {/* Mid Tick */}
+                  <text
+                    x={labelX}
+                    y={cvdTopY + cvdPanelHeight / 2 + 4}
+                    fill={isLight ? "#475569" : "#94a3b8"}
+                    fontSize={isMobile ? "8" : "9"}
+                    fontFamily="'Inter', -apple-system, sans-serif"
+                    fontWeight="bold"
+                  >
+                    {cvdCenterVal.toFixed(1)}K
+                  </text>
+                  {/* Bottom Tick */}
+                  <text
+                    x={labelX}
+                    y={cvdTopY + cvdPanelHeight * 0.9 + 4}
+                    fill={isLight ? "#7c3aed" : "#c084fc"}
+                    fontSize={isMobile ? "8" : "9"}
+                    fontFamily="'Inter', -apple-system, sans-serif"
+                    fontWeight="bold"
+                  >
+                    {zoomedCvdMin.toFixed(1)}K
+                  </text>
+                </g>
+              )}
+
+              {/* Hover Crosshair price label */}
+              {crosshair && (
+                <g key="fixed-crosshair-price">
+                  <rect
+                    x={2}
+                    y={crosshair.y - 8}
+                    width={badgeWidth}
+                    height={16}
+                    fill={isLight ? "#2563eb" : "#3b82f6"}
+                    rx="2"
+                    stroke={isLight ? "#1d4ed8" : "#60a5fa"}
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={labelX}
+                    y={crosshair.y + 4}
+                    fill="#ffffff"
+                    fontSize={isMobile ? "8" : "9.5"}
+                    fontFamily="'Inter', -apple-system, sans-serif"
+                    fontWeight="black"
+                    textAnchor="start"
+                  >
+                    {formatPrice(crosshair.price)}
+                  </text>
+                </g>
+              )}
+            </svg>
+          );
+        })()}
       </div>
 
       {/* Absolute Pinned Indicators Control Overlays (Top-right of subcharts) */}
