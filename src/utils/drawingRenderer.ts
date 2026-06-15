@@ -391,7 +391,8 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
             ctx.fillStyle = isLight ? "rgba(148, 163, 184, 0.06)" : "rgba(148, 163, 184, 0.09)";
           }
 
-          ctx.fillRect(minX, binY + 0.5, drawW, bHeightStep - 1);
+          // Render contiguous bars without space or subpixel gaps to form a perfectly solid block
+          ctx.fillRect(minX, binY, drawW, bHeightStep + 0.25);
         }
 
         // 3. Draw VAL and VAH dashed boundaries (subtle, less visible)
