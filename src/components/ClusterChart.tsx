@@ -3783,23 +3783,25 @@ export default function ClusterChart({
               {crosshair && (
                 <g key="fixed-crosshair-price">
                   <rect
-                    x={2}
-                    y={crosshair.y - 8}
-                    width={badgeWidth}
-                    height={16}
-                    fill={isLight ? "#2563eb" : "#3b82f6"}
-                    rx="2"
-                    stroke={isLight ? "#1d4ed8" : "#60a5fa"}
-                    strokeWidth="1"
+                    x={3}
+                    y={crosshair.y - 10.5}
+                    width={scaleWidth - 6}
+                    height={21}
+                    fill={isLight ? "#4f46e5" : "#6366f1"}
+                    rx="3"
+                    stroke={isLight ? "#3730a3" : "#818cf8"}
+                    strokeWidth="1.2"
                   />
                   <text
-                    x={labelX}
-                    y={crosshair.y + 4}
+                    x={labelX + 2}
+                    y={crosshair.y}
                     fill="#ffffff"
-                    fontSize={isMobile ? "8" : "9.5"}
+                    fontSize={isMobile ? "9" : "11"}
                     fontFamily="'Inter', -apple-system, sans-serif"
-                    fontWeight="black"
+                    fontWeight="800"
                     textAnchor="start"
+                    dominantBaseline="central"
+                    style={{ filter: "drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.6))" }}
                   >
                     {formatPrice(crosshair.price)}
                   </text>
