@@ -1942,7 +1942,25 @@ export default function ClusterChart({
       ctx.restore();
     }
 
-
+    // 3.1 Draw BACKGROUND-LAYER INTERACTIVE DRAWING OBJECTS (e.g. Range Volume Profile)
+    // Always drawn under candles, wicks, and cluster cells per user request
+    drawDrawingObjects(ctx, {
+      ctx,
+      drawings,
+      drawingInProgress,
+      selectedDrawingId,
+      visibleScrollLeft,
+      viewportWidth,
+      chartHeight,
+      margin,
+      isLight,
+      priceToY,
+      activePair,
+      candles,
+      candleWidth,
+      candleSpacing,
+      layer: "background",
+    });
 
     const startIdx = Math.max(0, Math.floor((visibleScrollLeft - margin.left - candleWidth) / (candleWidth + candleSpacing)));
     const endIdx = Math.min(candles.length - 1, Math.ceil((visibleScrollLeft + viewportWidth - margin.left) / (candleWidth + candleSpacing)));
@@ -2810,7 +2828,7 @@ export default function ClusterChart({
     }
 
     // -------------------------------------------------------------------------
-    // RENDER INTERACTIVE DRAWING OBJECTS
+    // RENDER INTERACTIVE DRAWING OBJECTS (Foreground items: lines, handles, annotations, etc.)
     // -------------------------------------------------------------------------
     drawDrawingObjects(ctx, {
       ctx,
@@ -2827,6 +2845,7 @@ export default function ClusterChart({
       candles,
       candleWidth,
       candleSpacing,
+      layer: "foreground",
     });
 
     ctx.restore(); // Undoes translation of -visibleScrollLeft for viewport-wide elements
@@ -3593,26 +3612,28 @@ export default function ClusterChart({
               {(() => {
                 const activePriceY = priceToY(activePair.price);
                 if (activePriceY >= margin.top && activePriceY <= margin.top + chartHeight) {
+                  const bHeight = isMobile ? 18 : 22;
                   return (
                     <g key="fixed-active-price">
                       <rect
-                        x={3}
-                        y={activePriceY - 8}
-                        width={badgeWidth}
-                        height={16}
-                        fill={isLight ? "#1e293b" : "#eab308"}
-                        rx="2"
-                        stroke={isLight ? "#1e293b" : "#f59e0b"}
-                        strokeWidth="1"
+                        x={2}
+                        y={activePriceY - bHeight / 2}
+                        width={scaleWidth - 4}
+                        height={bHeight}
+                        fill={isLight ? "rgba(15, 23, 42, 0.12)" : "rgba(245, 158, 11, 0.22)"}
+                        rx="3.5"
+                        stroke={isLight ? "rgba(15, 23, 42, 0.25)" : "rgba(245, 158, 11, 0.55)"}
+                        strokeWidth="1.2"
                       />
                       <text
-                        x={labelX}
-                        y={activePriceY + 4}
-                        fill={isLight ? "#ffffff" : "#010409"}
-                        fontSize={isMobile ? "8" : "9.5"}
+                        x={labelX + 1}
+                        y={activePriceY}
+                        fill={isLight ? "#0f172a" : "#facc15"}
+                        fontSize={isMobile ? "10" : "12.5"}
                         fontFamily="'Inter', -apple-system, sans-serif"
-                        fontWeight="bold"
+                        fontWeight="900"
                         textAnchor="start"
+                        dominantBaseline="central"
                       >
                         {formatPrice(activePair.price)}
                       </text>

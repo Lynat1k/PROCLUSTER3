@@ -47,6 +47,7 @@ interface RenderContext {
   }>;
   candleWidth: number;
   candleSpacing: number;
+  layer?: "background" | "foreground";
 }
 
 /**
@@ -67,11 +68,16 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
     candles,
     candleWidth,
     candleSpacing,
+    layer = "foreground",
   } = renderParams;
 
   const allDrawings = [...drawings, ...(drawingInProgress ? [drawingInProgress] : [])];
 
   allDrawings.forEach((d) => {
+    const isVolumeType = d.type === "volume";
+    if (layer === "background" && !isVolumeType) return;
+    if (layer === "foreground" && isVolumeType) return;
+
     const y1 = priceToY(d.startPrice);
     const y2 = priceToY(d.endPrice);
     const x1 = d.startX;
@@ -438,8 +444,8 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
     }
   });
 
-  // Render Selection Highlighting & Resize Handles for the selected drawing
-  if (selectedDrawingId !== null) {
+  // Render Selection Highlighting & Resize Handles for the selected drawing (Only on foreground layer)
+  if (layer === "foreground" && selectedDrawingId !== null) {
     const d = drawings.find((item) => item.id === selectedDrawingId);
     if (d) {
       const y1 = priceToY(d.startPrice);
