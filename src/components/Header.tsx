@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { CryptoPair } from "../types";
-import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders, Sparkles } from "lucide-react";
+import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders, Sparkles, HelpCircle, Send, Youtube } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { authTexts, headerUiTexts } from "../i18n/header";
 import { 
@@ -79,6 +79,8 @@ export default function Header({
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showFaqModal, setShowFaqModal] = useState(false);
+  const [faqActiveIndex, setFaqActiveIndex] = useState<number | null>(0);
   
   // Custom inputs for login inside clean modal
   const [loginEmail, setLoginEmail] = useState("");
@@ -302,37 +304,44 @@ export default function Header({
                         <span>{headerUiTexts[language].home}</span>
                       </button>
 
-                      <button className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer transition text-left ${
-                        isLight ? "text-slate-700 hover:bg-red-50 hover:text-rose-600" : "text-slate-300 hover:text-white hover:bg-white/5"
-                      }`}>
-                        <Bug className="w-3.5 h-3.5 text-rose-505" />
-                        <span>{headerUiTexts[language].foundError}</span>
-                      </button>
-
                       <button 
                         onClick={() => {
-                          navigator.clipboard.writeText("7D53CEC5");
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
+                          setDropdownOpen(false);
+                          setShowFaqModal(true);
                         }}
-                        className={`flex items-center justify-between gap-2 w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono font-bold cursor-pointer transition text-left ${
-                          isLight ? "text-slate-605 hover:text-slate-800 hover:bg-slate-100" : "text-slate-400 hover:text-white hover:bg-white/5"
+                        className={`flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer transition text-left ${
+                          isLight ? "text-slate-700 hover:text-slate-900 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-white/5"
                         }`}
                       >
-                        <div className="flex items-center gap-2">
-                          <Copy className="w-3.5 h-3.5 text-slate-505" />
-                          <span className={`tracking-wider text-[10px] ${isLight ? "text-slate-800 font-bold" : "text-slate-300"}`}>7D53CEC5</span>
-                        </div>
-                        {copied ? (
-                          <Check className="w-3 h-3 text-emerald-500" />
-                        ) : (
-                          <span className={`text-[7px] uppercase tracking-widest font-bold px-1 py-0.5 rounded border ${
-                            isLight ? "bg-slate-205 border-slate-300 text-slate-700" : "bg-white/5 border-white/5 text-slate-505"
-                          }`}>
-                            {headerUiTexts[language].copy}
-                          </span>
-                        )}
+                        <HelpCircle className="w-3.5 h-3.5 text-blue-500" />
+                        <span>FAQ</span>
                       </button>
+
+                      <div className={`my-1 border-t ${isLight ? "border-slate-100" : "border-white/5"}`} />
+                      <div className="flex items-center justify-around gap-2 px-1 py-1">
+                        <a 
+                          href="https://t.me/your_telegram_channel" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className={`flex items-center justify-center gap-1.5 flex-1 py-1 rounded-lg text-[9.5px] font-bold transition ${
+                            isLight ? "text-sky-600 hover:bg-sky-50 bg-sky-50/30" : "text-sky-400 hover:bg-[#0284c7]/10 bg-sky-500/5"
+                          }`}
+                        >
+                          <Send className="w-3 h-3 hover:translate-x-0.5 hover:-translate-y-0.5 transition-transform" />
+                          <span>Telegram</span>
+                        </a>
+                        <a 
+                          href="https://youtube.com/@your_youtube_channel" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className={`flex items-center justify-center gap-1.5 flex-1 py-1 rounded-lg text-[9.5px] font-bold transition ${
+                            isLight ? "text-red-600 hover:bg-red-50 bg-red-50/30" : "text-red-400 hover:bg-[#dc2626]/10 bg-red-500/5"
+                          }`}
+                        >
+                          <Youtube className="w-3 h-3 hover:scale-110 transition-transform" />
+                          <span>YouTube</span>
+                        </a>
+                      </div>
                     </div>
 
                     <div className={`mt-3 pt-3 border-t ${isLight ? "border-slate-100" : "border-white/5"}`}>
@@ -641,37 +650,43 @@ export default function Header({
                       <span>{headerUiTexts[language].home}</span>
                     </button>
 
-                    <button className={`flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[12px] font-bold cursor-pointer transition text-left ${
-                      isLight ? "text-slate-705 hover:bg-red-50 hover:text-rose-600" : "text-slate-305 hover:text-white hover:bg-white/5"
-                    }`}>
-                      <Bug className="w-4 h-4 text-rose-500" />
-                      <span>{headerUiTexts[language].foundError}</span>
-                    </button>
-
                     <button 
                       onClick={() => {
-                        navigator.clipboard.writeText("7D53CEC5");
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
+                        setDropdownOpen(false);
+                        setShowFaqModal(true);
                       }}
-                      className={`flex items-center justify-between gap-3 w-full px-3 py-2 rounded-2xl text-[12px] font-mono font-bold cursor-pointer transition text-left ${
-                        isLight ? "text-slate-605 hover:text-slate-800 hover:bg-slate-100" : "text-slate-400 hover:text-white hover:bg-white/5"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Copy className="w-4 h-4 text-slate-500" />
-                        <span className={`tracking-wider text-[11px] ${isLight ? "text-slate-800 font-bold" : "text-slate-305"}`}>7D53CEC5</span>
-                      </div>
-                      {copied ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                      ) : (
-                        <span className={`text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded border ${
-                          isLight ? "bg-slate-205 border-slate-305 text-slate-700" : "bg-white/5 border-white/5 text-slate-500"
-                        }`}>
-                          {headerUiTexts[language].copy}
-                        </span>
-                      )}
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-2xl text-[12px] font-bold cursor-pointer transition text-left ${
+                        isLight ? "text-slate-700 hover:text-slate-900 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-white/5"
+                      }`}>
+                      <HelpCircle className="w-4 h-4 text-blue-500" />
+                      <span>FAQ</span>
                     </button>
+
+                    <div className={`my-1.5 border-t ${isLight ? "border-slate-100" : "border-white/5"}`} />
+                    <div className="flex items-center justify-around gap-2 px-1">
+                      <a 
+                        href="https://t.me/your_telegram_channel" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={`flex items-center justify-center gap-2 flex-1 py-1.5 rounded-xl text-[10.5px] font-bold transition ${
+                          isLight ? "text-sky-600 hover:bg-sky-50 bg-sky-50/30" : "text-sky-400 hover:bg-[#0284c7]/10 bg-sky-500/5"
+                        }`}
+                      >
+                        <Send className="w-3.5 h-3.5 hover:translate-x-0.5 hover:-translate-y-0.5 transition-transform" />
+                        <span>Telegram</span>
+                      </a>
+                      <a 
+                        href="https://youtube.com/@your_youtube_channel" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={`flex items-center justify-center gap-2 flex-1 py-1.5 rounded-xl text-[10.5px] font-bold transition ${
+                          isLight ? "text-red-600 hover:bg-red-50 bg-red-50/30" : "text-red-400 hover:bg-[#dc2626]/10 bg-red-500/5"
+                        }`}
+                      >
+                        <Youtube className="w-3.5 h-3.5 hover:scale-110 transition-transform" />
+                        <span>YouTube</span>
+                      </a>
+                    </div>
                   </div>
 
                   {/* Language selection block */}
@@ -1059,6 +1074,158 @@ export default function Header({
                   <ShieldCheck className="w-3.5 h-3.5 text-yellow-500" />
                   <span>{(authTexts[language] || authTexts.EN).autoLogin}</span>
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Glassy FAQ Modal overlay */}
+      <AnimatePresence>
+        {showFaqModal && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            {/* Backdrop Blur screen shadow */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFaqModal(false)}
+              className={`absolute inset-0 backdrop-blur-md transition-opacity duration-300 ${
+                isLight ? "bg-slate-900/40" : "bg-[#020617]/80"
+              }`}
+            />
+
+            {/* Modal Body with premium glassy layout */}
+            <motion.div
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
+              className={`relative w-full max-w-2xl overflow-hidden rounded-3xl p-6 shadow-2xl border transition-all duration-300 ${
+                isLight 
+                  ? "bg-white/95 border-slate-200 text-slate-800" 
+                  : "bg-[#090d16]/98 border-white/5 text-slate-100"
+              }`}
+            >
+              {/* Decorative radial gradients for high-fidelity ambient feel */}
+              <div className="absolute top-0 right-0 -mt-10 -mr-10 w-44 h-44 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-44 h-44 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-5 relative z-10 pb-3 border-b border-dashed border-slate-200 dark:border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-2xl bg-blue-500/10 text-blue-500 animate-pulse">
+                    <HelpCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-[16px] font-black uppercase tracking-wide">
+                      {language === "RU" ? "Часто задаваемые вопросы (FAQ)" : language === "KZ" ? "Жиі қойылатын сұрақтар" : "Frequently Asked Questions"}
+                    </h3>
+                    <p className={`text-[10px] uppercase font-bold tracking-wider ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+                      {language === "RU" ? "Руководство и полезная информация" : language === "KZ" ? "Нұсқаулық пен ақпарат" : "Guide & core information"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowFaqModal(false)}
+                  className={`p-1.5 rounded-xl transition cursor-pointer ${
+                    isLight ? "hover:bg-slate-100 text-slate-400 hover:text-slate-600" : "hover:bg-white/5 text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Collapsible FAQ Content Items */}
+              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 relative z-10 custom-scrollbar text-[12px] font-medium">
+                {[
+                  {
+                    q_ru: "Как устроен кластерный график рынка?",
+                    q_en: "How does the Cluster Chart work?",
+                    a_ru: "Кластерный график делит каждую свечу на ценовые уровни (шаг цены) и отображает проторгованный объем раздельно на покупку (Ask) и продажу (Bid). Это позволяет заглянуть внутрь свечи, увидеть уровни максимального объема (POC) и дисбалансы спроса/предложения.",
+                    a_en: "The cluster chart divides each candlestick into specific price levels, displaying the traded volume split into buy (Ask) and sell (Bid). This lets you see inside the candle to spot Points of Control (POC) and supply/demand imbalances."
+                  },
+                  {
+                    q_ru: "Как управлять масштабированием и прокруткой графиков?",
+                    q_en: "How to use Zoom and Navigation?",
+                    a_ru: "Используйте колесо мыши для стандартного масштабирования (одновременно по вертикали и горизонтали). Нажав Shift + Колесо мыши, вы можете растягивать/сжимать ценовую шкалу по вертикали, а Ctrl + Колесо мыши фокусируется на временной шкале.",
+                    a_en: "Use standard mouse wheel to zoom both axes at once. Press Shift + Wheel to scale vertically, and Ctrl + Wheel to stretch/squeeze the horizontal timeline."
+                  },
+                  {
+                    q_ru: "Что такое кумулятивная дельта (CVD)?",
+                    q_en: "What is Cumulative Volume Delta (CVD)?",
+                    a_ru: "Кумулятивная дельта (CVD) отображает накопленную разницу рыночных покупок и продаж во времени. Резкие всплески CVD указывают на агрессивный интерес участников рынка, а расхождения с ценой (дивергенции) намекают на разворот тренда.",
+                    a_en: "Cumulative Volume Delta (CVD) shows the running total of structural market buying vs market selling over time. Surges show aggressive participants, and divergence with price signals turning points."
+                  },
+                  {
+                    q_ru: "Как добавить индикаторы или линии поддержки?",
+                    q_en: "How to apply drawing tools?",
+                    a_ru: "Нажмите на кнопку 'Индикаторы' в углу рабочей области, чтобы вызвать конфигуратор. Чтобы нарисовать линию, выберите инструмент рисования на боковой панели и кликните по графику для установки опорных точек.",
+                    a_en: "Click the 'Indicators' panel in the platform workspace corner to customize parameters, or select drawing tools from the sidebar and place line anchors directly on the chart."
+                  }
+                ].map((item, idx) => {
+                  const isOpen = faqActiveIndex === idx;
+                  const q = language === "RU" ? item.q_ru : item.q_en;
+                  const a = language === "RU" ? item.a_ru : item.a_en;
+
+                  return (
+                    <div 
+                      key={idx}
+                      className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                        isOpen 
+                          ? isLight ? "bg-blue-50/20 border-blue-100" : "bg-blue-500/5 border-blue-500/20"
+                          : isLight ? "bg-slate-50/50 border-slate-100 hover:border-slate-200" : "bg-white/2 hover:bg-white/4 border-white/5 hover:border-white/10"
+                      }`}
+                    >
+                      <button
+                        onClick={() => setFaqActiveIndex(isOpen ? null : idx)}
+                        className="w-full px-4 py-3.5 flex items-center justify-between text-left font-bold cursor-pointer outline-none"
+                      >
+                        <span className={`text-[12.5px] tracking-wide transition-colors ${isOpen ? "text-blue-500" : ""}`}>{q}</span>
+                        <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? "rotate-180 text-blue-500" : ""}`} />
+                      </button>
+                      <motion.div
+                        initial={false}
+                        animate={{ height: isOpen ? "auto" : 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className={`px-4 pb-4 pt-1.5 text-[11px] leading-relaxed ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          {a}
+                        </div>
+                      </motion.div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Modal Footer with quick contacts */}
+              <div className="mt-5 pt-4 border-t border-slate-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px]">
+                <span className={isLight ? "text-slate-500" : "text-slate-400"}>
+                  {language === "RU" ? "Остались вопросы? Присоединяйтесь к сообществу:" : language === "KZ" ? "Сұрақтарыңыз бар ма? Қауымдастыққа қосылыңыз:" : "Have questions? Join our community:"}
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <a 
+                    href="https://t.me/your_telegram_channel"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold transition duration-200"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Telegram</span>
+                  </a>
+                  <a 
+                    href="https://youtube.com/@your_youtube_channel"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition duration-200"
+                  >
+                    <Youtube className="w-3.5 h-3.5" />
+                    <span>YouTube</span>
+                  </a>
+                </div>
               </div>
             </motion.div>
           </div>
