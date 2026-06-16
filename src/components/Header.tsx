@@ -37,6 +37,7 @@ interface HeaderProps {
   isMobileSettingsOpen?: boolean;
   activeMobileTab?: "chart" | "dom";
   setActiveMobileTab?: (tab: "chart" | "dom") => void;
+  isAdminView?: boolean;
 }
 
 export default function Header({
@@ -56,7 +57,8 @@ export default function Header({
   onToggleMobileSettings,
   isMobileSettingsOpen = false,
   activeMobileTab,
-  setActiveMobileTab
+  setActiveMobileTab,
+  isAdminView = false
 }: HeaderProps) {
   
   const isLight = theme === "light";
@@ -447,7 +449,7 @@ export default function Header({
       </div>
 
       {/* MOBILE SECOND ROW: Settings Toggle button on the left, Chart & DOM switch on the right */}
-      {activeMobileTab && setActiveMobileTab && (
+      {!isAdminView && activeMobileTab && setActiveMobileTab && (
         <div className="flex lg:hidden w-full items-center justify-between gap-2.5 pt-1.5 border-t border-slate-200/50 dark:border-white/5 relative z-10">
           {/* Settings Trigger for Mobile */}
           <button

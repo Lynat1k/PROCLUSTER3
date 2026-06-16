@@ -1677,6 +1677,7 @@ export default function App() {
         isMobileSettingsOpen={isMobileSettingsOpen}
         activeMobileTab={activeMobileTab}
         setActiveMobileTab={setActiveMobileTab}
+        isAdminView={currentView === "admin"}
       />
 
       {currentView === "admin" ? (
