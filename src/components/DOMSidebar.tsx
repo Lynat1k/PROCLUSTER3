@@ -778,14 +778,15 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
           }`}>
             <div 
               id="dot-matrix-price"
-              className={`font-mono text-[30px] font-black tracking-widest leading-none text-center select-all ${
+              className={`font-matrix text-[30px] font-black tracking-widest leading-none text-center select-all ${
                 isLight ? "text-amber-900" : "text-amber-500"
               }`}
               style={{
                 textShadow: isLight 
                   ? "none"
                   : '0 0 10px rgba(245, 158, 11, 0.95), 0 0 22px rgba(245, 158, 11, 0.65)',
-                fontWeight: 900
+                fontWeight: 900,
+                fontFamily: '"London Underground Regular", "Courier New", Courier, monospace'
               }}
             >
               {activePair.price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
