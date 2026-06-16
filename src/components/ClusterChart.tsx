@@ -110,6 +110,9 @@ export default function ClusterChart({
 
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
   const [drawings, setDrawings] = useState<any[]>([]);
+  const [areDrawingsVisible, setAreDrawingsVisible] = useState<boolean>(() => {
+    return storage.get("procluster_drawings_visible") !== "false";
+  });
   const [drawingInProgress, setDrawingInProgress] = useState<any | null>(null);
   const [selectedDrawingId, setSelectedDrawingId] = useState<number | null>(null);
   const [drawingDragState, setDrawingDragState] = useState<any | null>(null);
@@ -708,6 +711,10 @@ export default function ClusterChart({
     
     // If drawing tool is active, handle drawing instead of panning!
     if (activeDrawingTool) {
+      if (!areDrawingsVisible) {
+        setAreDrawingsVisible(true);
+        storage.set("procluster_drawings_visible", "true");
+      }
       const rect = canvasRef.current?.getBoundingClientRect();
       if (rect) {
         const clickX = e.clientX - rect.left;
@@ -780,7 +787,7 @@ export default function ClusterChart({
         let foundHandleIdx: number | null = null;
 
         // 1. Check selected drawing handles first
-        if (selectedDrawingId !== null) {
+        if (areDrawingsVisible && selectedDrawingId !== null) {
           const d = drawings.find(item => item.id === selectedDrawingId);
           if (d) {
             const y1 = priceToY(d.startPrice);
@@ -821,7 +828,7 @@ export default function ClusterChart({
         }
 
         // 2. If no handle, check if we clicked inside any drawing
-        if (foundDrawingId === null) {
+        if (areDrawingsVisible && foundDrawingId === null) {
           for (let i = drawings.length - 1; i >= 0; i--) {
             const d = drawings[i];
             const y1 = priceToY(d.startPrice);
@@ -1963,7 +1970,7 @@ export default function ClusterChart({
     // Always drawn under candles, wicks, and cluster cells per user request
     drawDrawingObjects(ctx, {
       ctx,
-      drawings,
+      drawings: areDrawingsVisible ? drawings : [],
       drawingInProgress,
       selectedDrawingId,
       visibleScrollLeft,
@@ -2849,7 +2856,7 @@ export default function ClusterChart({
     // -------------------------------------------------------------------------
     drawDrawingObjects(ctx, {
       ctx,
-      drawings,
+      drawings: areDrawingsVisible ? drawings : [],
       drawingInProgress,
       selectedDrawingId,
       visibleScrollLeft,
@@ -3464,27 +3471,69 @@ export default function ClusterChart({
             })}
           </div>
 
-          {/* Delete drawings option at the bottom */}
-          {drawings.length > 0 && (
+          {/* Separator line */}
+          <div className={`w-6 h-[1px] my-1.5 shrink-0 ${
+            isLight ? "bg-slate-200" : "bg-white/10"
+          }`} />
+
+          {/* Action buttons at the bottom of the sidebar */}
+          <div className="flex flex-col gap-1.5 items-center w-full mt-auto shrink-0">
+            {/* Show/Hide Drawings */}
             <button
               onClick={() => {
-                setDrawings([]);
-                setSelectedDrawingId(null);
+                setAreDrawingsVisible(prev => {
+                  const next = !prev;
+                  storage.set("procluster_drawings_visible", String(next));
+                  return next;
+                });
               }}
               className={`p-2 rounded-lg transition-all duration-150 relative group cursor-pointer ${
-                isLight
-                  ? "hover:bg-rose-50 text-rose-600 hover:text-rose-700 hover:border-rose-100"
-                  : "hover:bg-rose-950/20 text-rose-505 hover:text-rose-455 hover:border-rose-955/35"
-              } border border-transparent`}
+                !areDrawingsVisible
+                  ? "bg-amber-500/10 text-amber-500 border border-amber-500/25"
+                  : isLight
+                    ? "hover:bg-slate-105 text-slate-605 hover:text-slate-905 border border-transparent"
+                    : "hover:bg-white/5 text-slate-405 hover:text-white border border-transparent"
+              }`}
+              title={language === "RU" ? (areDrawingsVisible ? "Скрыть все рисунки" : "Показать все рисунки") : (areDrawingsVisible ? "Hide All Drawings" : "Show All Drawings")}
+            >
+              {areDrawingsVisible ? (
+                <Eye className="w-4 h-4" />
+              ) : (
+                <EyeOff className="w-4 h-4 text-rose-500" />
+              )}
+              
+              <div className={`absolute left-full ml-2 top-1.2 font-sans font-semibold text-[10px] px-2 py-1 rounded bg-slate-950 text-slate-100 border border-white/10 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl`}>
+                {language === "RU" ? (areDrawingsVisible ? "Скрыть все объекты" : "Показать все объекты") : (areDrawingsVisible ? "Hide All Objects" : "Show All Objects")}
+              </div>
+            </button>
+
+            {/* Delete All Drawings */}
+            <button
+              onClick={() => {
+                if (drawings.length > 0) {
+                  setDrawings([]);
+                  setSelectedDrawingId(null);
+                }
+              }}
+              disabled={drawings.length === 0}
+              className={`p-2 rounded-lg transition-all duration-150 relative group border border-transparent ${
+                drawings.length === 0
+                  ? "opacity-30 cursor-not-allowed text-slate-500"
+                  : isLight
+                    ? "hover:bg-rose-50 text-rose-600 hover:text-rose-700 hover:border-rose-100 cursor-pointer"
+                    : "hover:bg-rose-955/20 text-rose-505 hover:text-rose-455 hover:border-rose-955/35 cursor-pointer"
+              }`}
               title={language === "RU" ? "Удалить все рисунки" : "Clear Drawings"}
             >
               <Trash2 className="w-4 h-4" />
               
-              <div className={`absolute left-full ml-2 top-1.2 font-sans font-extrabold text-[10px] px-2 py-1 rounded bg-rose-950 text-rose-300 border border-rose-900/30 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl`}>
+              <div className={`absolute left-full ml-2 top-1.2 font-sans font-extrabold text-[10px] px-2 py-1 rounded bg-rose-950 text-rose-300 border border-rose-900/30 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl ${
+                drawings.length === 0 ? "group-hover:hidden" : ""
+              }`}>
                 {language === "RU" ? "Удалить все рисунки" : "Clear All Drawings"}
               </div>
             </button>
-          )}
+          </div>
         </div>
 
         {/* Main SVG/Zoom Panel */}
@@ -3517,47 +3566,80 @@ export default function ClusterChart({
                 const overlayIndicatorIds = ["clusterSearch", "volumeOnChart", "stackedImbalance"];
                 const activeOverlayIndicators = indicators ? indicators.filter(ind => ind.isActive && overlayIndicatorIds.includes(ind.id)) : [];
 
+                if (activeOverlayIndicators.length === 0) return null;
+
                 return (
                   <div className="sticky left-0 top-0 w-0 h-0 pointer-events-none z-30">
-                    <div 
-                      className="absolute left-3 sm:left-4 top-3 sm:top-4 pointer-events-auto flex flex-col gap-1 font-sans select-none max-w-[280px] sm:max-w-md transition-all duration-300"
-                    >
-                      {/* Indicator overlay list (Collapsible part) */}
-                      {!isOverlayLegendCollapsed && activeOverlayIndicators.length > 0 && (
-                        <div className="flex flex-col gap-1 sm:min-w-[240px]">
+                    <div className="absolute left-3 sm:left-4 top-3 sm:top-4 pointer-events-auto flex flex-col gap-1.5 font-sans select-none max-w-sm sm:max-w-md transition-all duration-300">
+                      
+                      {/* Collapse/Expand Toggle Button */}
+                      <div className="flex items-center gap-1 select-none shrink-0">
+                        <button
+                          onClick={() => {
+                            const next = !isOverlayLegendCollapsed;
+                            setIsOverlayLegendCollapsed(next);
+                            storage.set("chart_overlay_legend_collapsed", String(next));
+                          }}
+                          className={`flex items-center gap-1 font-mono text-[8px] sm:text-[9px] font-bold uppercase tracking-wider py-0.5 px-2 rounded transition-all cursor-pointer border ${
+                            isLight
+                              ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600 hover:text-slate-900 shadow-sm"
+                              : "bg-white/[0.04] hover:bg-white/[0.08] border-white/5 text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {isOverlayLegendCollapsed ? (
+                            <>
+                              {language === "RU" ? "Индикаторы" : "Indicators"} ({activeOverlayIndicators.length})
+                              <ChevronDown className="w-3 h-3 text-amber-500 ml-0.5" />
+                            </>
+                          ) : (
+                            <>
+                              {language === "RU" ? "Свернуть" : "Collapse"}
+                              <ChevronDown className="w-3 h-3 text-rose-500 ml-0.5 transform rotate-180" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Indicators list (Only shown if NOT collapsed) */}
+                      {!isOverlayLegendCollapsed && (
+                        <div className="flex flex-col gap-1 pl-0.5">
                           {activeOverlayIndicators.map(ind => {
                             const isVisible = ind.isVisible !== false;
-                            // Customize names to standard nice layouts
-                            let label = ind.label.replace("(PROCLUSTER) ", "").replace(" (PROCLUSTER)", "");
-                            if (ind.id === "volumeOnChart") label = "Footprint"; // Match perfectly!
+                            
+                            // Strip "(PROCLUSTER)" to avoid duplication
+                            let label = ind.label.replace(/^\(PROCLUSTER\)\s+/i, "").replace(/\s+\(PROCLUSTER\)$/i, "");
+                            if (ind.id === "volumeOnChart") label = "Footprint";
 
                             return (
                               <div 
                                 key={ind.id}
-                                className={`group flex items-center justify-between gap-3 px-1.5 py-0.5 rounded transition-all duration-150 border border-transparent ${
+                                className={`group flex items-center justify-between gap-3 px-1.5 py-0.5 rounded transition-all duration-150 flex-nowrap whitespace-nowrap ${
                                   isLight 
-                                    ? "hover:bg-slate-200/50 hover:border-slate-300/40" 
-                                    : "hover:bg-white/[0.04] hover:border-white/5"
+                                    ? "hover:bg-slate-200/50" 
+                                    : "hover:bg-white/[0.04]"
                                 } ${!isVisible ? "opacity-35" : ""}`}
                               >
-                                <div className="flex items-center gap-1 font-mono text-[9px] sm:text-[9.5px] select-none min-w-0">
-                                  <span className={`font-bold shrink-0 ${
+                                {/* Label & Pair Info */}
+                                <div className="flex items-center gap-1.5 font-mono text-[9.5px] sm:text-[10px] select-text min-w-0 font-bold flex-nowrap whitespace-nowrap">
+                                  {/* Return <ProCluster> prefix */}
+                                  <span className={`font-bold shrink-0 whitespace-nowrap ${
                                     isLight ? "text-[#4f46e5]" : "text-cyan-400"
                                   }`}>&lt;ProCluster&gt;</span>
-                                  <span className={`font-black uppercase tracking-wider truncate shrink ${
+
+                                  <span className={`tracking-wide shrink whitespace-nowrap leading-tight hover:underline truncate ${
                                     isLight ? "text-slate-800" : "text-slate-100"
                                   } ${!isVisible ? "line-through text-slate-500" : ""}`}>
                                     {label}
                                   </span>
-                                  <span className={`text-[8.5px] shrink-0 font-medium ${
+                                  <span className={`text-[8px] sm:text-[8.5px] shrink-0 font-medium whitespace-nowrap ${
                                     isLight ? "text-slate-500" : "text-slate-400"
                                   }`}>
-                                    ({activePair.symbol.replace("/", "")})
+                                    ({activePair.symbol.replace("/", "")}, {interval || "30m"})
                                   </span>
                                 </div>
 
                                 {/* Micro control actions */}
-                                <div className="flex items-center gap-1 shrink-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all duration-150">
+                                <div className="flex items-center gap-0.5 shrink-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all duration-150">
                                   <button
                                     onClick={() => {
                                       if (onToggleVisibility) {
@@ -3603,36 +3685,6 @@ export default function ClusterChart({
                               </div>
                             );
                           })}
-                        </div>
-                      )}
-
-                      {/* Expand/Collapse Chevron control */}
-                      {activeOverlayIndicators.length > 0 && (
-                        <div className="flex justify-start select-none shrink-0">
-                          <button
-                            onClick={() => {
-                              const next = !isOverlayLegendCollapsed;
-                              setIsOverlayLegendCollapsed(next);
-                              storage.set("chart_overlay_legend_collapsed", String(next));
-                            }}
-                            className={`flex items-center gap-1 font-mono text-[8px] sm:text-[8.5px] font-bold uppercase tracking-wider py-0.5 px-1.5 rounded transition-all cursor-pointer border ${
-                              isLight
-                                ? "bg-white/70 hover:bg-white border-slate-205 text-slate-500 hover:text-slate-800 shadow-sm"
-                                : "bg-[#0b0e17]/40 hover:bg-white/[0.06] border-white/5 text-slate-400 hover:text-white"
-                            }`}
-                          >
-                            {isOverlayLegendCollapsed ? (
-                              <>
-                                {language === "RU" ? "Индикаторы" : "Indicators"}
-                                <ChevronDown className="w-2.5 h-2.5 ml-0.5 text-amber-500 animate-pulse" />
-                              </>
-                            ) : (
-                              <>
-                                {language === "RU" ? "Свернуть" : "Collapse"}
-                                <ChevronDown className="w-2.5 h-2.5 ml-0.5 text-rose-500 transform rotate-180" />
-                              </>
-                            )}
-                          </button>
                         </div>
                       )}
                     </div>
@@ -3802,7 +3854,7 @@ export default function ClusterChart({
               })()}
 
               {/* Horizontal Level Drawing Object price badges on the fixed scale */}
-              {[...drawings, ...(drawingInProgress ? [drawingInProgress] : [])]
+              {[...(areDrawingsVisible ? drawings : []), ...(drawingInProgress ? [drawingInProgress] : [])]
                 .filter((d) => d.type === "horizontal")
                 .map((d) => {
                   const y = priceToY(d.startPrice);
