@@ -2535,6 +2535,9 @@ export default function App() {
                     onToggleIndicator={(id) => {
                       setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: !ind.isActive } : ind));
                     }}
+                    onToggleVisibility={(id) => {
+                      setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isVisible: ind.isVisible === false ? true : false } : ind));
+                    }}
                     onRemoveIndicator={(id) => {
                       setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: false } : ind));
                     }}
@@ -2544,6 +2547,7 @@ export default function App() {
                     onWorkspaceLayoutChange={setWorkspaceLayout}
                     workspacesCount={getActiveGroupLimits().workspacesCount}
                     orderBook={orderBook0}
+                    interval={interval0}
                   />
                 </div>
 
@@ -2612,6 +2616,9 @@ export default function App() {
                       onToggleIndicator={(id) => {
                         setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: !ind.isActive } : ind));
                       }}
+                      onToggleVisibility={(id) => {
+                        setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isVisible: ind.isVisible === false ? true : false } : ind));
+                      }}
                       onRemoveIndicator={(id) => {
                         setIndicators(prev => prev.map(ind => ind.id === id ? { ...ind, isActive: false } : ind));
                       }}
@@ -2621,6 +2628,7 @@ export default function App() {
                       onWorkspaceLayoutChange={setWorkspaceLayout}
                       workspacesCount={getActiveGroupLimits().workspacesCount}
                       orderBook={orderBook1}
+                      interval={interval1}
                     />
                   </div>
                 )}

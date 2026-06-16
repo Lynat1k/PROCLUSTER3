@@ -95,14 +95,32 @@ export default function IndicatorsModal({
   const dragStart = useRef({ x: 0, y: 0 });
   const modalOffset = useRef({ x: 0, y: 0 });
 
+  const prevIsOpen = useRef(isOpen);
+  const initialIndicators = useRef<Indicator[]>([]);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpen.current) {
       // Deep copy to ensure safety of draft manipulation
-      setDraft(JSON.parse(JSON.stringify(indicators)));
+      const cloned = JSON.parse(JSON.stringify(indicators));
+      setDraft(cloned);
+      initialIndicators.current = cloned;
       setOffset({ x: 0, y: 0 }); // Reset window offset on open
       setSize({ width: 855, height: 800 }); // Reset size on open
     }
-  }, [isOpen, indicators]);
+    prevIsOpen.current = isOpen;
+  }, [isOpen]);
+
+  // Real-time synchronization to parent state for instant preview on the chart
+  useEffect(() => {
+    if (isOpen && draft && draft.length > 0) {
+      onApply(draft);
+    }
+  }, [draft, isOpen, onApply]);
+
+  const handleCancel = () => {
+    onApply(initialIndicators.current);
+    onClose();
+  };
 
   useEffect(() => {
     if (!dragging) return;
@@ -320,7 +338,7 @@ export default function IndicatorsModal({
               </span>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleCancel}
               className={`p-1 rounded-full transition-colors cursor-pointer no-drag ${
                 isLight
                   ? "hover:bg-slate-200/55 text-slate-550 hover:text-slate-800"
@@ -1600,14 +1618,23 @@ export default function IndicatorsModal({
         <div className={`flex items-center justify-between px-6 py-4.5 border-t transition-all duration-300 ${
           isLight ? "bg-white/30 border-slate-200" : "border-white/5 bg-slate-950/20"
         }`}>
-          <span className="text-[10.5px] font-mono text-slate-500 select-none pb-0.5">
-            Хоткей: <span className={`font-bold px-1.5 py-0.5 rounded border transition-colors ${
-              isLight ? "bg-slate-105 text-slate-600 border-slate-200" : "bg-white/5 text-slate-400 border-white/5"
-            }`}>/</span>
-          </span>
+          <div className="flex items-center gap-4.5 select-none text-[10.5px] font-mono text-slate-500 pb-0.5">
+            <span>
+              Хоткей: <span className={`font-bold px-1.5 py-0.5 rounded border transition-colors ${
+                isLight ? "bg-slate-105 text-slate-600 border-slate-200" : "bg-white/5 text-slate-400 border-white/5"
+              }`}>/</span>
+            </span>
+            <div className="flex items-center gap-1.5 text-emerald-500 font-sans font-semibold">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>Изменения применяются мгновенно</span>
+            </div>
+          </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={onClose}
+              onClick={handleCancel}
               className={`px-5 py-2 rounded-xl text-xs font-bold font-sans transition cursor-pointer ${
                 isLight 
                   ? "hover:bg-slate-200/80 text-slate-600 hover:text-slate-800"

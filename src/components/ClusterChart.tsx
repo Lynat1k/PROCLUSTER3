@@ -5,10 +5,11 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator, OrderBook } from "../types";
-import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight, TrendingUp } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight, TrendingUp, SlidersHorizontal, Lock } from "lucide-react";
 import { storage } from "../lib/storage";
 import { volumeOnChartIndicator, deltaIndicator, cvdIndicator, clusterSearchIndicator } from "../indicators";
 import { drawDrawingObjects } from "../utils/drawingRenderer";
+import { getActiveGroupLimits } from "../lib/tierLimits";
 
 const parseHexColor = (hex: string): string => {
   if (!hex) return "#ffffff";
@@ -39,12 +40,14 @@ interface ClusterChartProps {
   candlePalette?: "default" | "alternative";
   onToggleIndicator?: (id: string) => void;
   onRemoveIndicator?: (id: string) => void;
+  onToggleVisibility?: (id: string) => void;
   onShowIndicatorsSettings?: () => void;
   language?: "RU" | "EN" | "KZ";
   workspaceLayout?: "1" | "2h" | "2v";
   onWorkspaceLayoutChange?: (layout: "1" | "2h" | "2v") => void;
   workspacesCount?: number;
   orderBook?: OrderBook;
+  interval?: string;
 }
 
 export default function ClusterChart({
@@ -68,12 +71,14 @@ export default function ClusterChart({
   candlePalette = "default",
   onToggleIndicator,
   onRemoveIndicator,
+  onToggleVisibility,
   onShowIndicatorsSettings,
   language = "EN",
   workspaceLayout,
   onWorkspaceLayoutChange,
   workspacesCount = 1,
-  orderBook
+  orderBook,
+  interval
 }: ClusterChartProps) {
   
   const isLight = theme === "light";
@@ -122,6 +127,18 @@ export default function ClusterChart({
   const [selectedTimezone, setSelectedTimezone] = useState<string>(() => {
     return storage.get("procluster_chart_timezone") || "local";
   });
+
+  const [isChartSettingsOpen, setIsChartSettingsOpen] = useState(false);
+  const [isOverlayLegendCollapsed, setIsOverlayLegendCollapsed] = useState<boolean>(() => {
+    return storage.get("chart_overlay_legend_collapsed") === "true";
+  });
+  const [showClusterAnomalies, setShowClusterAnomalies] = useState<boolean>(() => {
+    return storage.get("chart_settings_show_anomalies") !== "false";
+  });
+
+  const { limits } = getActiveGroupLimits();
+  const isAnomaliesPermittedByTier = limits.clusterSearchAnomaliesEnabled !== false;
+  const finalShowAnomalies = showClusterAnomalies && isAnomaliesPermittedByTier;
 
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const workspaceDropdownRef = useRef<HTMLDivElement>(null);
@@ -1141,7 +1158,7 @@ export default function ClusterChart({
 
       // --- DYNAMIC CLUSTER SEARCH HOVER DETECTION ---
       let foundCS: any = null;
-      if (activeIndicators.clusterSearch && colIdx >= 0 && colIdx < candles.length) {
+      if (activeIndicators.clusterSearch && finalShowAnomalies && colIdx >= 0 && colIdx < candles.length) {
         const csSettings = indicatorSettings?.clusterSearch || {};
         const csMergeLevels = typeof csSettings.csMergeLevels === "number" ? csSettings.csMergeLevels : 1;
         const csImbalancePercent = typeof csSettings.csImbalancePercent === "number" ? csSettings.csImbalancePercent : 60;
@@ -2232,7 +2249,7 @@ export default function ClusterChart({
           const baseVolumeThreshold = maxCellVolume * sensFactor;
 
           let matchesClusterSearch = false;
-          if (activeIndicators.clusterSearch) {
+          if (activeIndicators.clusterSearch && finalShowAnomalies) {
             let isTargetMode = false;
             if (csSettings.mode === "Delta") {
               const cellDelta = Math.abs(cell.ask - cell.bid);
@@ -2509,7 +2526,7 @@ export default function ClusterChart({
       }
 
       // --- DYNAMIC CLUSTER SEARCH (GEOMETRIC MULTI-LEVEL VISUALIZER) ---
-      if (activeIndicators.clusterSearch && candleCells.length > 0) {
+      if (activeIndicators.clusterSearch && finalShowAnomalies && candleCells.length > 0) {
         const csSettings = indicatorSettings?.clusterSearch || {};
         
         const csMergeLevels = typeof csSettings.csMergeLevels === "number" ? csSettings.csMergeLevels : 1;
@@ -3133,7 +3150,7 @@ export default function ClusterChart({
 
           {/* Display active indicators on chart header */}
           <div className="hidden md:flex items-center gap-1 ml-1 sm:ml-2 max-w-[120px] sm:max-w-[200px] md:max-w-[320px] lg:max-w-none overflow-x-auto whitespace-nowrap scrollbar-none py-0.5 shrink">
-            {indicators && indicators.filter(ind => ind.isActive).map(ind => {
+            {indicators && indicators.filter(ind => ind.isActive && !["clusterSearch", "volumeOnChart", "stackedImbalance"].includes(ind.id)).map(ind => {
               const isVisible = ind.isVisible !== false;
               return (
                 <span 
@@ -3217,6 +3234,19 @@ export default function ClusterChart({
               100%
             </button>
           </div>
+
+          {/* Chart Settings Button */}
+          <button
+            onClick={() => setIsChartSettingsOpen(true)}
+            className={`p-1 rounded-md sm:rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-center border ${
+              isLight
+                ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600 hover:text-slate-900 shadow-sm"
+                : "bg-slate-950/60 hover:bg-white/5 border-white/5 text-slate-400 hover:text-yellow-450"
+            }`}
+            title={language === "RU" ? "Настройки графика" : language === "KZ" ? "График баптаулары" : "Chart Settings"}
+          >
+            <SlidersHorizontal className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+          </button>
           
           {/* Timezone Select Control */}
           <div className={`border px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-mono font-bold flex items-center gap-1 sm:gap-1.5 shadow-inner transition-all duration-300 ${
@@ -3482,6 +3512,134 @@ export default function ClusterChart({
               {/* Dummy scroll spacer to enable native scrollbar and wheel scroll dynamics */}
               <div id="procluster-chart-spacer" style={{ width: `${scrollWidth}px`, height: "1px", pointerEvents: "none" }} />
               
+              {/* Viewport Sticky Wrapper for Overlay Legends */}
+              {(() => {
+                const overlayIndicatorIds = ["clusterSearch", "volumeOnChart", "stackedImbalance"];
+                const activeOverlayIndicators = indicators ? indicators.filter(ind => ind.isActive && overlayIndicatorIds.includes(ind.id)) : [];
+
+                return (
+                  <div className="sticky left-0 top-0 w-0 h-0 pointer-events-none z-30">
+                    <div 
+                      className="absolute left-3 sm:left-4 top-3 sm:top-4 pointer-events-auto flex flex-col gap-1 font-sans select-none max-w-[280px] sm:max-w-md transition-all duration-300"
+                    >
+                      {/* Indicator overlay list (Collapsible part) */}
+                      {!isOverlayLegendCollapsed && activeOverlayIndicators.length > 0 && (
+                        <div className="flex flex-col gap-1 sm:min-w-[240px]">
+                          {activeOverlayIndicators.map(ind => {
+                            const isVisible = ind.isVisible !== false;
+                            // Customize names to standard nice layouts
+                            let label = ind.label.replace("(PROCLUSTER) ", "").replace(" (PROCLUSTER)", "");
+                            if (ind.id === "volumeOnChart") label = "Footprint"; // Match perfectly!
+
+                            return (
+                              <div 
+                                key={ind.id}
+                                className={`group flex items-center justify-between gap-3 px-1.5 py-0.5 rounded transition-all duration-150 border border-transparent ${
+                                  isLight 
+                                    ? "hover:bg-slate-200/50 hover:border-slate-300/40" 
+                                    : "hover:bg-white/[0.04] hover:border-white/5"
+                                } ${!isVisible ? "opacity-35" : ""}`}
+                              >
+                                <div className="flex items-center gap-1 font-mono text-[9px] sm:text-[9.5px] select-none min-w-0">
+                                  <span className={`font-bold shrink-0 ${
+                                    isLight ? "text-[#4f46e5]" : "text-cyan-400"
+                                  }`}>&lt;ProCluster&gt;</span>
+                                  <span className={`font-black uppercase tracking-wider truncate shrink ${
+                                    isLight ? "text-slate-800" : "text-slate-100"
+                                  } ${!isVisible ? "line-through text-slate-500" : ""}`}>
+                                    {label}
+                                  </span>
+                                  <span className={`text-[8.5px] shrink-0 font-medium ${
+                                    isLight ? "text-slate-500" : "text-slate-400"
+                                  }`}>
+                                    ({activePair.symbol.replace("/", "")})
+                                  </span>
+                                </div>
+
+                                {/* Micro control actions */}
+                                <div className="flex items-center gap-1 shrink-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all duration-150">
+                                  <button
+                                    onClick={() => {
+                                      if (onToggleVisibility) {
+                                        onToggleVisibility(ind.id);
+                                      } else {
+                                        onToggleIndicator?.(ind.id);
+                                      }
+                                    }}
+                                    className={`p-0.5 rounded cursor-pointer transition-colors ${
+                                      isLight ? "hover:bg-slate-300 text-slate-600 hover:text-slate-900" : "hover:bg-white/10 text-slate-300 hover:text-white"
+                                    }`}
+                                    title={language === "RU" ? (isVisible ? "Скрыть" : "Показать") : "Toggle Visibility"}
+                                  >
+                                    {isVisible ? (
+                                      <Eye className={`w-3 h-3 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
+                                    ) : (
+                                      <EyeOff className="w-3 h-3 text-rose-500" />
+                                    )}
+                                  </button>
+
+                                  <button
+                                    onClick={onShowIndicatorsSettings}
+                                    className={`p-0.5 rounded cursor-pointer transition-colors ${
+                                      isLight ? "hover:bg-slate-300 text-slate-600 hover:text-slate-900" : "hover:bg-white/10 text-slate-300 hover:text-white"
+                                    }`}
+                                    title={language === "RU" ? "Настройки" : "Settings"}
+                                  >
+                                    <Settings className="w-3 h-3 text-amber-500" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => onRemoveIndicator?.(ind.id)}
+                                    className={`p-0.5 rounded cursor-pointer transition-colors ${
+                                      isLight 
+                                        ? "hover:bg-slate-300 text-slate-600 hover:text-rose-600" 
+                                        : "hover:bg-rose-500/10 text-slate-300 hover:text-rose-400"
+                                    }`}
+                                    title={language === "RU" ? "Удалить" : "Remove"}
+                                  >
+                                    <Trash2 className="w-3 h-3 text-rose-500" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Expand/Collapse Chevron control */}
+                      {activeOverlayIndicators.length > 0 && (
+                        <div className="flex justify-start select-none shrink-0">
+                          <button
+                            onClick={() => {
+                              const next = !isOverlayLegendCollapsed;
+                              setIsOverlayLegendCollapsed(next);
+                              storage.set("chart_overlay_legend_collapsed", String(next));
+                            }}
+                            className={`flex items-center gap-1 font-mono text-[8px] sm:text-[8.5px] font-bold uppercase tracking-wider py-0.5 px-1.5 rounded transition-all cursor-pointer border ${
+                              isLight
+                                ? "bg-white/70 hover:bg-white border-slate-205 text-slate-500 hover:text-slate-800 shadow-sm"
+                                : "bg-[#0b0e17]/40 hover:bg-white/[0.06] border-white/5 text-slate-400 hover:text-white"
+                            }`}
+                          >
+                            {isOverlayLegendCollapsed ? (
+                              <>
+                                {language === "RU" ? "Индикаторы" : "Indicators"}
+                                <ChevronDown className="w-2.5 h-2.5 ml-0.5 text-amber-500 animate-pulse" />
+                              </>
+                            ) : (
+                              <>
+                                {language === "RU" ? "Свернуть" : "Collapse"}
+                                <ChevronDown className="w-2.5 h-2.5 ml-0.5 text-rose-500 transform rotate-180" />
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Absolutely positioned canvas that stays in view and draws only-visible content */}
               <canvas
                 ref={canvasRef}
@@ -3991,10 +4149,12 @@ export default function ClusterChart({
 
       {/* Floating Cluster Search Tooltip */}
       {hoveredClusterSearch && (() => {
-        const isLeftIdx = hoveredClusterSearch.x > (visibleClientWidth || 800) - 275;
-        const isTopIdx = hoveredClusterSearch.y > (totalSvgHeight || 550) - 180;
-        const leftPos = isLeftIdx ? hoveredClusterSearch.x - 200 : hoveredClusterSearch.x + 55;
-        const topPos = isTopIdx ? hoveredClusterSearch.y - 155 : hoveredClusterSearch.y + 15;
+        const tooltipWidth = 265;
+        const offsetHorizontal = 90; // Balanced 90px offset to keep tooltip visible without overlap
+        const isLeftIdx = hoveredClusterSearch.x > (visibleClientWidth || 800) - 390;
+        const isTopIdx = hoveredClusterSearch.y > (totalSvgHeight || 550) - 220;
+        const leftPos = isLeftIdx ? hoveredClusterSearch.x - tooltipWidth - offsetHorizontal : hoveredClusterSearch.x + offsetHorizontal;
+        const topPos = isTopIdx ? hoveredClusterSearch.y - 180 : hoveredClusterSearch.y + 15;
 
         const maxPercent = Math.max(hoveredClusterSearch.bidPercent, hoveredClusterSearch.askPercent);
         const isBidGreater = hoveredClusterSearch.bidPercent > hoveredClusterSearch.askPercent;
@@ -4011,9 +4171,20 @@ export default function ClusterChart({
           anomalyIntensity = "Низкая";
         }
 
+        // Custom dynamic header titles on threshold (>60% is bidPercent/askPercent >= 60)
+        let titleText = "ПОИСК АНОМАЛИЙ";
+        let titleColor = hoveredClusterSearch.color;
+        if (isBidGreater && hoveredClusterSearch.bidPercent >= 60) {
+          titleText = "Агрессивный продавец";
+          titleColor = "#ef4444"; // Red for sellers
+        } else if (!isBidGreater && hoveredClusterSearch.askPercent >= 60) {
+          titleText = "Агрессивный покупатель";
+          titleColor = "#10b981"; // Green for buyers
+        }
+
         return (
           <div
-            className={`absolute border rounded-[14px] p-3.5 text-xs shadow-2xl z-50 flex flex-col gap-2.5 backdrop-blur-md pointer-events-none transition-all duration-100 ${
+            className={`absolute border rounded-[16px] p-4 text-sm shadow-2xl z-50 flex flex-col gap-3 backdrop-blur-md pointer-events-none transition-all duration-100 ${
               isLight
                 ? "bg-white/95 border-slate-200 text-slate-800 shadow-xl shadow-slate-250/50"
                 : "liquid-glass-card border-none text-slate-100 shadow-black/80 shadow-2xl"
@@ -4021,15 +4192,15 @@ export default function ClusterChart({
             style={{
               left: `${leftPos}px`,
               top: `${topPos}px`,
-              width: "230px"
+              width: "265px"
             }}
           >
-            <span className="font-bold flex items-center justify-between uppercase tracking-wider border-b pb-1.5 border-dashed border-slate-200/20 font-mono text-[10px]">
-              <span className="flex items-center gap-1.5 font-bold" style={{ color: hoveredClusterSearch.color }}>
-                <Activity className="w-3.5 h-3.5" />
-                ПОИСК АНОМАЛИЙ
+            <span className="font-bold flex items-center justify-between uppercase tracking-wider border-b pb-2 border-dashed border-slate-200/20 font-mono text-[11.5px]">
+              <span className="flex items-center gap-1.5 font-extrabold" style={{ color: titleColor }}>
+                <Activity className="w-4 h-4" />
+                {titleText}
               </span>
-              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${
+              <span className={`px-2 py-0.5 rounded text-[9.5px] font-black uppercase ${
                 anomalyIntensity === "Высокая"
                   ? "bg-rose-500/25 text-rose-400 border border-rose-500/20"
                   : anomalyIntensity === "Средняя"
@@ -4040,7 +4211,7 @@ export default function ClusterChart({
               </span>
             </span>
 
-            <div className={`grid grid-cols-[1.2fr_1fr] gap-x-2 gap-y-1.5 font-mono text-[11px] ${
+            <div className={`grid grid-cols-[1.2fr_1fr] gap-x-2.5 gap-y-2 font-mono text-[12.5px] ${
               isLight ? "text-slate-600" : "text-slate-400"
             }`}>
               <span>Объем (монеты):</span>
@@ -4058,7 +4229,7 @@ export default function ClusterChart({
               }`} />
 
               <span>Дисбаланс:</span>
-              <span style={{ color: hoveredClusterSearch.color }} className="font-extrabold text-right">
+              <span style={{ color: titleColor }} className="font-black text-right">
                 {imbalanceValueStr}
               </span>
             </div>
@@ -4173,6 +4344,109 @@ export default function ClusterChart({
                 className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-slate-950 cursor-pointer"
               >
                 {language === "RU" ? "Создать" : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chart Settings Modal */}
+      {isChartSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div 
+            className={`w-full max-w-sm rounded-2xl p-6 border shadow-2xl transition-all duration-300 ${
+              isLight 
+                ? "bg-white border-slate-250 text-slate-900" 
+                : "bg-[#0c101b] border-white/10 text-slate-100"
+            }`}
+          >
+            <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-5 select-none">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-amber-500" />
+                <h3 className="text-xs font-black uppercase font-mono tracking-wider">
+                  {language === "RU" ? "Настройки графика" : language === "KZ" ? "График баптаулары" : "Chart Settings"}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setIsChartSettingsOpen(false)}
+                className={`p-1 rounded-full cursor-pointer transition-colors ${
+                  isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-slate-400"
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Settings Options */}
+            <div className="flex flex-col gap-4">
+              <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
+                isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+              }`}>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <span className={`text-[10.5px] font-bold font-mono uppercase tracking-wider block ${
+                      isLight ? "text-slate-700" : "text-slate-300"
+                    }`}>
+                      {language === "RU" ? "Отображать аномалии" : "Display anomalies"}
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-1 block leading-normal">
+                      {language === "RU" 
+                        ? "Отображение покупок и продаж по фильтрациям дельты и объемов (Cluster Search)" 
+                        : "Show buy & sell anomalies filters in Cluster Search."}
+                    </span>
+                  </div>
+
+                  {isAnomaliesPermittedByTier ? (
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <input 
+                        type="checkbox"
+                        checked={showClusterAnomalies}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setShowClusterAnomalies(val);
+                          storage.set("chart_settings_show_anomalies", String(val));
+                        }}
+                        className={`w-4 h-4 rounded cursor-pointer focus:ring-amber-500 ${
+                          isLight ? "bg-white border-slate-300 text-amber-500" : "bg-slate-900 border-white/15 text-amber-550"
+                        }`}
+                      />
+                    </label>
+                  ) : (
+                    <div className="text-slate-500 select-none cursor-not-allowed" title={language === "RU" ? "Заблокировано вашим тарифом" : "Locked by your subscription tier"}>
+                      <Lock className="w-4 h-4 text-rose-500" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Tier limit notification */}
+                {!isAnomaliesPermittedByTier && (
+                  <div className={`mt-2 p-2 rounded-lg text-[9.5px] font-sans flex items-center gap-1.5 border leading-tight ${
+                    isLight 
+                      ? "bg-rose-50 text-rose-700 border-rose-200" 
+                      : "bg-rose-950/20 text-rose-405 border-rose-955/25"
+                  }`}>
+                    <span className="text-[11px]">⚠️</span>
+                    <span>
+                      {language === "RU" 
+                        ? "Опция заблокирована вашим тарифом. Включается в панели администратора." 
+                        : "Feature locked by your tier policy. Configurable via the Admin panel."}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2 mt-6 select-none">
+              <button
+                onClick={() => setIsChartSettingsOpen(false)}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer w-full leading-none flex items-center justify-center ${
+                  isLight 
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-705" 
+                    : "bg-white/5 hover:bg-white/10 text-slate-300"
+                }`}
+              >
+                {language === "RU" ? "Закрыть" : "Close"}
               </button>
             </div>
           </div>

@@ -117,13 +117,14 @@ export default function AdminPanel({
     historyDays_1h: number;
     historyDays_4h: number;
     workspacesCount: number;
+    clusterSearchAnomaliesEnabled: boolean;
   }>>(() => {
     const defaultSettings = {
-      guest: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false, historyDays_1m: 1, historyDays_5m: 3, historyDays_15m: 7, historyDays_30m: 14, historyDays_1h: 30, historyDays_4h: 90, workspacesCount: 1 },
-      free: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false, historyDays_1m: 1, historyDays_5m: 3, historyDays_15m: 7, historyDays_30m: 14, historyDays_1h: 30, historyDays_4h: 90, workspacesCount: 1 },
-      pro: { maxHistory: 1400, compressionLevels: 2, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false, historyDays_1m: 3, historyDays_5m: 7, historyDays_15m: 14, historyDays_30m: 30, historyDays_1h: 60, historyDays_4h: 180, workspacesCount: 2 },
-      vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 7, historyDays_5m: 14, historyDays_15m: 30, historyDays_30m: 60, historyDays_1h: 120, historyDays_4h: 360, workspacesCount: 2 },
-      admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 14, historyDays_5m: 30, historyDays_15m: 60, historyDays_30m: 120, historyDays_1h: 240, historyDays_4h: 720, workspacesCount: 2 }
+      guest: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false, historyDays_1m: 1, historyDays_5m: 3, historyDays_15m: 7, historyDays_30m: 14, historyDays_1h: 30, historyDays_4h: 90, workspacesCount: 1, clusterSearchAnomaliesEnabled: false },
+      free: { maxHistory: 700, compressionLevels: 1, maxIndicators: 3, customIndicatorSettings: false, telegramNotifications: false, historyDays_1m: 1, historyDays_5m: 3, historyDays_15m: 7, historyDays_30m: 14, historyDays_1h: 30, historyDays_4h: 90, workspacesCount: 1, clusterSearchAnomaliesEnabled: false },
+      pro: { maxHistory: 1400, compressionLevels: 2, maxIndicators: 5, customIndicatorSettings: true, telegramNotifications: false, historyDays_1m: 3, historyDays_5m: 7, historyDays_15m: 14, historyDays_30m: 30, historyDays_1h: 60, historyDays_4h: 180, workspacesCount: 2, clusterSearchAnomaliesEnabled: true },
+      vip: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 15, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 7, historyDays_5m: 14, historyDays_15m: 30, historyDays_30m: 60, historyDays_1h: 120, historyDays_4h: 360, workspacesCount: 2, clusterSearchAnomaliesEnabled: true },
+      admin: { maxHistory: 10000, compressionLevels: 6, maxIndicators: 99, customIndicatorSettings: true, telegramNotifications: true, historyDays_1m: 14, historyDays_5m: 30, historyDays_15m: 60, historyDays_30m: 120, historyDays_1h: 240, historyDays_4h: 720, workspacesCount: 2, clusterSearchAnomaliesEnabled: true }
     };
     const parsed = storage.getJson<any>("procluster_tier_settings", null);
     if (parsed) {
@@ -1613,6 +1614,34 @@ export default function AdminPanel({
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* CHECKBOX 7: CLUSTER SEARCH ANOMALIES */}
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between gap-3 ${
+                    isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                  }`}>
+                    <div>
+                      <span className={`text-[10px] font-mono font-black uppercase block tracking-wider ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+                        7. Отображение Аномалий (Cluster Search)
+                      </span>
+                      <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
+                        Разрешить пользователям этого тарифа включать опцию "Отображать аномалии" на графике.
+                      </p>
+                    </div>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer mt-2 select-none">
+                      <input
+                        type="checkbox"
+                        checked={tierSettings[selectedGroup].clusterSearchAnomaliesEnabled ?? false}
+                        onChange={(e) => updateTierSetting(selectedGroup, "clusterSearchAnomaliesEnabled", e.target.checked)}
+                        className={`w-4 h-4 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer ${
+                          isLight ? "bg-white border-slate-300 text-blue-600" : "bg-slate-900 border-white/10 text-blue-500"
+                        }`}
+                      />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+                        {tierSettings[selectedGroup].clusterSearchAnomaliesEnabled ? "РАЗРЕШЕНО (ACTIVE)" : "ЗАБЛОКИРОВАНО"}
+                      </span>
+                    </label>
                   </div>
 
                   {/* SAVE BUTTON FOR ALL POLICIES */}

@@ -18,6 +18,7 @@ export interface TierLimits {
   historyDays_1h: number;
   historyDays_4h: number;
   workspacesCount: number;
+  clusterSearchAnomaliesEnabled: boolean;
 }
 
 export type TierGroup = "guest" | "free" | "pro" | "vip" | "admin";
@@ -35,7 +36,8 @@ export const defaultTierSettings: Record<TierGroup, TierLimits> = {
     historyDays_30m: 14, 
     historyDays_1h: 30, 
     historyDays_4h: 90, 
-    workspacesCount: 1 
+    workspacesCount: 1,
+    clusterSearchAnomaliesEnabled: false
   },
   free: { 
     maxHistory: 700, 
@@ -49,7 +51,8 @@ export const defaultTierSettings: Record<TierGroup, TierLimits> = {
     historyDays_30m: 14, 
     historyDays_1h: 30, 
     historyDays_4h: 90, 
-    workspacesCount: 1 
+    workspacesCount: 1,
+    clusterSearchAnomaliesEnabled: false
   },
   pro: { 
     maxHistory: 1400, 
@@ -63,7 +66,8 @@ export const defaultTierSettings: Record<TierGroup, TierLimits> = {
     historyDays_30m: 30, 
     historyDays_1h: 60, 
     historyDays_4h: 180, 
-    workspacesCount: 2 
+    workspacesCount: 2,
+    clusterSearchAnomaliesEnabled: true
   },
   vip: { 
     maxHistory: 10000, 
@@ -77,7 +81,8 @@ export const defaultTierSettings: Record<TierGroup, TierLimits> = {
     historyDays_30m: 60, 
     historyDays_1h: 120, 
     historyDays_4h: 360, 
-    workspacesCount: 2 
+    workspacesCount: 2,
+    clusterSearchAnomaliesEnabled: true
   },
   admin: { 
     maxHistory: 10000, 
@@ -91,7 +96,8 @@ export const defaultTierSettings: Record<TierGroup, TierLimits> = {
     historyDays_30m: 120, 
     historyDays_1h: 240, 
     historyDays_4h: 720, 
-    workspacesCount: 2 
+    workspacesCount: 2,
+    clusterSearchAnomaliesEnabled: true
   }
 };
 
