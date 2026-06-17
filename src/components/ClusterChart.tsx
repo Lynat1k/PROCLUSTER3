@@ -127,6 +127,48 @@ export default function ClusterChart({
   const [textInputFontSize, setTextInputFontSize] = useState<number>(11);
   const [textInputColor, setTextInputColor] = useState<string>("#3b82f6");
 
+  // Selected drawing that has styling settings panel open (via double-click)
+  const [volumeSettingsDrawingId, setVolumeSettingsDrawingId] = useState<number | null>(null);
+
+  // Volume Profile global / default settings
+  const [volProfileGlobalSettings, setVolProfileGlobalSettings] = useState(() => {
+    const savedUser = storage.getJson<any>("procluster_user", null);
+    if (savedUser && savedUser.settings && savedUser.settings.volProfile) {
+      return savedUser.settings.volProfile;
+    }
+    return storage.getJson<any>("procluster_volume_profile_settings", {
+      extendPoc: false,
+      opacity: 0.28,
+      volColor: "#3b82f6",
+      pocColor: "#3b82f6"
+    });
+  });
+
+  const updateVolProfileSettings = (newSettings: Partial<typeof volProfileGlobalSettings>) => {
+    const updated = { ...volProfileGlobalSettings, ...newSettings };
+    setVolProfileGlobalSettings(updated);
+
+    // Save to global localStorage
+    storage.setJson("procluster_volume_profile_settings", updated);
+
+    // Save to user settings if authorized user is logged in
+    const savedUser = storage.getJson<any>("procluster_user", null);
+    if (savedUser) {
+      const updatedUser = {
+        ...savedUser,
+        settings: {
+          ...(savedUser.settings || {}),
+          volProfile: updated
+        }
+      };
+      storage.setJson("procluster_user", updatedUser);
+      window.dispatchEvent(new Event("procluster_user_updated"));
+    }
+
+    // Propagate settings to all currently drawn volume profiles on the chart
+    setDrawings(prev => prev.map(d => d.type === "volume" ? { ...d, ...updated } : d));
+  };
+
   const [selectedTimezone, setSelectedTimezone] = useState<string>(() => {
     return storage.get("procluster_chart_timezone") || "local";
   });
@@ -703,6 +745,39 @@ export default function ClusterChart({
         ? true
         : isDetailedModeCalculated);
 
+  // Double-click to open volume profile drawing settings
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    if (clickY >= margin.top && clickY <= totalSvgHeight - margin.bottom && clickX >= margin.left) {
+      if (areDrawingsVisible) {
+        for (let i = drawings.length - 1; i >= 0; i--) {
+          const d = drawings[i];
+          if (d.type !== "volume") continue; // We only care about double clicks on volume profiles
+          const y1 = priceToY(d.startPrice);
+          const y2 = priceToY(d.endPrice);
+          const x1 = d.startX - visibleScrollLeft;
+          const x2 = d.endX - visibleScrollLeft;
+          
+          const minX = Math.min(x1, x2);
+          const maxX = Math.max(x1, x2);
+          const minY = Math.min(y1, y2);
+          const maxY = Math.max(y1, y2);
+          if (clickX >= minX && clickX <= maxX && clickY >= minY && clickY <= maxY) {
+            setSelectedDrawingId(d.id);
+            setVolumeSettingsDrawingId(d.id);
+            e.preventDefault();
+            e.stopPropagation();
+            break;
+          }
+        }
+      }
+    }
+  };
+
   // Panning drag-to-scroll handlers (supports 2D movement)
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
@@ -759,6 +834,7 @@ export default function ClusterChart({
           } else {
             // Start a dragging drawing
             const isChannel = activeDrawingTool === "channel";
+            const isVolume = activeDrawingTool === "volume";
             setDrawingInProgress({
               id: Date.now(),
               type: activeDrawingTool,
@@ -769,6 +845,7 @@ export default function ClusterChart({
               stage: isChannel ? 1 : undefined,
               offsetPrice: isChannel ? 0 : undefined,
               text: "",
+              ...(isVolume ? volProfileGlobalSettings : {})
             });
           }
           return; // Skip normal panning
@@ -1103,6 +1180,7 @@ export default function ClusterChart({
       } else {
         // Minimum distance safe check or let all slide
         setDrawings(prev => [...prev, drawingInProgress]);
+        setSelectedDrawingId(drawingInProgress.id);
       }
       setDrawingInProgress(null);
       setActiveDrawingTool(null); // Reset tool after drawing
@@ -3543,6 +3621,7 @@ export default function ClusterChart({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUpOrLeave}
           onMouseLeave={handleMouseUpOrLeave}
+          onDoubleClick={handleDoubleClick}
           onScroll={(e) => {
             setVisibleScrollLeft(e.currentTarget.scrollLeft);
             setVisibleClientWidth(e.currentTarget.clientWidth);
@@ -4504,6 +4583,141 @@ export default function ClusterChart({
           </div>
         </div>
       )}
+
+      {/* Floating Volume Profile Settings Overlay */}
+      {volumeSettingsDrawingId !== null && (() => {
+        const selDrawing = drawings.find((d) => d.id === volumeSettingsDrawingId);
+        if (!selDrawing || selDrawing.type !== "volume") return null;
+
+        return (
+          <div 
+            className={`absolute top-[60px] left-[60px] z-50 p-4 rounded-2xl border flex flex-col gap-3.5 font-sans text-xs shadow-2xl w-64 backdrop-blur-md transition-all duration-300 ${
+              isLight 
+                ? "bg-white/95 border-slate-200/90 text-slate-800 shadow-slate-200/55" 
+                : "bg-slate-950/90 border-white/10 text-white shadow-black/80"
+            }`}
+          >
+            <div className="flex items-center justify-between border-b pb-2 border-slate-500/10">
+              <span className="font-extrabold text-[10.5px] uppercase tracking-wider font-mono">
+                {language === "RU" ? "Настройка профиля объема" : "Volume Profile Settings"}
+              </span>
+              <button 
+                onClick={() => setVolumeSettingsDrawingId(null)}
+                className="p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Checkbox: Продлевать POC линию */}
+            <label className="flex items-start gap-2.5 cursor-pointer py-1 select-none hover:opacity-90">
+              <input 
+                type="checkbox"
+                checked={volProfileGlobalSettings.extendPoc ?? false}
+                onChange={(e) => {
+                  updateVolProfileSettings({ extendPoc: e.target.checked });
+                }}
+                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5"
+              />
+              <div className="flex flex-col">
+                <span className="font-bold text-[11px] leading-tight">
+                  {language === "RU" ? "Продлевать РОС до касания" : "Extend POC to Touch"}
+                </span>
+                <span className={`text-[9.5px] leading-relaxed mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                  {language === "RU" 
+                    ? "Уровень POC растянутого профиля объема будет продлеваться, пока его не коснется или не пересечет другая свеча." 
+                    : "The POC level line of the stretched profile will continue until a future candle touches or intersects it."}
+                </span>
+              </div>
+            </label>
+
+            {/* Opacity Slider */}
+            <div className="flex flex-col gap-1.5 border-t border-slate-500/10 pt-2.5">
+              <div className="flex justify-between font-bold text-[10.5px]">
+                <span>{language === "RU" ? "Прозрачность гистограммы" : "Histogram Opacity"}</span>
+                <span className="font-mono font-bold text-amber-500">
+                  {Math.round((volProfileGlobalSettings.opacity !== undefined ? volProfileGlobalSettings.opacity : (isLight ? 0.18 : 0.28)) * 100)}%
+                </span>
+              </div>
+              <input 
+                type="range"
+                min="0.05"
+                max="0.8"
+                step="0.05"
+                value={volProfileGlobalSettings.opacity !== undefined ? volProfileGlobalSettings.opacity : (isLight ? 0.18 : 0.28)}
+                onChange={(e) => {
+                  updateVolProfileSettings({ opacity: parseFloat(e.target.value) });
+                }}
+                className={`w-full accent-blue-600 rounded-lg h-1 ${isLight ? "bg-slate-200" : "bg-slate-800"}`}
+              />
+            </div>
+
+            {/* Histogram Color Picker */}
+            <div className="flex flex-col gap-1.5 border-t border-slate-500/10 pt-2.5">
+              <span className="font-bold text-[10.5px]">{language === "RU" ? "Цвет гистограммы" : "Histogram Color"}</span>
+              <div className="flex items-center gap-2">
+                {[
+                  { hex: "#3b82f6", bg: "bg-blue-500" },
+                  { hex: "#a855f7", bg: "bg-purple-500" },
+                  { hex: "#f97316", bg: "bg-orange-500" },
+                  { hex: "#22c55e", bg: "bg-green-500" },
+                  { hex: "#eab308", bg: "bg-yellow-500" },
+                ].map(p => (
+                  <button 
+                    key={p.hex}
+                    onClick={() => {
+                      updateVolProfileSettings({ volColor: p.hex });
+                    }}
+                    className={`w-5 h-5 rounded-full ${p.bg} cursor-pointer hover:scale-110 active:scale-95 transition-all border ${
+                      (volProfileGlobalSettings.volColor || "#3b82f6") === p.hex ? "border-white ring-2 ring-blue-500" : "border-transparent"
+                    }`}
+                  />
+                ))}
+                <input 
+                  type="color"
+                  value={volProfileGlobalSettings.volColor || (isLight ? "#2563eb" : "#3b82f6")}
+                  onChange={(e) => {
+                    updateVolProfileSettings({ volColor: e.target.value });
+                  }}
+                  className="w-5 h-5 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
+                />
+              </div>
+            </div>
+
+            {/* POC Line Color Picker */}
+            <div className="flex flex-col gap-1.5 border-t border-slate-500/10 pt-2.5">
+              <span className="font-bold text-[10.5px]">{language === "RU" ? "Цвет линии POC" : "POC Line Color"}</span>
+              <div className="flex items-center gap-2">
+                {[
+                  { hex: "#2563eb", bg: "bg-blue-600" },
+                  { hex: "#dc2626", bg: "bg-red-600" },
+                  { hex: "#ea580c", bg: "bg-orange-600" },
+                  { hex: "#16a34a", bg: "bg-green-600" },
+                  { hex: "#ca8a04", bg: "bg-yellow-600" },
+                ].map(p => (
+                  <button 
+                    key={p.hex}
+                    onClick={() => {
+                      updateVolProfileSettings({ pocColor: p.hex });
+                    }}
+                    className={`w-5 h-5 rounded-full ${p.bg} cursor-pointer hover:scale-110 active:scale-95 transition-all border ${
+                      (volProfileGlobalSettings.pocColor || (isLight ? "#2563eb" : "#3b82f6")) === p.hex ? "border-blue-500 ring-2 ring-amber-500" : "border-slate-500/30"
+                    }`}
+                  />
+                ))}
+                <input 
+                  type="color"
+                  value={volProfileGlobalSettings.pocColor || (isLight ? "#2563eb" : "#3b82f6")}
+                  onChange={(e) => {
+                    updateVolProfileSettings({ pocColor: e.target.value });
+                  }}
+                  className="w-5 h-5 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

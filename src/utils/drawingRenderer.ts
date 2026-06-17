@@ -23,6 +23,10 @@ export interface DrawingItem {
   offsetPrice?: number;
   color?: string;
   fontSize?: number;
+  extendPoc?: boolean;
+  opacity?: number;
+  volColor?: string;
+  pocColor?: string;
 }
 
 interface RenderContext {
@@ -376,6 +380,18 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
 
         ctx.save();
 
+        const hexToRgba = (hexColor: string, alpha: number) => {
+          if (hexColor.startsWith("rgba")) return hexColor;
+          const cleanHex = hexColor.replace("#", "");
+          const r = parseInt(cleanHex.substring(0, 2), 16) || 59;
+          const g = parseInt(cleanHex.substring(2, 4), 16) || 130;
+          const b = parseInt(cleanHex.substring(4, 6), 16) || 246;
+          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        };
+
+        const baseColor = d.volColor || (isLight ? "#2563eb" : "#3b82f6");
+        const customOpacity = d.opacity !== undefined ? d.opacity : (isLight ? 0.18 : 0.28);
+
         // 1. Draw a clear, styled background for the 70% Value Area Zone (Зона баланса 70%)
         const vaY1 = bMinY + lowIdx * bHeightStep;
         const vaY2 = bMinY + (highIdx + 1) * bHeightStep;
@@ -392,9 +408,9 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
           const isInValueArea = b >= lowIdx && b <= highIdx;
 
           if (isInValueArea) {
-            ctx.fillStyle = isLight ? "rgba(59, 130, 246, 0.18)" : "rgba(59, 130, 246, 0.28)";
+            ctx.fillStyle = hexToRgba(baseColor, customOpacity);
           } else {
-            ctx.fillStyle = isLight ? "rgba(148, 163, 184, 0.06)" : "rgba(148, 163, 184, 0.09)";
+            ctx.fillStyle = hexToRgba(baseColor, customOpacity * 0.3);
           }
 
           // Render contiguous bars without space or subpixel gaps to form a perfectly solid block
@@ -427,15 +443,33 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
 
         // 4. Draw POC (Point of Control) - Brilliantly expressed bold line
         const pocY = bMinY + (pocIdx + 0.5) * bHeightStep;
-        ctx.strokeStyle = isLight ? "#2563eb" : "#3b82f6";
+        
+        let extendEndX = maxX;
+        if (d.extendPoc) {
+          const pocPrice = maxPrice - (pocIdx + 0.5) * priceStep;
+          for (let cIdx = endIndex + 1; cIdx < candles.length; cIdx++) {
+            const c = candles[cIdx];
+            const candleX = margin.left + cIdx * (candleWidth + candleSpacing) + candleWidth / 2;
+            extendEndX = candleX;
+            if (pocPrice >= c.low && pocPrice <= c.high) {
+              // Touched by candle, stop extending
+              break;
+            }
+            if (cIdx === candles.length - 1) {
+              extendEndX = visibleScrollLeft + viewportWidth - margin.right;
+            }
+          }
+        }
+
+        ctx.strokeStyle = d.pocColor || (isLight ? "#2563eb" : "#3b82f6");
         ctx.lineWidth = 2.2;
         ctx.beginPath();
         ctx.moveTo(minX, pocY);
-        ctx.lineTo(maxX, pocY);
+        ctx.lineTo(extendEndX, pocY);
         ctx.stroke();
 
         // POC Label
-        ctx.fillStyle = isLight ? "#1d4ed8" : "#60a5fa";
+        ctx.fillStyle = d.pocColor || (isLight ? "#1d4ed8" : "#60a5fa");
         ctx.font = "bold 9px 'JetBrains Mono', monospace";
         ctx.fillText("POC", minX + 5, pocY - 4);
 
