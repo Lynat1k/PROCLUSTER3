@@ -90,6 +90,83 @@ export default function AdminPanel({
 
   // State sections
   const [activeTokenParam, setActiveTokenParam] = useState<string>(activePair.symbol);
+  
+  // 24h Load History Chart State & Interfaces
+  const [loadHistory24h, setLoadHistory24h] = useState<{
+    hour: string;
+    cpu: number;
+    ram: number;
+    network: number;
+    disk: number;
+    connections: number;
+  }[]>(() => {
+    const saved = storage.getJson<any[]>("procluster_admin_load_24h_v3", []);
+    if (saved && saved.length === 24) return saved;
+
+    const points: {
+      hour: string;
+      cpu: number;
+      ram: number;
+      network: number;
+      disk: number;
+      connections: number;
+    }[] = [];
+    const now = new Date();
+    for (let i = 23; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+      const hourStr = `${String(d.getHours()).padStart(2, '0')}:00`;
+      const h = d.getHours();
+      
+      const isWorkHours = h >= 9 && h <= 21;
+      const isNight = h >= 1 && h <= 6;
+      
+      const baseCpu = isWorkHours 
+        ? 45 + Math.random() * 25 
+        : isNight 
+          ? 10 + Math.random() * 15 
+          : 25 + Math.random() * 20;
+
+      const baseRam = isWorkHours
+        ? 55 + Math.random() * 12
+        : isNight
+          ? 30 + Math.random() * 10
+          : 40 + Math.random() * 10;
+
+      const baseNetwork = isWorkHours
+        ? 50 + Math.random() * 30
+        : isNight
+          ? 12 + Math.random() * 15
+          : 30 + Math.random() * 20;
+
+      const baseDisk = isWorkHours
+        ? 18 + Math.random() * 6
+        : isNight
+          ? 10 + Math.random() * 3
+          : 12 + Math.random() * 4;
+
+      const connections = isWorkHours
+        ? 280 + Math.floor(Math.random() * 150)
+        : isNight
+          ? 40 + Math.floor(Math.random() * 60)
+          : 120 + Math.floor(Math.random() * 100);
+
+      points.push({
+        hour: hourStr,
+        cpu: parseFloat(baseCpu.toFixed(1)),
+        ram: parseFloat(baseRam.toFixed(1)),
+        network: parseFloat(baseNetwork.toFixed(1)),
+        disk: parseFloat(baseDisk.toFixed(1)),
+        connections
+      });
+    }
+    storage.setJson("procluster_admin_load_24h_v3", points);
+    return points;
+  });
+
+  const [hoveredCpuIndex, setHoveredCpuIndex] = useState<number | null>(null);
+  const [hoveredRamIndex, setHoveredRamIndex] = useState<number | null>(null);
+  const [hoveredDiskIndex, setHoveredDiskIndex] = useState<number | null>(null);
+
   const [customPriceInput, setCustomPriceInput] = useState<string>("");
   const [whaleAmountInput, setWhaleAmountInput] = useState<string>("500");
   const [customTickerLogs, setCustomTickerLogs] = useState<string[]>([]);
@@ -353,21 +430,29 @@ export default function AdminPanel({
       const ramDelta = (Math.random() - 0.5) * 0.12;
       const diskDelta = (Math.random() - 0.5) * 4;
 
+      let nextCpu = 31.4;
+      let nextRam = 6.42;
+      let nextOnline = 342;
+      let nextDisk = 14.2;
+
       setCpuUsage(prev => {
         const val = Math.min(85, Math.max(8, parseFloat((prev + cpuDelta).toFixed(1))));
         setCpuHistory(history => [...history.slice(1), val]);
+        nextCpu = val;
         return val;
       });
 
       setRamUsageGB(prev => {
         const val = Math.min(12, Math.max(4.5, parseFloat((prev + ramDelta).toFixed(2))));
         setRamHistory(history => [...history.slice(1), val]);
+        nextRam = val;
         return val;
       });
 
       setDiskLoad(prev => {
         const val = Math.min(80, Math.max(5, parseFloat((prev + diskDelta).toFixed(1))));
         setDiskHistory(history => [...history.slice(1), val]);
+        nextDisk = val;
         return val;
       });
 
@@ -379,7 +464,9 @@ export default function AdminPanel({
       setHostsCount(prev => prev + (Math.random() > 0.55 ? 1 : Math.random() < 0.45 ? -1 : 0));
       setOnlineCount(prev => {
         const ch = Math.floor((Math.random() - 0.5) * 4);
-        return Math.min(500, Math.max(120, prev + ch));
+        const val = Math.min(500, Math.max(120, prev + ch));
+        nextOnline = val;
+        return val;
       });
 
       // Fluctuate pings
@@ -389,6 +476,22 @@ export default function AdminPanel({
           ping: Math.max(5, Math.min(300, c.ping + Math.floor((Math.random() - 0.5) * 12)))
         }))
       );
+
+      // Now update the 24-hour load chart's last point to stay dynamically synced
+      setLoadHistory24h(prev => {
+        if (!prev || prev.length === 0) return prev;
+        const updated = [...prev];
+        const lastIdx = updated.length - 1;
+        updated[lastIdx] = {
+          ...updated[lastIdx],
+          cpu: nextCpu,
+          ram: parseFloat(((nextRam / 16) * 100).toFixed(1)),
+          network: parseFloat(((nextOnline / 500) * 100).toFixed(1)),
+          disk: nextDisk,
+          connections: nextOnline
+        };
+        return updated;
+      });
     }, 2500);
 
     return () => {
@@ -511,7 +614,9 @@ export default function AdminPanel({
   };
 
   return (
-    <div className={`flex-1 flex flex-col min-h-0 relative z-40 overflow-y-auto ${
+    <div className={`flex-1 flex flex-col min-h-0 relative z-40 ${
+      activeTab === "server" ? "overflow-hidden" : "overflow-y-auto"
+    } ${
       isLight ? "bg-slate-50 text-slate-900" : "bg-[#060813] text-slate-100"
     } p-6 gap-6 font-sans select-none`}>
       
@@ -626,68 +731,171 @@ export default function AdminPanel({
           
           {/* TAB 1: SERVER CONTROLS & MONITORING */}
           {activeTab === "server" && (
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
+            <div className="flex-1 flex flex-col gap-4 min-h-0">
               
-              {/* SERVER METRICS COL (LEFT HALF) */}
-              <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
+              {/* SERVER METRICS COL (TOP HALF) */}
+              <div className={`p-4 rounded-xl border flex flex-col gap-3 flex-[7] min-h-0 ${
                 isLight ? "bg-white border-slate-200" : "liquid-glass-card"
               }`}>
                 <h3 className="text-xs font-bold font-mono text-slate-400 flex items-center gap-2 justify-start uppercase shrink-0">
                   <Cpu className="w-4 h-4 text-slate-400 animate-pulse" /> Мониторинг ресурсов & Спецификации веб-сервера
                 </h3>
                 
-                <div className="flex-1 flex flex-col gap-4 lg:min-h-0 justify-between">
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 min-h-0">
                   
                   {/* --- CARD 1: CPU GRAPH --- */}
-                  <div className={`flex-1 min-h-[145px] p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition-all ${
+                  <div className={`flex-1 p-3 rounded-xl border flex flex-col justify-start gap-2 transition-all ${
                     isLight ? "bg-slate-50/70 border-slate-200" : "bg-white/[0.01] border-white/5"
                   }`}>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className={`font-bold flex items-center gap-1.5 ${isLight ? "text-slate-800" : "text-white"}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                        <span>Нагрузка Процессора (CPU)</span>
-                      </span>
-                      <span className={`font-mono font-bold ${isLight ? "text-amber-600" : "text-amber-500"}`}>{cpuUsage}%</span>
-                    </div>
-                    
-                    <div className={`h-2 w-full ${isLight ? "bg-slate-200" : "bg-slate-900"} rounded-full overflow-hidden`}>
-                      <div 
-                        className="h-full bg-amber-500 transition-all duration-300"
-                        style={{ width: `${cpuUsage}%` }}
-                      />
-                    </div>
-                    
-                    <div className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"} font-mono flex justify-between`}>
-                      <span>VM Core 8x Threads</span>
-                      <span>Частота: 3.40 GHz</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className={`font-bold flex items-center gap-1.5 ${isLight ? "text-slate-800" : "text-white"}`}>
+                          <span className="w-1 h-1 rounded-full bg-amber-500 animate-ping" />
+                          <span>Нагрузка Процессора (CPU)</span>
+                        </span>
+                        {hoveredCpuIndex !== null ? (
+                          <span className="text-[9px] font-mono font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.5 rounded animate-pulse">
+                            Показание в {loadHistory24h[hoveredCpuIndex]?.hour || ""}: {loadHistory24h[hoveredCpuIndex]?.cpu}%
+                          </span>
+                        ) : (
+                          <span className={`font-mono font-bold text-[11px] ${isLight ? "text-amber-600" : "text-amber-500"}`}>
+                            {cpuUsage}% <span className="text-[8px] text-slate-400 font-normal">(сейчас)</span>
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className={`h-1 w-full ${isLight ? "bg-slate-200" : "bg-slate-900"} rounded-full overflow-hidden`}>
+                        <div 
+                          className="h-full bg-amber-500 transition-all duration-300"
+                          style={{ width: `${cpuUsage}%` }}
+                        />
+                      </div>
+                      
+                      <div className={`text-[9.5px] ${isLight ? "text-slate-500" : "text-slate-400"} font-mono flex justify-between`}>
+                        <span>VM Core 8x Threads</span>
+                        <span>Частота: 3.40 GHz</span>
+                      </div>
                     </div>
 
                     {/* CPU Chart View */}
-                    <div className="flex flex-col gap-1 min-h-0">
-                      <span className={`text-[9px] ${isLight ? "text-slate-550" : "text-slate-400"} font-mono uppercase tracking-wider`}>График загрузки CPU (30 сек)</span>
+                    <div className="flex-1 flex flex-col gap-0.5 min-h-0 relative select-none">
                       {(() => {
-                        const width = 300;
-                        const height = 48;
-                        const points = cpuHistory.map((val, idx) => {
-                           const x = idx * (width / (cpuHistory.length - 1 || 1));
-                           const y = height - (val / 100) * (height - 8) - 4;
-                           return { x, y };
-                        });
+                        const width = 500;
+                        const height = 110;
+                        const paddingL = 10;
+                        const paddingR = 40;
+                        const paddingT = 8;
+                        const paddingB = 18;
+                        const graphW = width - paddingL - paddingR;
+                        const graphH = height - paddingT - paddingB;
+
+                        const getX = (i: number) => paddingL + (i / 23) * graphW;
+                        const getY = (num: number) => height - paddingB - (num / 100) * graphH;
+
+                        const points = loadHistory24h.map((p, idx) => ({ x: getX(idx), y: getY(p.cpu) }));
                         const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-                        const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+                        const areaD = `${pathD} L ${getX(23).toFixed(1)} ${height - paddingB} L ${getX(0).toFixed(1)} ${height - paddingB} Z`;
+
+                        const yTicks = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
                         return (
-                          <div className={`h-14 w-full ${isLight ? "bg-slate-100/80" : "bg-black/30"} rounded-lg p-1.5 border ${isLight ? "border-slate-300/40" : "border-white/[0.02]"}`}>
-                            <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+                          <div className={`flex-1 min-h-[95px] w-full relative ${isLight ? "bg-slate-100/90" : "bg-black/35"} rounded-lg p-1 border border-slate-500/10`}>
+                            {/* Y-Ticks (percentages) - Non-stretched absolute HTML text overlay */}
+                            {yTicks.map((tick) => (
+                              <div
+                                key={`cpu-y-tick-${tick}`}
+                                style={{
+                                  position: "absolute",
+                                  left: `${((width - paddingR + 5) / width) * 100}%`,
+                                  top: `${(getY(tick) / height) * 100}%`,
+                                  transform: "translateY(-50%)",
+                                }}
+                                className={`text-[10px] font-mono font-bold leading-none select-none pointer-events-none ${
+                                  isLight ? "text-slate-500" : "text-slate-400"
+                                }`}
+                              >
+                                {tick}%
+                              </div>
+                            ))}
+
+                            {/* X-Ticks (Time) - Non-stretched absolute HTML text overlay */}
+                            {[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map((idx) => {
+                              const xPercent = (getX(idx) / width) * 100;
+                              const alignTransform = idx === 0 ? "none" : idx === 22 ? "translateX(-50%)" : "translateX(-50%)";
+                              return (
+                                <div
+                                  key={`cpu-x-tick-${idx}`}
+                                  style={{
+                                    position: "absolute",
+                                    left: `${xPercent}%`,
+                                    bottom: "3px",
+                                    transform: alignTransform,
+                                  }}
+                                  className={`text-[10px] font-mono font-bold leading-none select-none pointer-events-none ${
+                                    isLight ? "text-slate-500" : "text-slate-400"
+                                  }`}
+                                >
+                                  {loadHistory24h[idx]?.hour}
+                                </div>
+                              );
+                            })}
+
+                            <svg 
+                              className="w-full h-full overflow-visible" 
+                              viewBox={`0 0 ${width} ${height}`}
+                              preserveAspectRatio="none"
+                              onMouseMove={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const relativeX = e.clientX - rect.left;
+                                const pct = relativeX / rect.width;
+                                const idx = Math.max(0, Math.min(23, Math.round(pct * 23)));
+                                setHoveredCpuIndex(idx);
+                              }}
+                              onMouseLeave={() => setHoveredCpuIndex(null)}
+                            >
                               <defs>
-                                <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
+                                <linearGradient id="cpuCardGrad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.28" />
                                   <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
                                 </linearGradient>
                               </defs>
-                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className={isLight ? "text-slate-400/20" : "text-white/[0.03]"} strokeDasharray="3 3" />
-                              <path d={areaD} fill="url(#cpuGrad)" />
-                              <path d={pathD} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2" fill="#f59e0b" />}
+
+                              {/* Base Line */}
+                              <line 
+                                x1={paddingL} 
+                                y1={height - paddingB} 
+                                x2={width - paddingR} 
+                                y2={height - paddingB} 
+                                stroke="currentColor" 
+                                className={isLight ? "text-slate-300" : "text-white/[0.12]"} 
+                              />
+
+                              {/* Path areas and curves */}
+                              <path d={areaD} fill="url(#cpuCardGrad)" />
+                              <path d={pathD} fill="none" stroke="#f59e0b" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+
+                              {/* Hover Tracker */}
+                              {hoveredCpuIndex !== null && (
+                                <g>
+                                  <line 
+                                    x1={getX(hoveredCpuIndex)} 
+                                    y1={paddingT} 
+                                    x2={getX(hoveredCpuIndex)} 
+                                    y2={height - paddingB} 
+                                    stroke="#ec4899" 
+                                    strokeWidth="1" 
+                                    strokeDasharray="2 2" 
+                                  />
+                                  <circle 
+                                    cx={getX(hoveredCpuIndex)} 
+                                    cy={getY(loadHistory24h[hoveredCpuIndex]?.cpu || 0)} 
+                                    r="3" 
+                                    fill="#f59e0b" 
+                                    stroke={isLight ? "#ffffff" : "#0f172a"} 
+                                    strokeWidth="1.5" 
+                                  />
+                                </g>
+                              )}
                             </svg>
                           </div>
                         );
@@ -696,55 +904,158 @@ export default function AdminPanel({
                   </div>
 
                   {/* --- CARD 2: RAM GRAPH WITH ALL BUSY SERVER MEMORY --- */}
-                  <div className={`flex-1 min-h-[145px] p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition-all ${
+                  <div className={`flex-1 p-3 rounded-xl border flex flex-col justify-start gap-2 transition-all ${
                     isLight ? "bg-slate-50/70 border-slate-200" : "bg-white/[0.01] border-white/5"
                   }`}>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className={`font-bold flex items-center gap-1.5 ${isLight ? "text-slate-800" : "text-white"}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        <span>Вся занятая память сервера (RAM)</span>
-                      </span>
-                      <span className={`font-mono font-bold ${isLight ? "text-emerald-600" : "text-emerald-500"}`}>{ramUsageGB.toFixed(2)} GB / 16.0 GB</span>
-                    </div>
-                    
-                    <div className={`h-2 w-full ${isLight ? "bg-slate-200" : "bg-slate-900"} rounded-full overflow-hidden`}>
-                      <div 
-                        className="h-full bg-emerald-500 transition-all duration-350"
-                        style={{ width: `${(ramUsageGB / 16) * 100}%` }}
-                      />
-                    </div>
-                    
-                    <div className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"} font-mono flex justify-between`}>
-                      <span>Использование памяти процессами Node</span>
-                      <span>Свободно: {(16 - ramUsageGB).toFixed(2)} GB</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className={`font-bold flex items-center gap-1.5 ${isLight ? "text-slate-800" : "text-white"}`}>
+                          <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                          <span>Вся занятая память сервера (RAM)</span>
+                        </span>
+                        {hoveredRamIndex !== null ? (
+                          <span className="text-[9px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1.5 py-0.5 rounded animate-pulse">
+                            Показание в {loadHistory24h[hoveredRamIndex]?.hour || ""}: {loadHistory24h[hoveredRamIndex]?.ram}% ({(loadHistory24h[hoveredRamIndex]?.ram * 16 / 100).toFixed(1)}G)
+                          </span>
+                        ) : (
+                          <span className={`font-mono font-bold text-[11px] ${isLight ? "text-emerald-600" : "text-emerald-500"}`}>
+                            {ramUsageGB.toFixed(2)} GB <span className="text-[8px] text-slate-400 font-normal">/ 16.0 GB</span>
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className={`h-1 w-full ${isLight ? "bg-slate-200" : "bg-slate-900"} rounded-full overflow-hidden`}>
+                        <div 
+                          className="h-full bg-emerald-500 transition-all duration-350"
+                          style={{ width: `${(ramUsageGB / 16) * 100}%` }}
+                        />
+                      </div>
+                      
+                      <div className={`text-[9.5px] ${isLight ? "text-slate-500" : "text-slate-400"} font-mono flex justify-between`}>
+                        <span>Использование памяти процессами Node</span>
+                        <span>Свободно: {(16 - ramUsageGB).toFixed(2)} GB</span>
+                      </div>
                     </div>
 
                     {/* RAM Chart View */}
-                    <div className="flex flex-col gap-1 min-h-0">
-                      <span className={`text-[9px] ${isLight ? "text-slate-500" : "text-slate-400"} font-mono uppercase tracking-wider`}>График загрузки ОЗУ (RAM)</span>
+                    <div className="flex-1 flex flex-col gap-0.5 min-h-0 relative select-none">
                       {(() => {
-                        const width = 300;
-                        const height = 48;
-                        const points = ramHistory.map((val, idx) => {
-                           const x = idx * (width / (ramHistory.length - 1 || 1));
-                           const y = height - (val / 16) * (height - 8) - 4;
-                           return { x, y };
-                        });
+                        const width = 500;
+                        const height = 110;
+                        const paddingL = 10;
+                        const paddingR = 40;
+                        const paddingT = 8;
+                        const paddingB = 18;
+                        const graphW = width - paddingL - paddingR;
+                        const graphH = height - paddingT - paddingB;
+
+                        const getX = (i: number) => paddingL + (i / 23) * graphW;
+                        const getY = (num: number) => height - paddingB - (num / 100) * graphH;
+
+                        const points = loadHistory24h.map((p, idx) => ({ x: getX(idx), y: getY(p.ram) }));
                         const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-                        const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+                        const areaD = `${pathD} L ${getX(23).toFixed(1)} ${height - paddingB} L ${getX(0).toFixed(1)} ${height - paddingB} Z`;
+
+                        const yTicks = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
                         return (
-                          <div className={`h-14 w-full ${isLight ? "bg-slate-100/80" : "bg-black/30"} rounded-lg p-1.5 border ${isLight ? "border-slate-300/40" : "border-white/[0.02]"}`}>
-                            <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+                          <div className={`flex-1 min-h-[95px] w-full relative ${isLight ? "bg-slate-100/90" : "bg-black/35"} rounded-lg p-1 border border-slate-500/10`}>
+                            {/* Y-Ticks (percentages) - Non-stretched absolute HTML text overlay */}
+                            {yTicks.map((tick) => (
+                              <div
+                                key={`ram-y-tick-${tick}`}
+                                style={{
+                                  position: "absolute",
+                                  left: `${((width - paddingR + 5) / width) * 100}%`,
+                                  top: `${(getY(tick) / height) * 100}%`,
+                                  transform: "translateY(-50%)",
+                                }}
+                                className={`text-[10px] font-mono font-bold leading-none select-none pointer-events-none ${
+                                  isLight ? "text-slate-500" : "text-slate-400"
+                                }`}
+                              >
+                                {tick}%
+                              </div>
+                            ))}
+
+                            {/* X-Ticks (Time) - Non-stretched absolute HTML text overlay */}
+                            {[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map((idx) => {
+                              const xPercent = (getX(idx) / width) * 100;
+                              const alignTransform = idx === 0 ? "none" : idx === 22 ? "translateX(-50%)" : "translateX(-50%)";
+                              return (
+                                <div
+                                  key={`ram-x-tick-${idx}`}
+                                  style={{
+                                    position: "absolute",
+                                    left: `${xPercent}%`,
+                                    bottom: "3px",
+                                    transform: alignTransform,
+                                  }}
+                                  className={`text-[10px] font-mono font-bold leading-none select-none pointer-events-none ${
+                                    isLight ? "text-slate-500" : "text-slate-400"
+                                  }`}
+                                >
+                                  {loadHistory24h[idx]?.hour}
+                                </div>
+                              );
+                            })}
+
+                            <svg 
+                              className="w-full h-full overflow-visible" 
+                              viewBox={`0 0 ${width} ${height}`}
+                              preserveAspectRatio="none"
+                              onMouseMove={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const relativeX = e.clientX - rect.left;
+                                const pct = relativeX / rect.width;
+                                const idx = Math.max(0, Math.min(23, Math.round(pct * 23)));
+                                setHoveredRamIndex(idx);
+                              }}
+                              onMouseLeave={() => setHoveredRamIndex(null)}
+                            >
                               <defs>
-                                <linearGradient id="ramGrad" x1="0" y1="0" x2="0" y2="1">
+                                <linearGradient id="ramCardGrad" x1="0" y1="0" x2="0" y2="1">
                                   <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
                                   <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
                                 </linearGradient>
                               </defs>
-                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className={isLight ? "text-slate-400/20" : "text-white/[0.03]"} strokeDasharray="3 3" />
-                              <path d={areaD} fill="url(#ramGrad)" />
-                              <path d={pathD} fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2" fill="#10b981" />}
+
+                              {/* Base Line */}
+                              <line 
+                                x1={paddingL} 
+                                y1={height - paddingB} 
+                                x2={width - paddingR} 
+                                y2={height - paddingB} 
+                                stroke="currentColor" 
+                                className={isLight ? "text-slate-300" : "text-white/[0.12]"} 
+                              />
+
+                              {/* Path areas and curves */}
+                              <path d={areaD} fill="url(#ramCardGrad)" />
+                              <path d={pathD} fill="none" stroke="#10b981" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+
+                              {/* Hover Tracker */}
+                              {hoveredRamIndex !== null && (
+                                <g>
+                                  <line 
+                                    x1={getX(hoveredRamIndex)} 
+                                    y1={paddingT} 
+                                    x2={getX(hoveredRamIndex)} 
+                                    y2={height - paddingB} 
+                                    stroke="#ec4899" 
+                                    strokeWidth="1" 
+                                    strokeDasharray="2 2" 
+                                  />
+                                  <circle 
+                                    cx={getX(hoveredRamIndex)} 
+                                    cy={getY(loadHistory24h[hoveredRamIndex]?.ram || 0)} 
+                                    r="3" 
+                                    fill="#10b981" 
+                                    stroke={isLight ? "#ffffff" : "#0f172a"} 
+                                    strokeWidth="1.5" 
+                                  />
+                                </g>
+                              )}
                             </svg>
                           </div>
                         );
@@ -753,55 +1064,158 @@ export default function AdminPanel({
                   </div>
 
                   {/* --- CARD 3: DISK GRAPH & DATABASE VOLUME --- */}
-                  <div className={`flex-1 min-h-[145px] p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition-all ${
+                  <div className={`flex-1 p-3 rounded-xl border flex flex-col justify-start gap-2 transition-all ${
                     isLight ? "bg-slate-50/70 border-slate-200" : "bg-white/[0.01] border-white/5"
                   }`}>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className={`font-semibold flex items-center gap-1.5 ${isLight ? "text-slate-800" : "text-white"}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                        <span>Нагрузка Диска & Объем Базы Данных</span>
-                      </span>
-                      <span className={`font-mono font-bold ${isLight ? "text-blue-600" : "text-blue-400"}`}>{diskLoad.toFixed(1)}%</span>
-                    </div>
-                    
-                    <div className={`h-2 w-full ${isLight ? "bg-slate-200" : "bg-slate-900"} rounded-full overflow-hidden`}>
-                      <div 
-                        className="h-full bg-blue-500 transition-all duration-300"
-                        style={{ width: `${diskLoad}%` }}
-                      />
-                    </div>
-                    
-                    <div className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"} font-mono flex justify-between`}>
-                      <span className={`${isLight ? "text-blue-700 font-bold" : "text-blue-400 font-semibold"}`}>Объём Базы Данных: {dbVolumeGB.toFixed(4)} GB</span>
-                      <span>SSD NVMe RAID</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className={`font-semibold flex items-center gap-1.5 ${isLight ? "text-slate-800" : "text-white"}`}>
+                          <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                          <span>Нагрузка Диска & Объем Базы Данных</span>
+                        </span>
+                        {hoveredDiskIndex !== null ? (
+                          <span className="text-[9px] font-mono font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20 px-1.5 py-0.5 rounded animate-pulse">
+                            Показание в {loadHistory24h[hoveredDiskIndex]?.hour || ""}: {loadHistory24h[hoveredDiskIndex]?.disk}%
+                          </span>
+                        ) : (
+                          <span className={`font-mono font-bold text-[11px] ${isLight ? "text-blue-600" : "text-blue-400"}`}>
+                            {diskLoad.toFixed(1)}% <span className="text-[8px] text-slate-400 font-normal">(сейчас)</span>
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className={`h-1 w-full ${isLight ? "bg-slate-200" : "bg-slate-900"} rounded-full overflow-hidden`}>
+                        <div 
+                          className="h-full bg-blue-500 transition-all duration-300"
+                          style={{ width: `${diskLoad}%` }}
+                        />
+                      </div>
+                      
+                      <div className={`text-[9.5px] ${isLight ? "text-slate-500" : "text-slate-400"} font-mono flex justify-between`}>
+                        <span className={`${isLight ? "text-blue-700 font-bold" : "text-blue-400"}`}>Объём Базы Данных: {dbVolumeGB.toFixed(4)} GB</span>
+                        <span>SSD NVMe RAID</span>
+                      </div>
                     </div>
 
                     {/* Disk Chart View */}
-                    <div className="flex flex-col gap-1 min-h-0">
-                      <span className={`text-[9px] ${isLight ? "text-slate-550" : "text-slate-400"} font-mono uppercase tracking-wider`}>График нагрузки на диск (I/O)</span>
+                    <div className="flex-1 flex flex-col gap-0.5 min-h-0 relative select-none">
                       {(() => {
-                        const width = 300;
-                        const height = 48;
-                        const points = diskHistory.map((val, idx) => {
-                           const x = idx * (width / (diskHistory.length - 1 || 1));
-                           const y = height - (val / 100) * (height - 8) - 4;
-                           return { x, y };
-                        });
+                        const width = 500;
+                        const height = 110;
+                        const paddingL = 10;
+                        const paddingR = 40;
+                        const paddingT = 8;
+                        const paddingB = 18;
+                        const graphW = width - paddingL - paddingR;
+                        const graphH = height - paddingT - paddingB;
+
+                        const getX = (i: number) => paddingL + (i / 23) * graphW;
+                        const getY = (num: number) => height - paddingB - (num / 100) * graphH;
+
+                        const points = loadHistory24h.map((p, idx) => ({ x: getX(idx), y: getY(p.disk) }));
                         const pathD = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-                        const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+                        const areaD = `${pathD} L ${getX(23).toFixed(1)} ${height - paddingB} L ${getX(0).toFixed(1)} ${height - paddingB} Z`;
+
+                        const yTicks = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
                         return (
-                          <div className={`h-14 w-full ${isLight ? "bg-slate-100/80" : "bg-black/30"} rounded-lg p-1.5 border ${isLight ? "border-slate-300/40" : "border-white/[0.02]"}`}>
-                            <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+                          <div className={`flex-1 min-h-[95px] w-full relative ${isLight ? "bg-slate-100/90" : "bg-black/35"} rounded-lg p-1 border border-slate-500/10`}>
+                            {/* Y-Ticks (percentages) - Non-stretched absolute HTML text overlay */}
+                            {yTicks.map((tick) => (
+                              <div
+                                key={`disk-y-tick-${tick}`}
+                                style={{
+                                  position: "absolute",
+                                  left: `${((width - paddingR + 5) / width) * 100}%`,
+                                  top: `${(getY(tick) / height) * 100}%`,
+                                  transform: "translateY(-50%)",
+                                }}
+                                className={`text-[10px] font-mono font-bold leading-none select-none pointer-events-none ${
+                                  isLight ? "text-slate-500" : "text-slate-400"
+                                }`}
+                              >
+                                {tick}%
+                              </div>
+                            ))}
+
+                            {/* X-Ticks (Time) - Non-stretched absolute HTML text overlay */}
+                            {[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map((idx) => {
+                              const xPercent = (getX(idx) / width) * 100;
+                              const alignTransform = idx === 0 ? "none" : idx === 22 ? "translateX(-50%)" : "translateX(-50%)";
+                              return (
+                                <div
+                                  key={`disk-x-tick-${idx}`}
+                                  style={{
+                                    position: "absolute",
+                                    left: `${xPercent}%`,
+                                    bottom: "3px",
+                                    transform: alignTransform,
+                                  }}
+                                  className={`text-[10px] font-mono font-bold leading-none select-none pointer-events-none ${
+                                    isLight ? "text-slate-500" : "text-slate-400"
+                                  }`}
+                                >
+                                  {loadHistory24h[idx]?.hour}
+                                </div>
+                              );
+                            })}
+
+                            <svg 
+                              className="w-full h-full overflow-visible" 
+                              viewBox={`0 0 ${width} ${height}`}
+                              preserveAspectRatio="none"
+                              onMouseMove={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const relativeX = e.clientX - rect.left;
+                                const pct = relativeX / rect.width;
+                                const idx = Math.max(0, Math.min(23, Math.round(pct * 23)));
+                                setHoveredDiskIndex(idx);
+                              }}
+                              onMouseLeave={() => setHoveredDiskIndex(null)}
+                            >
                               <defs>
-                                <linearGradient id="diskGrad" x1="0" y1="0" x2="0" y2="1">
+                                <linearGradient id="diskCardGrad" x1="0" y1="0" x2="0" y2="1">
                                   <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
                                   <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
                                 </linearGradient>
                               </defs>
-                              <line x1="0" y1={height * 0.5} x2={width} y2={height * 0.5} stroke="currentColor" className={isLight ? "text-slate-400/20" : "text-white/[0.03]"} strokeDasharray="3 3" />
-                              <path d={areaD} fill="url(#diskGrad)" />
-                              <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              {points.length > 0 && <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="2" fill="#3b82f6" />}
+
+                              {/* Base Line */}
+                              <line 
+                                x1={paddingL} 
+                                y1={height - paddingB} 
+                                x2={width - paddingR} 
+                                y2={height - paddingB} 
+                                stroke="currentColor"  
+                                className={isLight ? "text-slate-300" : "text-white/[0.12]"} 
+                              />
+
+                              {/* Path areas and curves */}
+                              <path d={areaD} fill="url(#diskCardGrad)" />
+                              <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+
+                              {/* Hover Tracker */}
+                              {hoveredDiskIndex !== null && (
+                                <g>
+                                  <line 
+                                    x1={getX(hoveredDiskIndex)} 
+                                    y1={paddingT} 
+                                    x2={getX(hoveredDiskIndex)} 
+                                    y2={height - paddingB} 
+                                    stroke="#ec4899" 
+                                    strokeWidth="1" 
+                                    strokeDasharray="2 2" 
+                                  />
+                                  <circle 
+                                    cx={getX(hoveredDiskIndex)} 
+                                    cy={getY(loadHistory24h[hoveredDiskIndex]?.disk || 0)} 
+                                    r="3" 
+                                    fill="#3b82f6" 
+                                    stroke={isLight ? "#ffffff" : "#0f172a"} 
+                                    strokeWidth="1.5" 
+                                  />
+                                </g>
+                              )}
                             </svg>
                           </div>
                         );
@@ -813,7 +1227,7 @@ export default function AdminPanel({
               </div>
 
               {/* SERVER TERMINAL DIAGNOSTICS LOGS CONSOLE */}
-              <div className={`flex-1 flex flex-col min-h-[400px] lg:min-h-0 rounded-2xl p-5 border gap-3 ${
+              <div className={`flex-[3] flex flex-col min-h-0 rounded-xl p-4 border gap-3 ${
                 isLight ? "bg-white border-slate-200" : "liquid-glass-card"
               }`}>
                 <div className="flex justify-between items-center text-xs">
@@ -826,7 +1240,7 @@ export default function AdminPanel({
                   </span>
                 </div>
 
-                <div className={`flex-1 min-h-[220px] rounded-xl p-4 font-mono text-[10.5px] overflow-y-auto leading-relaxed border select-text shadow-inner ${
+                <div className={`flex-1 min-h-[60px] rounded-xl p-4 font-mono text-[10.5px] overflow-y-auto leading-relaxed border select-text shadow-inner ${
                   isLight 
                     ? "bg-slate-900 text-slate-200 border-slate-300" 
                     : "bg-[#02050e] text-[#00ff66] border-white/5"
