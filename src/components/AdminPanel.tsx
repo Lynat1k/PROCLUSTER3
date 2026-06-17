@@ -872,7 +872,7 @@ export default function AdminPanel({
 
                               {/* Path areas and curves */}
                               <path d={areaD} fill="url(#cpuCardGrad)" />
-                              <path d={pathD} fill="none" stroke="#f59e0b" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d={pathD} fill="none" stroke="#f59e0b" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
 
                               {/* Hover Tracker */}
                               {hoveredCpuIndex !== null && (
@@ -1032,7 +1032,7 @@ export default function AdminPanel({
 
                               {/* Path areas and curves */}
                               <path d={areaD} fill="url(#ramCardGrad)" />
-                              <path d={pathD} fill="none" stroke="#10b981" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d={pathD} fill="none" stroke="#10b981" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
 
                               {/* Hover Tracker */}
                               {hoveredRamIndex !== null && (
@@ -1192,7 +1192,7 @@ export default function AdminPanel({
 
                               {/* Path areas and curves */}
                               <path d={areaD} fill="url(#diskCardGrad)" />
-                              <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
 
                               {/* Hover Tracker */}
                               {hoveredDiskIndex !== null && (
