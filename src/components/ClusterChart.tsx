@@ -7,6 +7,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "re
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator, OrderBook } from "../types";
 import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight, TrendingUp, SlidersHorizontal, Lock } from "lucide-react";
 import { storage } from "../lib/storage";
+import { AutoIcon, JapaneseIcon, FootprintIcon, ClustersIcon, BarsIcon } from "./icons";
 import { volumeOnChartIndicator, deltaIndicator, cvdIndicator, clusterSearchIndicator } from "../indicators";
 import { drawDrawingObjects } from "../utils/drawingRenderer";
 import { getActiveGroupLimits } from "../lib/tierLimits";
@@ -35,7 +36,8 @@ interface ClusterChartProps {
   marketType?: "SPOT" | "FUTURES";
   onToggleMarketType?: () => void;
   theme?: "dark" | "light";
-  candleType?: "auto" | "japanese" | "footprint" | "clusters";
+  candleType?: "auto" | "japanese" | "footprint" | "clusters" | "bars";
+  onChangeCandleType?: (type: "auto" | "japanese" | "footprint" | "clusters" | "bars") => void;
   candleDataType?: "bid_ask" | "delta" | "volume";
   candlePalette?: "default" | "alternative";
   onToggleIndicator?: (id: string) => void;
@@ -67,6 +69,7 @@ export default function ClusterChart({
   onToggleMarketType,
   theme = "dark",
   candleType = "auto",
+  onChangeCandleType,
   candleDataType = "bid_ask",
   candlePalette = "default",
   onToggleIndicator,
@@ -179,6 +182,9 @@ export default function ClusterChart({
   });
   const [showClusterAnomalies, setShowClusterAnomalies] = useState<boolean>(() => {
     return storage.get("chart_settings_show_anomalies") !== "false";
+  });
+  const [showCandleOutline, setShowCandleOutline] = useState<boolean>(() => {
+    return storage.get("chart_settings_show_candle_outline") !== "false";
   });
 
   const { limits } = getActiveGroupLimits();
@@ -492,8 +498,8 @@ export default function ClusterChart({
         // Ctrl + Wheel -> zoom horizontally centered on mouse position!
         const multiplier = direction < 0 ? 1.08 : 0.92;
         const nextWidth = curCandleWidth * multiplier;
-        const minW = (candleType === "japanese" || candleType === "auto") ? 2 : 8;
-        const nextWidthClamped = Math.min(450, Math.max(minW, nextWidth));
+        const minW = (candleType === "japanese" || candleType === "auto" || candleType === "bars") ? 2 : 8;
+        const nextWidthClamped = Math.min(100, Math.max(minW, nextWidth));
 
         if (nextWidthClamped !== curCandleWidth) {
           const mouseRelativeX = e.clientX - rect.left;
@@ -530,8 +536,8 @@ export default function ClusterChart({
         // 1. Horizontal zoom
         const hMultiplier = direction < 0 ? 1.08 : 0.92;
         const nextWidth = curCandleWidth * hMultiplier;
-        const minW = (candleType === "japanese" || candleType === "auto") ? 2 : 8;
-        const nextWidthClamped = Math.min(450, Math.max(minW, nextWidth));
+        const minW = (candleType === "japanese" || candleType === "auto" || candleType === "bars") ? 2 : 8;
+        const nextWidthClamped = Math.min(100, Math.max(minW, nextWidth));
 
         let updatedScaleCandleWidth = curCandleWidth;
         if (nextWidthClamped !== curCandleWidth) {
@@ -671,8 +677,8 @@ export default function ClusterChart({
   const handleZoom = (factor: number) => {
     setCandleWidth(prev => {
       const next = prev + factor;
-      const minW = (candleType === "japanese" || candleType === "auto") ? 2 : 8;
-      return Math.min(450, Math.max(minW, next));
+      const minW = (candleType === "japanese" || candleType === "auto" || candleType === "bars") ? 2 : 8;
+      return Math.min(100, Math.max(minW, next));
     });
   };
 
@@ -739,7 +745,7 @@ export default function ClusterChart({
 
   // Zoom threshold: Detailed cluster footprint mode vs default Candlestick view
   const isDetailedModeCalculated = candleWidth >= 15;
-  const isDetailedMode = candleType === "japanese"
+  const isDetailedMode = (candleType === "japanese" || candleType === "bars")
     ? false
     : (candleType === "footprint" || candleType === "clusters"
         ? true
@@ -1874,8 +1880,8 @@ export default function ClusterChart({
       // If we move mouse to the right, we stretch (increase candleWidth).
       // If we move mouse to the left, we squeeze (decrease candleWidth).
       const nextW = startCandleWidthRef.current + deltaX * 1.0;
-      const minW = (candleType === "japanese" || candleType === "auto") ? 2 : 8;
-      const clampedW = Math.min(450, Math.max(minW, nextW));
+      const minW = (candleType === "japanese" || candleType === "auto" || candleType === "bars") ? 2 : 8;
+      const clampedW = Math.min(100, Math.max(minW, nextW));
 
       setCandleWidth(clampedW);
 
@@ -2228,26 +2234,57 @@ export default function ClusterChart({
       const candleWickColor = isGreen ? bullWick : bearWick;
 
       // Draw vertical wick lines
-      ctx.beginPath();
-      ctx.strokeStyle = candleWickColor;
-      ctx.lineWidth = 1.5;
-      ctx.globalAlpha = isDetailedMode ? 0.45 : 0.85;
-      ctx.moveTo(x + candleWidth / 2, priceToY(candle.high));
-      ctx.lineTo(x + candleWidth / 2, priceToY(candle.low));
-      ctx.stroke();
-      ctx.globalAlpha = 1.0; // Reset
-
-      // A. Zoomed out simple candlestick
-      if (!isDetailedMode) {
-        ctx.fillStyle = candleFillColor;
-        ctx.strokeStyle = candleBorderColor;
+      if (candleType !== "bars") {
+        ctx.beginPath();
+        ctx.strokeStyle = candleWickColor;
         ctx.lineWidth = 1.5;
-        
-        const rectY = Math.min(bodyY1, bodyY2);
-        const rectH = Math.max(3, Math.abs(bodyY1 - bodyY2));
-        
-        ctx.fillRect(x, rectY, candleWidth, rectH);
-        ctx.strokeRect(x, rectY, candleWidth, rectH);
+        ctx.globalAlpha = isDetailedMode ? (showCandleOutline ? 0.45 : 0.0) : 0.85;
+        ctx.moveTo(x + candleWidth / 2, priceToY(candle.high));
+        ctx.lineTo(x + candleWidth / 2, priceToY(candle.low));
+        ctx.stroke();
+        ctx.globalAlpha = 1.0; // Reset
+      }
+
+      // A. Zoomed out simple candlestick or OHLC bar
+      if (!isDetailedMode) {
+        if (candleType === "bars") {
+          ctx.strokeStyle = candleBorderColor;
+          ctx.lineWidth = Math.max(1.5, Math.min(3.5, candleWidth * 0.15)); // Adaptive line thickness
+          
+          const centerX = x + candleWidth / 2;
+          const openY = priceToY(candle.open);
+          const closeY = priceToY(candle.close);
+          const highY = priceToY(candle.high);
+          const lowY = priceToY(candle.low);
+          
+          // Draw high-low line
+          ctx.beginPath();
+          ctx.moveTo(centerX, highY);
+          ctx.lineTo(centerX, lowY);
+          ctx.stroke();
+          
+          // Draw left tick (Open)
+          ctx.beginPath();
+          ctx.moveTo(centerX - Math.max(2, candleWidth / 2), openY);
+          ctx.lineTo(centerX, openY);
+          ctx.stroke();
+          
+          // Draw right tick (Close)
+          ctx.beginPath();
+          ctx.moveTo(centerX, closeY);
+          ctx.lineTo(centerX + Math.max(2, candleWidth / 2), closeY);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = candleFillColor;
+          ctx.strokeStyle = candleBorderColor;
+          ctx.lineWidth = 1.5;
+          
+          const rectY = Math.min(bodyY1, bodyY2);
+          const rectH = Math.max(3, Math.abs(bodyY1 - bodyY2));
+          
+          ctx.fillRect(x, rectY, candleWidth, rectH);
+          ctx.strokeRect(x, rectY, candleWidth, rectH);
+        }
       }
 
       // B. Zoomed in Footprint detailed view
@@ -2273,19 +2310,21 @@ export default function ClusterChart({
         const sepX = x + Math.round(candleWidth / 2);
 
         // 1. Draw elegant thin candlestick body core container outline box surrounding the open-close range (matches user screenshot)
-        const bodyTopY = priceToY(Math.max(candle.open, candle.close));
-        const bodyBottomY = priceToY(Math.min(candle.open, candle.close));
-        const bodyH = Math.max(3, bodyBottomY - bodyTopY);
-        
-        ctx.strokeStyle = isGreen 
-          ? (useAltPalette
-              ? (isLight ? "rgba(47, 47, 47, 0.45)" : "rgba(213, 213, 213, 0.55)")
-              : (isLight ? "rgba(16, 185, 129, 0.45)" : "rgba(16, 185, 129, 0.55)"))
-          : (useAltPalette
-              ? (isLight ? "rgba(58, 58, 58, 0.45)" : "rgba(174, 167, 167, 0.55)")
-              : (isLight ? "rgba(239, 68, 68, 0.45)" : "rgba(239, 68, 68, 0.55)"));
-        ctx.lineWidth = 1.0;
-        ctx.strokeRect(x + 0.5, bodyTopY + 0.5, candleWidth - 1, bodyH - 1);
+        if (showCandleOutline) {
+          const bodyTopY = priceToY(Math.max(candle.open, candle.close));
+          const bodyBottomY = priceToY(Math.min(candle.open, candle.close));
+          const bodyH = Math.max(3, bodyBottomY - bodyTopY);
+          
+          ctx.strokeStyle = isGreen 
+            ? (useAltPalette
+                ? (isLight ? "rgba(47, 47, 47, 0.45)" : "rgba(213, 213, 213, 0.55)")
+                : (isLight ? "rgba(16, 185, 129, 0.45)" : "rgba(16, 185, 129, 0.55)"))
+            : (useAltPalette
+                ? (isLight ? "rgba(58, 58, 58, 0.45)" : "rgba(174, 167, 167, 0.55)")
+                : (isLight ? "rgba(239, 68, 68, 0.45)" : "rgba(239, 68, 68, 0.55)"));
+          ctx.lineWidth = 1.0;
+          ctx.strokeRect(x + 0.5, bodyTopY + 0.5, candleWidth - 1, bodyH - 1);
+        }
 
         // Draw the vertical separator line covering the entire high-low range of the cells
         if (candleCells.length > 0) {
@@ -4510,6 +4549,59 @@ export default function ClusterChart({
 
             {/* Settings Options */}
             <div className="flex flex-col gap-4">
+              {/* Candle Type Selection */}
+              <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
+                isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+              }`}>
+                <div>
+                  <span className={`text-[10.5px] font-bold font-mono uppercase tracking-wider block ${
+                    isLight ? "text-slate-700" : "text-slate-300"
+                  }`}>
+                    {language === "RU" ? "Тип свечей" : "Candle Type"}
+                  </span>
+                  <span className="text-[10px] text-slate-400 mt-1 block leading-normal">
+                    {language === "RU" 
+                      ? "Выберите предпочтительный вариант отображения ценового графика" 
+                      : "Choose your preferred price chart representation style."}
+                  </span>
+                </div>
+
+                <div className={`flex flex-wrap gap-1.5 p-1 rounded-lg ${
+                  isLight ? "bg-slate-200/50" : "bg-slate-950/60"
+                }`}>
+                  {[
+                    { id: "auto", label: language === "RU" ? "Авто" : "Auto", icon: AutoIcon },
+                    { id: "japanese", label: language === "RU" ? "Свечи" : "Candles", icon: JapaneseIcon },
+                    { id: "bars", label: language === "RU" ? "Бары" : "Bars", icon: BarsIcon },
+                    { id: "footprint", label: language === "RU" ? "Футпринт" : "Footprint", icon: FootprintIcon },
+                    { id: "clusters", label: language === "RU" ? "Кластера" : "Clusters", icon: ClustersIcon }
+                  ].map((btn) => {
+                    const IconComp = btn.icon;
+                    const isSelected = candleType === btn.id;
+                    return (
+                      <button
+                        key={btn.id}
+                        type="button"
+                        onClick={() => onChangeCandleType?.(btn.id as any)}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold cursor-pointer transition-all border outline-none select-none ${
+                          isSelected
+                            ? isLight
+                              ? "bg-amber-500 border-amber-600 text-slate-950 shadow"
+                              : "bg-amber-500 text-slate-950 border-amber-500 shadow-lg"
+                            : isLight
+                              ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700 hover:text-slate-900"
+                              : "bg-white/5 hover:bg-white/10 border-transparent text-slate-400 hover:text-slate-200"
+                        }`}
+                        title={btn.label}
+                      >
+                        <IconComp className="w-3 h-3" />
+                        <span>{btn.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
                 isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
               }`}>
@@ -4564,6 +4656,41 @@ export default function ClusterChart({
                     </span>
                   </div>
                 )}
+              </div>
+
+              <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
+                isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+              }`}>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <span className={`text-[10.5px] font-bold font-mono uppercase tracking-wider block ${
+                      isLight ? "text-slate-700" : "text-slate-300"
+                    }`}>
+                      {language === "RU" ? "Обводка свечей" : "Candle outlines"}
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-1 block leading-normal">
+                      {language === "RU" 
+                        ? "Включение/выключение границ тела и фитилей свечи в режиме кластеров и футпринта" 
+                        : "Toggle borders and wicks of the candlestick in clusters and footprint modes."}
+                    </span>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      id="toggle-candle-outline-btn"
+                      checked={showCandleOutline}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        setShowCandleOutline(val);
+                        storage.set("chart_settings_show_candle_outline", String(val));
+                      }}
+                      className={`w-4 h-4 rounded cursor-pointer focus:ring-amber-500 ${
+                        isLight ? "bg-white border-slate-300 text-amber-500" : "bg-slate-900 border-white/15 text-amber-550"
+                      }`}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
 

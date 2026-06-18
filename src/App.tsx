@@ -22,7 +22,7 @@ import defaultAvatar from "./assets/images/trump_avatar_1780681677035.png";
 import { TrendingUp, TrendingDown, Layers, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid, Star, X, Sliders } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-import { AutoIcon, JapaneseIcon, FootprintIcon, ClustersIcon, CandlePreviewIcon } from "./components/icons";
+import { AutoIcon, JapaneseIcon, FootprintIcon, ClustersIcon, BarsIcon, CandlePreviewIcon } from "./components/icons";
 import { getBaseTickSize } from "./lib/symbols";
 import { fetchBinanceDepth } from "./lib/marketData";
 import { getClusterCandles } from "./lib/api";
@@ -209,10 +209,10 @@ export default function App() {
     return (storage.get("procluster_market_type_1") as any) || "SPOT";
   });
 
-  const [candleType0, setCandleType0] = useState<"auto" | "japanese" | "footprint" | "clusters">(() => {
+  const [candleType0, setCandleType0] = useState<"auto" | "japanese" | "footprint" | "clusters" | "bars">(() => {
     return (storage.get("procluster_candle_type_0") as any) || (storage.get("procluster_candle_type") as any) || "auto";
   });
-  const [candleType1, setCandleType1] = useState<"auto" | "japanese" | "footprint" | "clusters">(() => {
+  const [candleType1, setCandleType1] = useState<"auto" | "japanese" | "footprint" | "clusters" | "bars">(() => {
     return (storage.get("procluster_candle_type_1") as any) || "auto";
   });
 
@@ -323,7 +323,7 @@ export default function App() {
       setMarketType1(val);
     }
   };
-  const setCandleType = (val: "auto" | "japanese" | "footprint" | "clusters" | ((p: any) => any)) => {
+  const setCandleType = (val: "auto" | "japanese" | "footprint" | "clusters" | "bars" | ((p: any) => any)) => {
     if (activeChartIndex === 0) {
       setCandleType0(val);
     } else {
@@ -1855,6 +1855,9 @@ export default function App() {
                         <option value="clusters" className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>
                           {language === "EN" ? "Clusters" : "Кластера / Clusters"}
                         </option>
+                        <option value="bars" className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-100"}>
+                          {language === "EN" ? "Bars" : "Бары / Bars"}
+                        </option>
                       </select>
                     </div>
 
@@ -2178,6 +2181,7 @@ export default function App() {
                 {[
                   { id: "auto", label: language === "EN" ? "Auto" : "Авто", icon: AutoIcon },
                   { id: "japanese", label: language === "EN" ? "Japanese Candlesticks" : language === "KZ" ? "Жапон шамдары" : "Японские свечи", icon: JapaneseIcon },
+                  { id: "bars", label: language === "EN" ? "Bars" : language === "KZ" ? "Бары" : "Бары", icon: BarsIcon },
                   { id: "footprint", label: language === "EN" ? "Footprint" : "Футпринт", icon: FootprintIcon },
                   { id: "clusters", label: language === "EN" ? "Clusters" : language === "KZ" ? "Кластерлер" : "Кластера", icon: ClustersIcon }
                 ].map((item) => {
@@ -2234,6 +2238,9 @@ export default function App() {
                   </option>
                   <option value="japanese" className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-100 font-sans"}>
                     {language === "EN" ? "Japanese" : language === "KZ" ? "Жапон" : "Японские / Japanese"}
+                  </option>
+                  <option value="bars" className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-100 font-sans"}>
+                    {language === "EN" ? "Bars" : language === "KZ" ? "Бары" : "Бары / Bars"}
                   </option>
                   <option value="footprint" className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-100 font-sans"}>
                     {language === "EN" ? "Footprint" : "Футпринт / Footprint"}
@@ -2531,6 +2538,7 @@ export default function App() {
                     onToggleMarketType={() => setMarketType0(p => p === "SPOT" ? "FUTURES" : "SPOT")}
                     theme={theme}
                     candleType={candleType0}
+                    onChangeCandleType={(type) => setCandleType0(type)}
                     candleDataType={candleDataType0}
                     candlePalette={candlePalette0}
                     onToggleIndicator={(id) => {
@@ -2612,6 +2620,7 @@ export default function App() {
                       onToggleMarketType={() => setMarketType1(p => p === "SPOT" ? "FUTURES" : "SPOT")}
                       theme={theme}
                       candleType={candleType1}
+                      onChangeCandleType={(type) => setCandleType1(type)}
                       candleDataType={candleDataType1}
                       candlePalette={candlePalette1}
                       onToggleIndicator={(id) => {
