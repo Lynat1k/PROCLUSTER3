@@ -38,6 +38,8 @@ interface ClusterChartProps {
   theme?: "dark" | "light";
   candleType?: "auto" | "japanese" | "footprint" | "clusters" | "bars";
   onChangeCandleType?: (type: "auto" | "japanese" | "footprint" | "clusters" | "bars") => void;
+  showAnomalies?: boolean;
+  onChangeShowAnomalies?: (val: boolean) => void;
   candleDataType?: "bid_ask" | "delta" | "volume";
   candlePalette?: "default" | "alternative";
   onToggleIndicator?: (id: string) => void;
@@ -50,6 +52,7 @@ interface ClusterChartProps {
   workspacesCount?: number;
   orderBook?: OrderBook;
   interval?: string;
+  userRole?: string;
 }
 
 export default function ClusterChart({
@@ -70,6 +73,8 @@ export default function ClusterChart({
   theme = "dark",
   candleType = "auto",
   onChangeCandleType,
+  showAnomalies = true,
+  onChangeShowAnomalies,
   candleDataType = "bid_ask",
   candlePalette = "default",
   onToggleIndicator,
@@ -81,7 +86,8 @@ export default function ClusterChart({
   onWorkspaceLayoutChange,
   workspacesCount = 1,
   orderBook,
-  interval
+  interval,
+  userRole
 }: ClusterChartProps) {
   
   const isLight = theme === "light";
@@ -180,16 +186,13 @@ export default function ClusterChart({
   const [isOverlayLegendCollapsed, setIsOverlayLegendCollapsed] = useState<boolean>(() => {
     return storage.get("chart_overlay_legend_collapsed") === "true";
   });
-  const [showClusterAnomalies, setShowClusterAnomalies] = useState<boolean>(() => {
-    return storage.get("chart_settings_show_anomalies") !== "false";
-  });
   const [showCandleOutline, setShowCandleOutline] = useState<boolean>(() => {
     return storage.get("chart_settings_show_candle_outline") !== "false";
   });
 
-  const { limits } = getActiveGroupLimits();
+  const { limits } = getActiveGroupLimits(userRole);
   const isAnomaliesPermittedByTier = limits.clusterSearchAnomaliesEnabled !== false;
-  const finalShowAnomalies = showClusterAnomalies && isAnomaliesPermittedByTier;
+  const finalShowAnomalies = showAnomalies && isAnomaliesPermittedByTier;
 
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const workspaceDropdownRef = useRef<HTMLDivElement>(null);
@@ -1249,7 +1252,7 @@ export default function ClusterChart({
 
       // --- DYNAMIC CLUSTER SEARCH HOVER DETECTION ---
       let foundCS: any = null;
-      if (activeIndicators.clusterSearch && finalShowAnomalies && colIdx >= 0 && colIdx < candles.length) {
+      if (activeIndicators.clusterSearch && colIdx >= 0 && colIdx < candles.length) {
         const csSettings = indicatorSettings?.clusterSearch || {};
         const csMergeLevels = typeof csSettings.csMergeLevels === "number" ? csSettings.csMergeLevels : 1;
         const csImbalancePercent = typeof csSettings.csImbalancePercent === "number" ? csSettings.csImbalancePercent : 60;
@@ -2373,7 +2376,7 @@ export default function ClusterChart({
           const baseVolumeThreshold = maxCellVolume * sensFactor;
 
           let matchesClusterSearch = false;
-          if (activeIndicators.clusterSearch && finalShowAnomalies) {
+          if (activeIndicators.clusterSearch) {
             let isTargetMode = false;
             if (csSettings.mode === "Delta") {
               const cellDelta = Math.abs(cell.ask - cell.bid);
@@ -2650,7 +2653,7 @@ export default function ClusterChart({
       }
 
       // --- DYNAMIC CLUSTER SEARCH (GEOMETRIC MULTI-LEVEL VISUALIZER) ---
-      if (activeIndicators.clusterSearch && finalShowAnomalies && candleCells.length > 0) {
+      if (activeIndicators.clusterSearch && candleCells.length > 0) {
         const csSettings = indicatorSettings?.clusterSearch || {};
         
         const csMergeLevels = typeof csSettings.csMergeLevels === "number" ? csSettings.csMergeLevels : 1;
@@ -3247,7 +3250,7 @@ export default function ClusterChart({
         isLight ? "bg-white/35 border-slate-200/50" : "bg-slate-950/80 border-white/5"
       }`}>
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 flex-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-md shadow-emerald-500/30 shrink-0" />
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-md shadow-emerald-500/30 shrink-0" />
           <h3 className={`text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 sm:gap-2 shrink-0 ${
             isLight ? "text-slate-700" : "text-slate-200"
           }`}>
@@ -4318,7 +4321,7 @@ export default function ClusterChart({
 
 
       {/* Floating Cluster Search Tooltip */}
-      {hoveredClusterSearch && (() => {
+      {hoveredClusterSearch && finalShowAnomalies && (() => {
         const tooltipWidth = 265;
         const offsetHorizontal = 90; // Balanced 90px offset to keep tooltip visible without overlap
         const isLeftIdx = hoveredClusterSearch.x > (visibleClientWidth || 800) - 390;
@@ -4549,115 +4552,6 @@ export default function ClusterChart({
 
             {/* Settings Options */}
             <div className="flex flex-col gap-4">
-              {/* Candle Type Selection */}
-              <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
-                isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
-              }`}>
-                <div>
-                  <span className={`text-[10.5px] font-bold font-mono uppercase tracking-wider block ${
-                    isLight ? "text-slate-700" : "text-slate-300"
-                  }`}>
-                    {language === "RU" ? "Тип свечей" : "Candle Type"}
-                  </span>
-                  <span className="text-[10px] text-slate-400 mt-1 block leading-normal">
-                    {language === "RU" 
-                      ? "Выберите предпочтительный вариант отображения ценового графика" 
-                      : "Choose your preferred price chart representation style."}
-                  </span>
-                </div>
-
-                <div className={`flex flex-wrap gap-1.5 p-1 rounded-lg ${
-                  isLight ? "bg-slate-200/50" : "bg-slate-950/60"
-                }`}>
-                  {[
-                    { id: "auto", label: language === "RU" ? "Авто" : "Auto", icon: AutoIcon },
-                    { id: "japanese", label: language === "RU" ? "Свечи" : "Candles", icon: JapaneseIcon },
-                    { id: "bars", label: language === "RU" ? "Бары" : "Bars", icon: BarsIcon },
-                    { id: "footprint", label: language === "RU" ? "Футпринт" : "Footprint", icon: FootprintIcon },
-                    { id: "clusters", label: language === "RU" ? "Кластера" : "Clusters", icon: ClustersIcon }
-                  ].map((btn) => {
-                    const IconComp = btn.icon;
-                    const isSelected = candleType === btn.id;
-                    return (
-                      <button
-                        key={btn.id}
-                        type="button"
-                        onClick={() => onChangeCandleType?.(btn.id as any)}
-                        className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold cursor-pointer transition-all border outline-none select-none ${
-                          isSelected
-                            ? isLight
-                              ? "bg-amber-500 border-amber-600 text-slate-950 shadow"
-                              : "bg-amber-500 text-slate-950 border-amber-500 shadow-lg"
-                            : isLight
-                              ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700 hover:text-slate-900"
-                              : "bg-white/5 hover:bg-white/10 border-transparent text-slate-400 hover:text-slate-200"
-                        }`}
-                        title={btn.label}
-                      >
-                        <IconComp className="w-3 h-3" />
-                        <span>{btn.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
-                isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
-              }`}>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <span className={`text-[10.5px] font-bold font-mono uppercase tracking-wider block ${
-                      isLight ? "text-slate-700" : "text-slate-300"
-                    }`}>
-                      {language === "RU" ? "Отображать аномалии" : "Display anomalies"}
-                    </span>
-                    <span className="text-[10px] text-slate-400 mt-1 block leading-normal">
-                      {language === "RU" 
-                        ? "Отображение покупок и продаж по фильтрациям дельты и объемов (Cluster Search)" 
-                        : "Show buy & sell anomalies filters in Cluster Search."}
-                    </span>
-                  </div>
-
-                  {isAnomaliesPermittedByTier ? (
-                    <label className="relative inline-flex items-center cursor-pointer select-none">
-                      <input 
-                        type="checkbox"
-                        checked={showClusterAnomalies}
-                        onChange={(e) => {
-                          const val = e.target.checked;
-                          setShowClusterAnomalies(val);
-                          storage.set("chart_settings_show_anomalies", String(val));
-                        }}
-                        className={`w-4 h-4 rounded cursor-pointer focus:ring-amber-500 ${
-                          isLight ? "bg-white border-slate-300 text-amber-500" : "bg-slate-900 border-white/15 text-amber-550"
-                        }`}
-                      />
-                    </label>
-                  ) : (
-                    <div className="text-slate-500 select-none cursor-not-allowed" title={language === "RU" ? "Заблокировано вашим тарифом" : "Locked by your subscription tier"}>
-                      <Lock className="w-4 h-4 text-rose-500" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Tier limit notification */}
-                {!isAnomaliesPermittedByTier && (
-                  <div className={`mt-2 p-2 rounded-lg text-[9.5px] font-sans flex items-center gap-1.5 border leading-tight ${
-                    isLight 
-                      ? "bg-rose-50 text-rose-700 border-rose-200" 
-                      : "bg-rose-950/20 text-rose-405 border-rose-955/25"
-                  }`}>
-                    <span className="text-[11px]">⚠️</span>
-                    <span>
-                      {language === "RU" 
-                        ? "Опция заблокирована вашим тарифом. Включается в панели администратора." 
-                        : "Feature locked by your tier policy. Configurable via the Admin panel."}
-                    </span>
-                  </div>
-                )}
-              </div>
-
               <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
                 isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
               }`}>

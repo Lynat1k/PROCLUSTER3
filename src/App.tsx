@@ -19,7 +19,7 @@ import AdminPanel from "./components/AdminPanel";
 import UserProfile from "./components/UserProfile";
 import RoadmapModal from "./components/RoadmapModal";
 import defaultAvatar from "./assets/images/trump_avatar_1780681677035.png";
-import { TrendingUp, TrendingDown, Layers, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid, Star, X, Sliders } from "lucide-react";
+import { TrendingUp, TrendingDown, Layers, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid, Star, X, Sliders, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 import { AutoIcon, JapaneseIcon, FootprintIcon, ClustersIcon, BarsIcon, CandlePreviewIcon } from "./components/icons";
@@ -230,6 +230,17 @@ export default function App() {
     return (storage.get("procluster_candle_palette_1") as any) || "default";
   });
 
+  const [showAnomalies0, setShowAnomalies0] = useState<boolean>(() => {
+    const val0 = storage.get("procluster_show_anomalies_0");
+    if (val0 !== null) return val0 === "true";
+    return storage.get("chart_settings_show_anomalies") !== "false";
+  });
+  const [showAnomalies1, setShowAnomalies1] = useState<boolean>(() => {
+    const val1 = storage.get("procluster_show_anomalies_1");
+    if (val1 !== null) return val1 === "true";
+    return storage.get("chart_settings_show_anomalies") !== "false";
+  });
+
   const [compressionMultiplier0, setCompressionMultiplier0] = useState<number>(() => {
     const saved = storage.get("procluster_compression_multiplier_0") || storage.get("procluster_compression_multiplier");
     return saved ? parseInt(saved, 10) || 1 : 1;
@@ -292,6 +303,13 @@ export default function App() {
     storage.set("procluster_active_symbol_1", activePair1.symbol);
   }, [activePair1.symbol]);
 
+  useEffect(() => {
+    storage.set("procluster_show_anomalies_0", String(showAnomalies0));
+  }, [showAnomalies0]);
+  useEffect(() => {
+    storage.set("procluster_show_anomalies_1", String(showAnomalies1));
+  }, [showAnomalies1]);
+
   // Getter derived configs base on activeChartIndex
   const activePair = activeChartIndex === 0 ? activePair0 : activePair1;
   const interval = activeChartIndex === 0 ? interval0 : interval1;
@@ -300,6 +318,7 @@ export default function App() {
   const candleDataType = activeChartIndex === 0 ? candleDataType0 : candleDataType1;
   const candlePalette = activeChartIndex === 0 ? candlePalette0 : candlePalette1;
   const compressionMultiplier = activeChartIndex === 0 ? compressionMultiplier0 : compressionMultiplier1;
+  const showAnomalies = activeChartIndex === 0 ? showAnomalies0 : showAnomalies1;
 
   // Setter proxy configs base on activeChartIndex
   const setActivePair = (val: CryptoPair | ((p: CryptoPair) => CryptoPair)) => {
@@ -349,6 +368,13 @@ export default function App() {
       setCompressionMultiplier0(val);
     } else {
       setCompressionMultiplier1(val);
+    }
+  };
+  const setShowAnomalies = (val: boolean | ((p: boolean) => boolean)) => {
+    if (activeChartIndex === 0) {
+      setShowAnomalies0(val);
+    } else {
+      setShowAnomalies1(val);
     }
   };
 
@@ -459,6 +485,14 @@ export default function App() {
     }
     return "Admin"; // Standard default has high permissions
   });
+
+  useEffect(() => {
+    // Ensure procluster_role is immediately saved in storage if not set
+    const savedRole = storage.get("procluster_role");
+    if (!savedRole) {
+      storage.set("procluster_role", userRole);
+    }
+  }, [userRole]);
 
   // Keep saved role synchronous with local storage
   const handleUserRoleChange = (role: "Guest" | "Free" | "Pro" | "VIP" | "Admin") => {
@@ -2444,6 +2478,49 @@ export default function App() {
               </select>
             </div>
 
+            {/* 7.5 Anomalies Switcher */}
+            {(() => {
+              const limits = getActiveGroupLimits();
+              const isAnomaliesPermittedByTier = limits.clusterSearchAnomaliesEnabled !== false;
+              return (
+                <div className="shrink-0 flex flex-col">
+                  <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
+                    theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
+                  }`}>
+                    {language === "EN" ? "Anomalies" : language === "KZ" ? "Аномалиялар" : "Аномалии"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isAnomaliesPermittedByTier) {
+                        setShowAnomalies(!showAnomalies);
+                      }
+                    }}
+                    disabled={!isAnomaliesPermittedByTier}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer h-[30px] transition-all border outline-none select-none ${
+                      !isAnomaliesPermittedByTier
+                        ? "cursor-not-allowed opacity-50 border-transparent bg-slate-900/40 text-slate-500"
+                        : showAnomalies
+                          ? theme === "light"
+                            ? "bg-amber-100 border-amber-400 text-amber-900 font-black shadow-sm"
+                            : "liquid-glass-active text-yellow-400 font-black border-amber-500/30"
+                          : theme === "light"
+                            ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-700 font-bold shadow-sm"
+                            : "liquid-glass-button text-slate-400 hover:text-slate-100 border-white/5"
+                    }`}
+                    title={!isAnomaliesPermittedByTier ? (language === "RU" ? "Заблокировано тарифом" : "Locked by tier") : ""}
+                  >
+                    {!isAnomaliesPermittedByTier ? (
+                      <Lock className="w-3 h-3 text-rose-500" />
+                    ) : (
+                      <div className={`w-2 h-2 rounded-full ${showAnomalies ? "bg-emerald-500" : "bg-slate-500"}`} />
+                    )}
+                    <span>{showAnomalies ? (language === "RU" ? "Вкл" : "On") : (language === "RU" ? "Выкл" : "Off")}</span>
+                  </button>
+                </div>
+              );
+            })()}
+
             {/* 8. Indicators Trigger Button */}
             <div className="shrink-0">
               <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
@@ -2537,7 +2614,10 @@ export default function App() {
                     marketType={marketType0}
                     onToggleMarketType={() => setMarketType0(p => p === "SPOT" ? "FUTURES" : "SPOT")}
                     theme={theme}
+                    userRole={userRole}
                     candleType={candleType0}
+                    showAnomalies={showAnomalies0}
+                    onChangeShowAnomalies={setShowAnomalies0}
                     onChangeCandleType={(type) => setCandleType0(type)}
                     candleDataType={candleDataType0}
                     candlePalette={candlePalette0}
@@ -2619,7 +2699,10 @@ export default function App() {
                       marketType={marketType1}
                       onToggleMarketType={() => setMarketType1(p => p === "SPOT" ? "FUTURES" : "SPOT")}
                       theme={theme}
+                      userRole={userRole}
                       candleType={candleType1}
+                      showAnomalies={showAnomalies1}
+                      onChangeShowAnomalies={setShowAnomalies1}
                       onChangeCandleType={(type) => setCandleType1(type)}
                       candleDataType={candleDataType1}
                       candlePalette={candlePalette1}

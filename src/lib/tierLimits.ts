@@ -108,7 +108,7 @@ export function getActiveGroupLimits(
   userRole?: string | null,
   profileUser?: any
 ): { group: TierGroup; limits: TierLimits } {
-  let group: TierGroup = "guest";
+  let group: TierGroup = "admin";
   
   if (userRole) {
     const r = userRole.toLowerCase();
