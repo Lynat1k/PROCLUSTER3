@@ -305,6 +305,8 @@ export default function ClusterChart({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fpsRef = useRef<HTMLSpanElement>(null);
+  const renderTimesRef = useRef<number[]>([]);
   const [containerHeight, setContainerHeight] = useState<number>(550);
   const [verticalScale, setVerticalScale] = useState<number>(0.7);
 
@@ -2047,6 +2049,16 @@ export default function ClusterChart({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Track FPS
+    const now = performance.now();
+    renderTimesRef.current.push(now);
+    const oneSecondAgo = now - 1000;
+    renderTimesRef.current = renderTimesRef.current.filter(t => t > oneSecondAgo);
+    const currentFps = renderTimesRef.current.length;
+    if (fpsRef.current) {
+      fpsRef.current.innerText = String(currentFps);
+    }
+
     // Scale canvas for ultra-crisp Retina/High-DPI support using the visible viewport size to avoid exceeding browser canvas limits
     const dpr = window.devicePixelRatio || 1;
     const viewportWidth = visibleClientWidth || 800;
@@ -3351,6 +3363,17 @@ export default function ClusterChart({
     <div className={`rounded-2xl overflow-hidden flex flex-col flex-1 shadow-2xl relative transition-all duration-300 ${
       isLight ? "bg-white border border-slate-300" : "liquid-glass-card"
     }`}>
+      {/* FPS Counter Overlay for Admin & VIP (Stationary, over the chart area, top-right of main body, left of the price scale y-axis) */}
+      {(userRole === "Admin" || userRole?.toLowerCase() === "admin" || userRole === "VIP" || userRole?.toLowerCase() === "vip") && (
+        <div 
+          className="absolute top-[3.25rem] right-[100px] z-40 flex items-center gap-1.5 font-mono text-[9px] font-bold text-emerald-400 bg-slate-950/80 backdrop-blur-md border border-emerald-500/20 px-2.5 py-1 rounded shadow-lg select-none pointer-events-auto"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span>FPS:</span>
+          <span ref={fpsRef}>--</span>
+        </div>
+      )}
+
       {/* Chart Tools Header */}
       <div className={`px-2.5 sm:px-5 py-1 sm:py-1.5 flex items-center justify-between z-20 backdrop-blur-lg border-b transition-all duration-300 ${
         isLight ? "bg-slate-200 border-slate-300" : "bg-slate-950/80 border-white/5"
