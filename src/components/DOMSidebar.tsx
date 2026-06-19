@@ -25,6 +25,7 @@ interface DOMSidebarProps {
   orderBook: OrderBookType;
   activePair: CryptoPair;
   theme?: "dark" | "light";
+  language?: "RU" | "EN" | "KZ";
 }
 
 interface LimitOrder {
@@ -42,7 +43,7 @@ interface TradeLog {
   type: "info" | "buy" | "sell" | "cancel";
 }
 
-export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DOMSidebarProps) {
+export default function DOMSidebar({ orderBook, activePair, theme = "dark", language = "EN" }: DOMSidebarProps) {
   const isLight = theme === "light";
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -552,7 +553,7 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
             <h3 className={`text-[13px] font-bold tracking-tight leading-none ${
               isLight ? "text-slate-900" : "text-slate-100"
             }`}>
-              Fear & Greed Index
+              {language === "RU" ? "Индекс страха и жадности" : language === "KZ" ? "Үрей мен ашкөздік индексі" : "Fear & Greed Index"}
             </h3>
           </div>
         </div>
@@ -561,25 +562,25 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
         <div className="flex items-center justify-between gap-2.5 py-0.5">
           {/* Left panel metrics */}
           <div className="flex flex-col justify-center shrink-0">
-            <span className={`text-[8px] font-black uppercase tracking-wider ${
-              isLight ? "text-slate-400" : "text-slate-550"
+            <span className={`text-[9px] font-extrabold uppercase tracking-wider opacity-90 ${
+              isLight ? "text-slate-500" : "text-slate-400"
             }`}>
-              Now:
+              {language === "RU" ? "Сейчас:" : language === "KZ" ? "Қазір:" : "Now:"}
             </span>
             <span 
-              className="text-[13px] font-black tracking-tight mt-0.5 leading-none drop-shadow-sm"
+              className="text-[16px] font-black tracking-tight mt-0.5 leading-none drop-shadow-sm"
               style={{ color: getSentimentColor(fearGreedValue) }}
             >
               {(() => {
-                if (fearGreedValue <= 25) return "Ext. Fear";
-                if (fearGreedValue <= 45) return "Fear";
-                if (fearGreedValue <= 54) return "Neutral";
-                if (fearGreedValue <= 75) return "Greed";
-                return "Ext. Greed";
+                if (fearGreedValue <= 25) return language === "RU" ? "Экстр. Страх" : language === "KZ" ? "Шекті үрей" : "Ext. Fear";
+                if (fearGreedValue <= 45) return language === "RU" ? "Страх" : language === "KZ" ? "Үрей" : "Fear";
+                if (fearGreedValue <= 54) return language === "RU" ? "Нейтрально" : language === "KZ" ? "Бейтарап" : "Neutral";
+                if (fearGreedValue <= 75) return language === "RU" ? "Жадность" : language === "KZ" ? "Ашкөздік" : "Greed";
+                return language === "RU" ? "Экстр. Жадность" : language === "KZ" ? "Шекті ашкөздік" : "Ext. Greed";
               })()}
             </span>
-            <span className={`text-[10px] font-semibold mt-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-              Score: <span className="font-extrabold">{Math.round(fearGreedValue)}</span>
+            <span className={`text-[13px] font-bold mt-2 ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              {language === "RU" ? "Значение:" : language === "KZ" ? "Мәні:" : "Score:"} <span className="font-black text-[18px] ml-1" style={{ color: getSentimentColor(fearGreedValue) }}>{Math.round(fearGreedValue)}</span>
             </span>
           </div>
 
@@ -664,17 +665,17 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
                     <circle
                       cx={badgeX}
                       cy={badgeY}
-                      r="10.5"
+                      r="13.5"
                       fill={getSentimentColor(fearGreedValue)}
                       stroke="#ffffff"
-                      strokeWidth="1.8"
+                      strokeWidth="2.2"
                     />
                     <text
                       x={badgeX}
                       y={badgeY}
                       textAnchor="middle"
                       dominantBaseline="central"
-                      className="fill-white font-mono font-black text-[9px]"
+                      className="fill-white font-mono font-black text-[12px]"
                     >
                       {Math.round(fearGreedValue)}
                     </text>

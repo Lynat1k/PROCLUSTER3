@@ -4306,10 +4306,12 @@ export default function ClusterChart({
       {/* Absolute Pinned Indicators Control Overlays (Top-right of subcharts) */}
       {activeIndicators.delta && (
         <div 
-          className="absolute z-30 flex items-center gap-2 px-3 py-1 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 select-none"
+          className="absolute z-30 flex items-center gap-2 px-3 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 select-none"
           style={{
-            top: `${deltaTopY + 4}px`,
+            top: `${deltaTopY + 1}px`,
             right: isMobile ? "62px" : "94px", // Closer to the edge of the price scale panel (58px/90px)
+            paddingTop: "3.5px",
+            paddingBottom: "3.5px",
             backgroundColor: isLight ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)",
             borderColor: isLight ? "rgba(255, 255, 255, 0.88)" : "rgba(255, 255, 255, 0.08)",
           }}
@@ -4367,10 +4369,12 @@ export default function ClusterChart({
 
       {activeIndicators.cvd && (
         <div 
-          className="absolute z-30 flex items-center gap-2 px-3 py-1 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 select-none"
+          className="absolute z-30 flex items-center gap-2 px-3 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 select-none"
           style={{
-            top: `${cvdTopY + 4}px`,
+            top: `${cvdTopY + 1}px`,
             right: isMobile ? "62px" : "94px", // Closer to the edge of the price scale panel (58px/90px)
+            paddingTop: "3.5px",
+            paddingBottom: "3.5px",
             backgroundColor: isLight ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)",
             borderColor: isLight ? "rgba(255, 255, 255, 0.88)" : "rgba(255, 255, 255, 0.08)",
           }}

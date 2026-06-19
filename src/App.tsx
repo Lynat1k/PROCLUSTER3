@@ -2827,7 +2827,7 @@ export default function App() {
                 <div className={`flex-1 flex flex-col min-h-0 transition-opacity duration-300 ${
                   isSidebarCollapsed ? "lg:opacity-0 lg:pointer-events-none lg:overflow-hidden w-0" : "w-full"
                 }`}>
-                  <DOMSidebar orderBook={orderBook} activePair={activePair} theme={theme} />
+                  <DOMSidebar orderBook={orderBook} activePair={activePair} theme={theme} language={language} />
                 </div>
               </div>
             </div>
