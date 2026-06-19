@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Indicator, IndicatorSettings } from "../types";
-import { X, Search, Star, Trash2, Eye, EyeOff, Layers, Settings, Activity, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Plus } from "lucide-react";
+import { X, Search, Star, Trash2, Eye, EyeOff, Layers, Settings, Activity, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Plus, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { INDICATOR_DESCRIPTIONS } from "../data/indicatorDescriptions";
 import { getActiveGroupLimits } from "../lib/tierLimits";
@@ -12,6 +12,7 @@ interface IndicatorsModalProps {
   indicators: Indicator[];
   onApply: (updatedIndicators: Indicator[]) => void;
   theme?: "dark" | "light";
+  language?: "RU" | "EN" | "KZ";
 }
 
 export default function IndicatorsModal({
@@ -20,7 +21,8 @@ export default function IndicatorsModal({
   symbol,
   indicators,
   onApply,
-  theme = "dark"
+  theme = "dark",
+  language = "RU"
 }: IndicatorsModalProps) {
   const isLight = theme === "light";
 
@@ -760,13 +762,19 @@ export default function IndicatorsModal({
                       return (
                         <>
                           <button
-                            disabled={isBlocked}
-                            onClick={() => !isBlocked && toggleActive(selectedIndicator.id)}
-                            className={`px-3 py-1.5 font-bold text-[10px] rounded-lg transition-all uppercase tracking-wider duration-155 shrink-0 ${
+                            disabled={false}
+                            onClick={() => {
+                              if (isBlocked) {
+                                window.dispatchEvent(new CustomEvent("procluster_open_tariffs_modal"));
+                                return;
+                              }
+                              toggleActive(selectedIndicator.id);
+                            }}
+                            className={`px-3 py-1.5 font-bold text-[10px] rounded-lg transition-all uppercase tracking-wider duration-155 shrink-0 cursor-pointer ${
                               isBlocked
                                 ? isLight
-                                  ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                                  : "bg-slate-800 text-slate-500 cursor-not-allowed shadow-none"
+                                  ? "bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100/50 shadow-sm"
+                                  : "bg-rose-550/10 border border-rose-500/30 text-rose-450 hover:bg-rose-500/20 shadow-sm"
                                 : selectedIndicator.isActive
                                   ? isLight
                                     ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md ring-1 ring-emerald-500/15 hover:scale-[1.01] active:scale-[0.99]"
@@ -776,7 +784,7 @@ export default function IndicatorsModal({
                                     : "bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 shadow-md hover:scale-[1.01] active:scale-[0.99]"
                             }`}
                           >
-                            {isBlocked ? "Заблокировано" : selectedIndicator.isActive ? "Добавить еще" : "Активировать"}
+                            {isBlocked ? (language === "RU" ? "🔒 Тариф (Сменить)" : "🔒 Tariff (Upgrade)") : selectedIndicator.isActive ? "Добавить еще" : "Активировать"}
                           </button>
                           <span className={`text-[10px] font-bold font-mono leading-none ${
                             selectedIndicator.isActive 
@@ -1011,13 +1019,21 @@ export default function IndicatorsModal({
                 {/* SETTINGS PARAMETERS */}
                 <div className="flex flex-col gap-4">
                   {!limits.customIndicatorSettings && (
-                    <div className={`p-3.5 border rounded-xl text-center text-xs font-bold mb-1 flex flex-col md:flex-row items-center justify-center gap-2 leading-relaxed ${
+                    <div className={`p-3.5 border rounded-xl text-center text-xs font-bold mb-1 flex flex-col items-center justify-center gap-2.5 leading-relaxed ${
                       isLight 
                         ? "bg-rose-50 border-rose-200 text-rose-800 shadow-sm" 
                         : "bg-rose-500/10 border-rose-505/15 text-rose-450"
                     }`}>
-                      <X className="w-4 h-4 shrink-0 text-red-500 animate-pulse" />
-                      <span>Настройки индикаторов заблокированы для вашего тарифа ({group.toUpperCase()})! Настройте политики в Админке.</span>
+                      <div className="flex items-center gap-2 justify-center">
+                        <X className="w-4 h-4 shrink-0 text-red-500 animate-pulse" />
+                        <span>{language === "RU" ? `Настройки индикаторов заблокированы для вашего тарифа (${group.toUpperCase()})!` : `Indicator parameters locked for your tariff level (${group.toUpperCase()})!`}</span>
+                      </div>
+                      <button
+                        onClick={() => window.dispatchEvent(new CustomEvent("procluster_open_tariffs_modal"))}
+                        className="px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-md select-none"
+                      >
+                        {language === "RU" ? "Выбрать тариф" : "Upgrade Plan"}
+                      </button>
                     </div>
                   )}
 

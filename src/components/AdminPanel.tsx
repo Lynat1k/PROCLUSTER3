@@ -627,7 +627,7 @@ export default function AdminPanel({
       activeTab === "server" ? "overflow-hidden" : "overflow-y-auto"
     } ${
       isLight ? "bg-slate-50 text-slate-900" : "bg-[#060813] text-slate-100"
-    } p-6 gap-6 font-sans select-none`}>
+    } p-6 gap-6 font-mono select-none`}>
       
       {/* HEADER SECTION TOOLBAR */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-500/10 shrink-0">
@@ -1320,7 +1320,7 @@ export default function AdminPanel({
                   </div>
                 )}
 
-                <form onSubmit={handleAddNewTicker} className="flex flex-col gap-3.5 text-xs font-sans">
+                <form onSubmit={handleAddNewTicker} className="flex flex-col gap-3.5 text-xs font-mono">
                   <div>
                     <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
                       isLight ? "text-slate-700" : "text-slate-400"
@@ -1453,7 +1453,7 @@ export default function AdminPanel({
                   Настройте множитель сжатия по умолчанию для любой комбинации торговой пары и таймфрейма. Эти значения автоматически применятся при переключении графиков на терминале.
                 </p>
 
-                <div className="flex flex-col gap-4 font-sans text-xs">
+                <div className="flex flex-col gap-4 font-mono text-xs">
                   <div className="flex flex-col gap-1 pb-2 border-b border-dashed border-slate-200/60 dark:border-white/5">
                     <label className={`text-[10px] font-mono font-bold block mb-1 uppercase ${
                       isLight ? "text-slate-700" : "text-slate-400"
@@ -1585,7 +1585,7 @@ export default function AdminPanel({
                     </button>
 
                     {compSuccessMsg && (
-                      <span className="text-xs text-emerald-500 text-center font-bold font-sans animate-pulse">
+                      <span className="text-xs text-emerald-500 text-center font-bold font-mono animate-pulse">
                         ✓ {compSuccessMsg}
                       </span>
                     )}
@@ -1609,7 +1609,7 @@ export default function AdminPanel({
                   Импортируйте сырой массив агрегированных сделок (zip format) напрямую из архивов <code className="text-blue-500 font-bold">data.binance.vision</code>.
                 </p>
 
-                <div className="flex flex-col gap-3.5 text-xs font-sans">
+                <div className="flex flex-col gap-3.5 text-xs font-mono">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className={`text-[9px] font-mono font-bold block mb-1 ${
@@ -1891,7 +1891,7 @@ export default function AdminPanel({
                 </div>
 
                 {/* ADD NEW USER FORM */}
-                <div className={`p-4 rounded-xl border flex flex-col gap-3 font-sans ${
+                <div className={`p-4 rounded-xl border flex flex-col gap-3 font-mono ${
                   isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/40 border-white/10"
                 }`}>
                   <h4 className="text-xs font-bold tracking-wider uppercase text-slate-400">Добавить нового пользователя</h4>
@@ -1955,7 +1955,7 @@ export default function AdminPanel({
                         setUserSuccessMsg("Пользователь успешно зарегистрирован!");
                         setTimeout(() => setUserSuccessMsg(""), 3000);
                       }}
-                      className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold font-sans cursor-pointer flex items-center gap-1.5 active:scale-95 transition-all"
+                      className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold font-mono cursor-pointer flex items-center gap-1.5 active:scale-95 transition-all"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Добавить пользователя
@@ -1968,7 +1968,7 @@ export default function AdminPanel({
 
                 {/* INLINE EDITING CONTAINER */}
                 {editingUserId && (
-                  <div className={`p-4 rounded-xl border flex flex-col gap-3 font-sans ${
+                  <div className={`p-4 rounded-xl border flex flex-col gap-3 font-mono ${
                     isLight ? "bg-amber-100/40 border-amber-300" : "bg-yellow-500/5 border-yellow-500/15"
                   }`}>
                     <h4 className="text-xs font-bold tracking-wider uppercase text-yellow-500">Редактировать учетную запись #{editingUserId}</h4>
@@ -2004,7 +2004,7 @@ export default function AdminPanel({
                         onClick={() => {
                           setEditingUserId(null);
                         }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer font-sans transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer font-mono transition-all ${
                           isLight ? "bg-slate-200 hover:bg-slate-300 text-slate-700" : "bg-slate-900 hover:bg-slate-800 text-slate-350"
                         }`}
                       >
@@ -2017,7 +2017,7 @@ export default function AdminPanel({
                           setUserSuccessMsg("Успешно изменено!");
                           setTimeout(() => setUserSuccessMsg(""), 3000);
                         }}
-                        className="px-3.5 py-1.5 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-extrabold text-xs font-sans cursor-pointer active:scale-95 transition-all"
+                        className="px-3.5 py-1.5 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-extrabold text-xs font-mono cursor-pointer active:scale-95 transition-all"
                       >
                         Сохранить изменения
                       </button>
@@ -2027,7 +2027,7 @@ export default function AdminPanel({
 
                 {/* USER MANAGEMENT TABLE */}
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left font-sans text-xs border-collapse">
+                  <table className="w-full text-left font-mono text-xs border-collapse">
                     <thead>
                       <tr className={`border-b text-[10px] font-mono ${
                         isLight ? "border-slate-200 text-slate-600 font-extrabold" : "border-white/5 text-slate-400"
@@ -2060,7 +2060,7 @@ export default function AdminPanel({
                             </span>
                           </td>
                           <td className="py-3 px-3">{user.ip}</td>
-                          <td className="py-3 px-3 font-sans">{user.country}</td>
+                          <td className="py-3 px-3 font-mono">{user.country}</td>
                           <td className="py-3 px-3 text-slate-400">{user.registerDate}</td>
                           <td className="py-3 px-3 text-right">
                             <div className="flex items-center gap-2 justify-end">
@@ -2167,7 +2167,7 @@ export default function AdminPanel({
                 </div>
 
                 {/* FORM CONTROLS FOR THE CHOSEN TIER */}
-                <form onSubmit={handleSavePolicies} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 font-sans mt-2">
+                <form onSubmit={handleSavePolicies} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 font-mono mt-2">
                   
                   {/* METRIC 1: MAX CHART HISTORY IN DAYS FOR 6 TIMEFRAMES */}
                   <div className={`p-4 rounded-xl border flex flex-col justify-between gap-3 md:col-span-2 lg:col-span-3 ${
@@ -2522,7 +2522,7 @@ export default function AdminPanel({
                       <DollarSign className="w-4 h-4 text-emerald-500" />
                       База платных подписчиков и биллинг
                     </h3>
-                    <p className="text-[10.5px] text-slate-400 mt-0.5 font-sans leading-snug">
+                    <p className="text-[10.5px] text-slate-400 mt-0.5 font-mono leading-snug">
                       Учет пользователей, оплачивавших подписку, текущий статус их подписки и финансовая аналитика.
                     </p>
                   </div>
@@ -2647,7 +2647,7 @@ export default function AdminPanel({
                     <div className="flex gap-2 justify-end mt-4">
                       <button
                         onClick={() => setEditingRecordId(null)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer font-sans transition-all opacity-80 hover:opacity-100 ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer font-mono transition-all opacity-80 hover:opacity-100 ${
                           isLight ? "bg-slate-200 text-slate-700" : "bg-slate-900 text-slate-350"
                         }`}
                       >
@@ -2693,7 +2693,7 @@ export default function AdminPanel({
                             setUserSuccessMsg("");
                           }, 3000);
                         }}
-                        className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs font-sans cursor-pointer active:scale-95 transition-all"
+                        className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs font-mono cursor-pointer active:scale-95 transition-all"
                       >
                         Сохранить
                       </button>
@@ -2704,7 +2704,7 @@ export default function AdminPanel({
 
                 {/* BILLING BASE TABLE */}
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left font-sans text-xs border-collapse">
+                  <table className="w-full text-left font-mono text-xs border-collapse">
                     <thead>
                       <tr className={`border-b text-[10px] font-mono ${
                         isLight ? "border-slate-200 text-slate-600 font-extrabold" : "border-white/5 text-slate-400"

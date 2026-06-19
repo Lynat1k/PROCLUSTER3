@@ -183,7 +183,11 @@ export default function ClusterChart({
       extendPoc: false,
       opacity: 0.28,
       volColor: "#3b82f6",
-      pocColor: "#3b82f6"
+      pocColor: "#3b82f6",
+      scaleMode: "candle",
+      customScaleValue: 1000,
+      histMode: "volume",
+      hideClusterText: false
     });
   });
 
@@ -2193,7 +2197,7 @@ export default function ClusterChart({
     const startIdx = Math.max(0, Math.floor((visibleScrollLeft - margin.left - candleWidth) / (candleWidth + candleSpacing)));
     const endIdx = Math.min(candles.length - 1, Math.ceil((visibleScrollLeft + viewportWidth - margin.left) / (candleWidth + candleSpacing)));
     const visibleCandlesCount = endIdx - startIdx + 1;
-    const hideFootprintNumbers = visibleCandlesCount > 70;
+    const hideFootprintNumbers = visibleCandlesCount > 70 || volProfileGlobalSettings.hideClusterText === true;
 
     // 3.5 Draw Vertical Daily Session Separators (Vertical grid of daily session boundary)
     const tzOpt = selectedTimezone === "local" ? undefined : selectedTimezone;
@@ -3660,15 +3664,18 @@ export default function ClusterChart({
                       return (
                         <button
                           key={item.id}
-                          disabled={isLocked}
+                          disabled={false}
                           onClick={() => {
-                            if (isLocked) return;
+                            if (isLocked) {
+                              window.dispatchEvent(new CustomEvent("procluster_open_tariffs_modal"));
+                              return;
+                            }
                             onWorkspaceLayoutChange(item.id as any);
                             setShowWorkspaceMenu(false);
                           }}
                           className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-all w-full ${
                             isLocked
-                              ? "opacity-50 cursor-not-allowed text-slate-500"
+                              ? "opacity-55 cursor-pointer hover:opacity-90 text-rose-500 hover:text-rose-600"
                               : isSelected
                               ? isLight
                                 ? "bg-blue-50 text-blue-800 font-extrabold border border-blue-200 shadow-sm"
@@ -3711,7 +3718,7 @@ export default function ClusterChart({
         {/* Drawing Tools sidebar panel */}
         <div className={`w-11 flex-none flex flex-col items-center py-3 border-r select-none transition-all duration-300 relative z-30 ${
           isLight 
-            ? "bg-white border-slate-200/80 text-slate-600 shadow-sm" 
+            ? "bg-slate-200 border-slate-300 text-slate-700 hover:text-slate-900" 
             : "bg-[#06080f]/90 border-white/5 text-slate-300 backdrop-blur-md"
         }`}>
           <div className="flex flex-col gap-1.5 items-center w-full grow">
@@ -3739,13 +3746,13 @@ export default function ClusterChart({
                     isActive
                       ? "bg-amber-500/15 text-amber-500 border border-amber-500/30"
                       : isLight
-                        ? "hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-transparent"
+                        ? "hover:bg-slate-300/60 text-slate-600 hover:text-slate-950 border border-transparent"
                         : "hover:bg-white/5 text-slate-400 hover:text-white border border-transparent"
                   }`}
                   title={title}
                 >
                   {tool.id === "long" ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
                       <circle cx="4" cy="5" r="1.5" />
                       <line x1="6" y1="5" x2="20" y2="5" />
                       <text x="12" y="12" fontFamily="sans-serif" fontSize="7.5" fontWeight="bold" textAnchor="middle" fill="currentColor" stroke="none">L</text>
@@ -3754,7 +3761,7 @@ export default function ClusterChart({
                       <line x1="6" y1="21" x2="20" y2="21" />
                     </svg>
                   ) : tool.id === "short" ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
                       <circle cx="4" cy="5" r="1.5" />
                       <line x1="6" y1="5" x2="20" y2="5" />
                       <line x1="4" y1="10" x2="20" y2="10" />
@@ -3762,8 +3769,32 @@ export default function ClusterChart({
                       <circle cx="4" cy="21" r="1.5" />
                       <line x1="6" y1="21" x2="20" y2="21" />
                     </svg>
+                  ) : tool.id === "volume" ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                      <line x1="4" y1="4" x2="4" y2="20" strokeWidth="1.5" opacity="0.6" />
+                      <line x1="4" y1="6" x2="10" y2="6" strokeWidth="1.8" />
+                      <line x1="4" y1="9" x2="16" y2="9" strokeWidth="1.8" />
+                      <line x1="4" y1="12" x2="21" y2="12" strokeWidth="2.2" />
+                      <line x1="4" y1="15" x2="16" y2="15" strokeWidth="1.8" />
+                      <line x1="4" y1="18" x2="10" y2="18" strokeWidth="1.8" />
+                    </svg>
+                  ) : tool.id === "fibonacci" ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                      {/* Parallel grid levels */}
+                      <line x1="3" y1="4" x2="21" y2="4" strokeWidth="1.5" opacity="0.9" />
+                      <line x1="3" y1="7.5" x2="21" y2="7.5" strokeWidth="1" opacity="0.4" />
+                      <line x1="3" y1="11" x2="21" y2="11" strokeWidth="1" opacity="0.65" />
+                      <line x1="3" y1="14.5" x2="21" y2="14.5" strokeWidth="1" opacity="0.4" />
+                      <line x1="3" y1="17.5" x2="21" y2="17.5" strokeWidth="1" opacity="0.4" />
+                      <line x1="3" y1="21" x2="21" y2="21" strokeWidth="1.5" opacity="0.9" />
+                      
+                      {/* Trendline anchors */}
+                      <line x1="5" y1="21" x2="19" y2="4" strokeWidth="1" strokeDasharray="2 2" opacity="0.6" />
+                      <circle cx="5" cy="21" r="1.5" fill="currentColor" />
+                      <circle cx="19" cy="4" r="1.5" fill="currentColor" stroke="none" />
+                    </svg>
                   ) : (
-                    <IconComp className="w-4 h-4" />
+                    <IconComp className="w-5 h-5" />
                   )}
                   
                   {/* Tooltip on Hover to the right */}
@@ -3777,7 +3808,7 @@ export default function ClusterChart({
 
           {/* Separator line */}
           <div className={`w-6 h-[1px] my-1.5 shrink-0 ${
-            isLight ? "bg-slate-200" : "bg-white/10"
+            isLight ? "bg-slate-300" : "bg-white/10"
           }`} />
 
           {/* Action buttons at the bottom of the sidebar */}
@@ -3795,15 +3826,15 @@ export default function ClusterChart({
                 !areDrawingsVisible
                   ? "bg-amber-500/10 text-amber-500 border border-amber-500/25"
                   : isLight
-                    ? "hover:bg-slate-105 text-slate-605 hover:text-slate-905 border border-transparent"
-                    : "hover:bg-white/5 text-slate-405 hover:text-white border border-transparent"
+                    ? "hover:bg-slate-300/60 text-slate-600 hover:text-slate-950 border border-transparent"
+                    : "hover:bg-white/5 text-slate-400 hover:text-white border border-transparent"
               }`}
               title={language === "RU" ? (areDrawingsVisible ? "Скрыть все рисунки" : "Показать все рисунки") : (areDrawingsVisible ? "Hide All Drawings" : "Show All Drawings")}
             >
               {areDrawingsVisible ? (
-                <Eye className="w-4 h-4" />
+                <Eye className="w-5 h-5" />
               ) : (
-                <EyeOff className="w-4 h-4 text-rose-500" />
+                <EyeOff className="w-5 h-5 text-rose-500" />
               )}
               
               <div className={`absolute left-full ml-2 top-1.2 font-sans font-semibold text-[10px] px-2 py-1 rounded bg-slate-950 text-slate-100 border border-white/10 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl`}>
@@ -3824,12 +3855,12 @@ export default function ClusterChart({
                 drawings.length === 0
                   ? "opacity-30 cursor-not-allowed text-slate-500"
                   : isLight
-                    ? "hover:bg-rose-50 text-rose-600 hover:text-rose-700 hover:border-rose-100 cursor-pointer"
-                    : "hover:bg-rose-955/20 text-rose-505 hover:text-rose-455 hover:border-rose-955/35 cursor-pointer"
+                    ? "hover:bg-rose-100/50 text-rose-600 hover:text-rose-700 hover:border-rose-200 cursor-pointer"
+                    : "hover:bg-rose-950/20 text-rose-500 hover:text-rose-400 hover:border-rose-950/35 cursor-pointer"
               }`}
               title={language === "RU" ? "Удалить все рисунки" : "Clear Drawings"}
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-5 h-5" />
               
               <div className={`absolute left-full ml-2 top-1.2 font-sans font-extrabold text-[10px] px-2 py-1 rounded bg-rose-950 text-rose-300 border border-rose-900/30 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl ${
                 drawings.length === 0 ? "group-hover:hidden" : ""
@@ -4755,6 +4786,112 @@ export default function ClusterChart({
                   {language === "RU" 
                     ? "Уровень POC растянутого профиля объема будет продлеваться, пока его не коснется или не пересечет другая свеча." 
                     : "The POC level line of the stretched profile will continue until a future candle touches or intersects it."}
+                </span>
+              </div>
+            </label>
+
+            {/* Scale Mode Select */}
+            <div className="flex flex-col gap-1.5 border-t border-slate-500/10 pt-2.5">
+              <span className="font-bold text-[10.5px]">
+                {language === "RU" ? "Гистограмма (масштаб)" : "Histogram Scale"}
+              </span>
+              <select
+                value={volProfileGlobalSettings.scaleMode || "candle"}
+                onChange={(e) => {
+                  updateVolProfileSettings({ scaleMode: e.target.value as any });
+                }}
+                className={`w-full rounded-lg px-2.5 py-1.5 text-[11px] outline-none transition-all border ${
+                  isLight
+                    ? "bg-slate-50 border-slate-200 text-slate-800"
+                    : "bg-[#0b0f19] border-white/10 text-slate-200"
+                }`}
+              >
+                <option value="candle">
+                  {language === "RU" ? "По каждой свече" : "Per each candle"}
+                </option>
+                <option value="visible">
+                  {language === "RU" ? "По видимой части графика" : "Per visible part of chart"}
+                </option>
+                <option value="custom">
+                  {language === "RU" ? "Свое значение (число)" : "Custom value (number)"}
+                </option>
+              </select>
+            </div>
+
+            {/* Custom Scale Value (Number Input) - only visible if scaleMode is "custom" */}
+            {(volProfileGlobalSettings.scaleMode === "custom") && (
+              <div className="flex flex-col gap-1.5 pl-1.5 animate-fadeIn">
+                <span className="font-bold text-[9.5px] text-slate-400">
+                  {language === "RU" ? "Значение объема" : "Volume Value"}
+                </span>
+                <input
+                  type="number"
+                  min="1"
+                  step="10"
+                  value={volProfileGlobalSettings.customScaleValue != null ? volProfileGlobalSettings.customScaleValue : 1000}
+                  onChange={(e) => {
+                    updateVolProfileSettings({ customScaleValue: parseFloat(e.target.value) || 1000 });
+                  }}
+                  className={`rounded-lg px-2.5 py-1.5 text-[11px] outline-none border w-full font-mono ${
+                    isLight
+                      ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                      : "bg-[#0b0f19] border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
+                  }`}
+                />
+              </div>
+            )}
+
+            {/* Histogram Mode Select */}
+            <div className="flex flex-col gap-1.5 border-t border-slate-500/10 pt-2.5">
+              <span className="font-bold text-[10.5px]">
+                {language === "RU" ? "Режим гистограммы" : "Histogram Mode"}
+              </span>
+              <div className="flex rounded-lg p-[2px] border gap-1 select-none font-sans text-[11px] transition-all bg-black/10">
+                <button
+                  onClick={() => updateVolProfileSettings({ histMode: "volume" })}
+                  className={`flex-1 py-1 text-center rounded-md font-bold transition-all cursor-pointer ${
+                    (volProfileGlobalSettings.histMode || "volume") === "volume"
+                      ? isLight
+                        ? "bg-white text-slate-800 shadow-xs"
+                        : "bg-blue-600/40 border border-blue-550/15 text-white"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {language === "RU" ? "Объем" : "Volume"}
+                </button>
+                <button
+                  onClick={() => updateVolProfileSettings({ histMode: "delta" })}
+                  className={`flex-1 py-1 text-center rounded-md font-bold transition-all cursor-pointer ${
+                    volProfileGlobalSettings.histMode === "delta"
+                      ? isLight
+                        ? "bg-white text-slate-800 shadow-xs"
+                        : "bg-blue-600/40 border border-blue-550/15 text-white"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {language === "RU" ? "Дельта" : "Delta"}
+                </button>
+              </div>
+            </div>
+
+            {/* Checkbox: Скрывать текст в кластерах */}
+            <label className="flex items-start gap-2.5 cursor-pointer py-1 select-none hover:opacity-90 border-t border-slate-500/10 pt-2.5">
+              <input 
+                type="checkbox"
+                checked={volProfileGlobalSettings.hideClusterText ?? false}
+                onChange={(e) => {
+                  updateVolProfileSettings({ hideClusterText: e.target.checked });
+                }}
+                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5"
+              />
+              <div className="flex flex-col">
+                <span className="font-bold text-[11px] leading-tight">
+                  {language === "RU" ? "Скрывать текст в кластерах" : "Hide text in clusters"}
+                </span>
+                <span className={`text-[9.5px] leading-relaxed mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                  {language === "RU" 
+                    ? "Скрывает числовые значения объемов/дельты внутри свечных кластеров для чистоты графика." 
+                    : "Hides numeric volume/delta values inside candle clusters for chart neatness."}
                 </span>
               </div>
             </label>

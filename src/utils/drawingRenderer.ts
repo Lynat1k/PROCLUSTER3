@@ -30,6 +30,12 @@ export interface DrawingItem {
   volColor?: string;
   pocColor?: string;
 
+  // Volume Profile settings
+  scaleMode?: "candle" | "visible" | "custom";
+  customScaleValue?: number;
+  histMode?: "volume" | "delta";
+  hideClusterText?: boolean;
+
   // Fields for Long/Short calculations and styling
   deposit?: number;
   risk?: number;
@@ -559,7 +565,11 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
                   Math.max(0, Math.floor((maxPrice - cell.price) / priceStep))
                 );
                 if (binIdx >= 0) {
-                  profileBins[binIdx] += cell.volume;
+                  if (d.histMode === "delta") {
+                    profileBins[binIdx] += (cell.ask - cell.bid);
+                  } else {
+                    profileBins[binIdx] += cell.volume;
+                  }
                 }
               }
             });
@@ -572,7 +582,11 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
                 Math.max(0, Math.floor((maxPrice - avgPrice) / priceStep))
               );
               if (binIdx >= 0) {
-                profileBins[binIdx] += c.volume;
+                if (d.histMode === "delta") {
+                  profileBins[binIdx] += c.delta;
+                } else {
+                  profileBins[binIdx] += c.volume;
+                }
               }
             }
           }
@@ -584,9 +598,10 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
         let pocIdx = 0;
         for (let b = 0; b < bucketCount; b++) {
           const binVol = profileBins[b];
-          totalVolume += binVol;
-          if (binVol > maxBinVal) {
-            maxBinVal = binVol;
+          const absVol = Math.abs(binVol);
+          totalVolume += absVol;
+          if (absVol > maxBinVal) {
+            maxBinVal = absVol;
             pocIdx = b;
           }
         }
@@ -594,15 +609,15 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
         // Calculate 70% Value Area (VA) around POC
         let lowIdx = pocIdx;
         let highIdx = pocIdx;
-        let vaVolume = profileBins[pocIdx];
+        let vaVolume = Math.abs(profileBins[pocIdx]);
         const targetVolume = totalVolume * 0.7;
 
         if (totalVolume > 0 && maxBinVal > 0) {
           while (vaVolume < targetVolume && (lowIdx > 0 || highIdx < bucketCount - 1)) {
             let addLowVol = 0;
             let addHighVol = 0;
-            if (lowIdx > 0) addLowVol = profileBins[lowIdx - 1];
-            if (highIdx < bucketCount - 1) addHighVol = profileBins[highIdx + 1];
+            if (lowIdx > 0) addLowVol = Math.abs(profileBins[lowIdx - 1]);
+            if (highIdx < bucketCount - 1) addHighVol = Math.abs(profileBins[highIdx + 1]);
 
             if (addLowVol >= addHighVol && lowIdx > 0) {
               vaVolume += addLowVol;
@@ -641,19 +656,43 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
         ctx.fillStyle = isLight ? "rgba(59, 130, 246, 0.02)" : "rgba(59, 130, 246, 0.03)";
         ctx.fillRect(minX, vaY1, Math.abs(x2 - x1), vaY2 - vaY1);
 
+        // Calculate custom scale denominator
+        let denom = maxBinVal;
+        const dScaleMode = d.scaleMode || "candle";
+        if (dScaleMode === "visible") {
+          const visibleStart = Math.max(0, Math.floor((visibleScrollLeft - margin.left) / (candleWidth + candleSpacing)));
+          const visibleEnd = Math.min(candles.length - 1, Math.floor((visibleScrollLeft + viewportWidth - margin.left) / (candleWidth + candleSpacing)));
+          let maxVisibleCandleVol = 1.0;
+          for (let i = visibleStart; i <= visibleEnd; i++) {
+            const c = candles[i];
+            if (c && c.volume > maxVisibleCandleVol) {
+              maxVisibleCandleVol = c.volume;
+            }
+          }
+          denom = maxVisibleCandleVol * 0.15;
+        } else if (dScaleMode === "custom") {
+          denom = d.customScaleValue || 1000;
+        }
+
         // 2. Draw volume profile bars (Value Area vs Out-of-Value-Area)
         for (let b = 0; b < bucketCount; b++) {
           const binVol = profileBins[b];
           if (binVol === 0) continue;
 
-          const drawW = (binVol / Math.max(1, maxBinVal)) * maxDrawWidth;
+          const absBinVol = Math.abs(binVol);
+          const drawW = (absBinVol / Math.max(1, denom)) * maxDrawWidth;
           const binY = bMinY + b * bHeightStep;
           const isInValueArea = b >= lowIdx && b <= highIdx;
 
+          let barColor = baseColor;
+          if (d.histMode === "delta") {
+            barColor = binVol >= 0 ? "#10b981" : "#ef4444";
+          }
+
           if (isInValueArea) {
-            ctx.fillStyle = hexToRgba(baseColor, customOpacity);
+            ctx.fillStyle = hexToRgba(barColor, customOpacity);
           } else {
-            ctx.fillStyle = hexToRgba(baseColor, customOpacity * 0.3);
+            ctx.fillStyle = hexToRgba(barColor, customOpacity * 0.3);
           }
 
           // Render contiguous bars without space or subpixel gaps to form a perfectly solid block

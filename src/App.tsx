@@ -17,6 +17,7 @@ import DOMSidebar from "./components/DOMSidebar";
 import IndicatorsModal from "./components/IndicatorsModal";
 import AdminPanel from "./components/AdminPanel";
 import UserProfile from "./components/UserProfile";
+import SubscriptionModal from "./components/SubscriptionModal";
 import RoadmapModal from "./components/RoadmapModal";
 import defaultAvatar from "./assets/images/trump_avatar_1780681677035.png";
 import { TrendingUp, TrendingDown, Layers, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, Check, Sparkles, CandlestickChart, Footprints, LayoutGrid, Star, X, Sliders, Lock } from "lucide-react";
@@ -650,6 +651,7 @@ export default function App() {
   const [isIndicatorsModalOpen, setIsIndicatorsModalOpen] = useState<boolean>(false);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState<boolean>(false);
   const [isRoadmapModalOpen, setIsRoadmapModalOpen] = useState<boolean>(false);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState<boolean>(false);
   const [currentView, setCurrentView] = useState<"terminal" | "admin" | "profile">("terminal");
   const [showTickerMenu, setShowTickerMenu] = useState<boolean>(false);
   const tickerMenuRef = useRef<HTMLDivElement>(null);
@@ -715,6 +717,16 @@ export default function App() {
     return () => {
       window.removeEventListener("procluster_user_updated", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleOpenTariffs = () => {
+      setIsSubscriptionModalOpen(true);
+    };
+    window.addEventListener("procluster_open_tariffs_modal", handleOpenTariffs);
+    return () => {
+      window.removeEventListener("procluster_open_tariffs_modal", handleOpenTariffs);
     };
   }, []);
 
@@ -2022,7 +2034,15 @@ export default function App() {
                       </span>
                       <select
                         value={compressionMultiplier}
-                        onChange={(e) => setCompressionMultiplier(parseInt(e.target.value))}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          const limits = getActiveGroupLimits();
+                          if (val > limits.compressionLevels) {
+                            window.dispatchEvent(new CustomEvent("procluster_open_tariffs_modal"));
+                            return;
+                          }
+                          setCompressionMultiplier(val);
+                        }}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
                           theme === "light"
                             ? "bg-slate-100 border-slate-300 text-slate-800 shadow-inner"
@@ -2041,8 +2061,8 @@ export default function App() {
                             <option 
                               key={multiplier} 
                               value={multiplier} 
-                              disabled={isLocked}
-                              className={theme === "light" ? "text-slate-900" : "bg-slate-950 text-slate-350"}
+                              disabled={false}
+                              className={theme === "light" ? "text-slate-900 font-sans" : "bg-slate-950 text-slate-350 font-sans"}
                             >
                               {multiplier}x ({actualValue}){isLocked ? " 🔒" : ""}
                             </option>
@@ -2518,7 +2538,15 @@ export default function App() {
               </span>
               <select
                 value={compressionMultiplier}
-                onChange={(e) => setCompressionMultiplier(parseInt(e.target.value))}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  const limits = getActiveGroupLimits();
+                  if (val > limits.compressionLevels) {
+                    window.dispatchEvent(new CustomEvent("procluster_open_tariffs_modal"));
+                    return;
+                  }
+                  setCompressionMultiplier(val);
+                }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full min-w-[80px] sm:min-w-[105px] ${
                   theme === "light"
                     ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-800 shadow-sm"
@@ -2537,7 +2565,7 @@ export default function App() {
                     <option 
                       key={multiplier} 
                       value={multiplier} 
-                      disabled={isLocked}
+                      disabled={false}
                       className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-350 font-sans"}
                     >
                       {multiplier}x ({actualValue}){isLocked ? " 🔒" : ""}
@@ -2563,21 +2591,23 @@ export default function App() {
                     onClick={() => {
                       if (isAnomaliesPermittedByTier) {
                         setShowAnomalies(!showAnomalies);
+                      } else {
+                        window.dispatchEvent(new CustomEvent("procluster_open_tariffs_modal"));
                       }
                     }}
-                    disabled={!isAnomaliesPermittedByTier}
+                    disabled={false}
                     className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer h-[30px] transition-all border outline-none select-none ${
                       !isAnomaliesPermittedByTier
-                        ? "cursor-not-allowed opacity-50 border-transparent bg-slate-900/40 text-slate-500"
+                        ? "opacity-80 border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/15 text-rose-450 cursor-pointer shadow-none"
                         : showAnomalies
                           ? theme === "light"
                             ? "bg-amber-100 border-amber-400 text-amber-900 font-black shadow-sm"
                             : "liquid-glass-active text-yellow-400 font-black border-amber-500/30"
                           : theme === "light"
                             ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-700 font-bold shadow-sm"
-                            : "liquid-glass-button text-slate-400 hover:text-slate-100 border-white/5"
+                            : "liquid-glass-button text-slate-400 hover:text-slate-100 border-white/5 relative z-10"
                     }`}
-                    title={!isAnomaliesPermittedByTier ? (language === "RU" ? "Заблокировано тарифом" : "Locked by tier") : ""}
+                    title={!isAnomaliesPermittedByTier ? (language === "RU" ? "🔒 Выбрать тариф" : "🔒 Change Plan") : ""}
                   >
                     {!isAnomaliesPermittedByTier ? (
                       <Lock className="w-3 h-3 text-rose-500" />
@@ -2846,6 +2876,17 @@ export default function App() {
         indicators={indicators}
         onApply={(updatedIndicators) => setIndicators(updatedIndicators)}
         theme={theme}
+        language={language}
+      />
+
+      {/* Subscription Plans selection modal */}
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+        theme={theme}
+        language={language}
+        profileUser={profileUser}
+        onUpdateUser={setProfileUser}
       />
 
       {/* Project Roadmap (BETA) Modal */}
