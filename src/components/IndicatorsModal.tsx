@@ -518,7 +518,7 @@ export default function IndicatorsModal({
                 <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-2 block font-mono pl-1">
                   АКТИВНЫЕ ({addedIndicators.length})
                 </span>
-                <div className={`flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 ${
+                <div className={`flex-1 overflow-y-auto pr-1 flex flex-col gap-1 ${
                   isLight ? "scrollbar-thin-light" : "scrollbar-thin-dark"
                 }`}>
                   <AnimatePresence initial={false}>
@@ -536,7 +536,7 @@ export default function IndicatorsModal({
                             exit={{ opacity: 0, x: -8 }}
                             key={ind.id}
                             onClick={() => setSelectedId(ind.id)}
-                            className={`flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer no-drag ${
+                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer no-drag ${
                               !isVisible ? "opacity-60" : ""
                             } ${
                               selectedId === ind.id
@@ -556,7 +556,7 @@ export default function IndicatorsModal({
                               <button
                                 disabled={idx === 0}
                                 onClick={(e) => moveIndicator(ind.id, "up", e)}
-                                className={`p-1 rounded transition ${
+                                className={`p-0.5 rounded transition ${
                                   idx === 0
                                     ? "opacity-20 cursor-not-allowed"
                                     : isLight
@@ -572,7 +572,7 @@ export default function IndicatorsModal({
                               <button
                                 disabled={idx === addedIndicators.length - 1}
                                 onClick={(e) => moveIndicator(ind.id, "down", e)}
-                                className={`p-1 rounded transition ${
+                                className={`p-0.5 rounded transition ${
                                   idx === addedIndicators.length - 1
                                     ? "opacity-20 cursor-not-allowed"
                                     : isLight
@@ -587,7 +587,7 @@ export default function IndicatorsModal({
                               {/* Toggle visibility eye (does not delete) */}
                               <button
                                 onClick={(e) => toggleVisibility(ind.id, e)}
-                                className={`p-1 rounded transition ${
+                                className={`p-0.5 rounded transition ${
                                   isLight 
                                     ? "hover:bg-slate-200/80 text-slate-500 hover:text-slate-850"
                                     : "hover:bg-white/10 text-slate-400 hover:text-slate-200"
@@ -604,7 +604,7 @@ export default function IndicatorsModal({
                               {/* Delete/Deactivate Button */}
                               <button
                                 onClick={(e) => deactivateIndicator(ind.id, e)}
-                                className={`p-1 rounded transition ${
+                                className={`p-0.5 rounded transition ${
                                   isLight
                                     ? "hover:bg-rose-100 text-slate-500 hover:text-rose-600"
                                     : "hover:bg-rose-500/20 text-slate-400 hover:text-rose-400"
@@ -635,7 +635,7 @@ export default function IndicatorsModal({
                     <div key={tab} className="flex flex-col gap-1 shrink-0">
                       <button
                         onClick={() => toggleTabExpanded(tab)}
-                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer no-drag ${
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer no-drag ${
                           isExpanded
                             ? isLight
                               ? "bg-blue-50 border border-blue-205 text-blue-700 font-extrabold"
@@ -678,7 +678,7 @@ export default function IndicatorsModal({
                                   <div
                                     key={ind.id}
                                     onClick={() => setSelectedId(ind.id)}
-                                    className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition select-none border no-drag ${
+                                    className={`flex items-center justify-between px-2 py-1 rounded-lg cursor-pointer transition select-none border no-drag ${
                                       isSelected
                                         ? isLight
                                           ? "bg-blue-50 border-blue-205"
@@ -709,7 +709,7 @@ export default function IndicatorsModal({
 
                                     <button
                                       onClick={(e) => toggleFavorite(ind.id, e)}
-                                      className={`p-1 rounded transition ml-2 shrink-0 ${
+                                      className={`p-0.5 rounded transition ml-2 shrink-0 ${
                                         isLight ? "hover:bg-slate-205 text-slate-400 hover:text-yellow-550" : "hover:bg-white/10 text-slate-400 hover:text-yellow-405"
                                       }`}
                                     >

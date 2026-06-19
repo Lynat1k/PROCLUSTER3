@@ -352,6 +352,14 @@ export default function UserProfile({
   const [paymentTxCopied, setPaymentTxCopied] = useState(false);
   const [copiedText, setCopiedText] = useState("");
 
+  // Dynamic prices (USDT) retrieved from localStorage settings if configured
+  const [pricePro, setPricePro] = useState<number>(() => {
+    return Number(storage.get("procluster_price_pro")) || 19;
+  });
+  const [priceVip, setPriceVip] = useState<number>(() => {
+    return Number(storage.get("procluster_price_vip")) || 49;
+  });
+
   // Keep state synced with props when loaded/changed
   useEffect(() => {
     if (user) {
@@ -1013,7 +1021,7 @@ export default function UserProfile({
               {/* Price section */}
               <div className="flex items-baseline gap-1 mt-1">
                 <span className={`text-4xl font-black tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
-                  $19
+                  ${pricePro}
                 </span>
                 <span className={`text-xs font-medium ml-1 ${isLight ? "text-slate-500" : "text-[#8B949E]"}`}>
                   / month
@@ -1114,7 +1122,7 @@ export default function UserProfile({
               {/* Price section */}
               <div className="flex items-baseline gap-1 mt-1">
                 <span className={`text-4xl font-black tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
-                  $49
+                  ${priceVip}
                 </span>
                 <span className={`text-xs font-medium ml-1 ${isLight ? "text-slate-500" : "text-[#8B949E]"}`}>
                   / month
@@ -1320,7 +1328,7 @@ export default function UserProfile({
                     <p className={`text-xs font-medium text-left leading-relaxed ${isLight ? "text-slate-655" : "text-slate-300"}`}>
                       {t.payText1
                         .replace("{plan}", activePaymentPlan === "VIP" ? "VIP" : "PRO")
-                        .replace("{amount}", activePaymentPlan === "VIP" ? "49" : "19")}
+                        .replace("{amount}", activePaymentPlan === "VIP" ? priceVip.toString() : pricePro.toString())}
                     </p>
 
                     {/* Deposit card block with Clipboard */}
@@ -1422,7 +1430,7 @@ export default function UserProfile({
                     <div className="space-y-1.5">
                       <h4 className="text-sm font-black font-sans">{t.payVerifying}</h4>
                       <p className="text-[10.5px] font-mono text-slate-405 animate-pulse">
-                        {t.payHashCheck.replace("{amount}", activePaymentPlan === "VIP" ? "49" : "19")}
+                        {t.payHashCheck.replace("{amount}", activePaymentPlan === "VIP" ? priceVip.toString() : pricePro.toString())}
                       </p>
                     </div>
 
