@@ -9,7 +9,9 @@ export type DrawingType =
   | "fibonacci"
   | "ruler"
   | "text"
-  | "volume";
+  | "volume"
+  | "long"
+  | "short";
 
 export interface DrawingItem {
   id: number;
@@ -27,6 +29,18 @@ export interface DrawingItem {
   opacity?: number;
   volColor?: string;
   pocColor?: string;
+
+  // Fields for Long/Short calculations and styling
+  deposit?: number;
+  risk?: number;
+  riskType?: "percent" | "cash";
+  colorTarget?: string;
+  colorStop?: string;
+  makerFee?: number;
+  takerFee?: number;
+  entryFeeType?: "maker" | "taker";
+  exitFeeType?: "maker" | "taker";
+  stopPrice?: number;
 }
 
 interface RenderContext {
@@ -43,15 +57,24 @@ interface RenderContext {
   activePair: { price: number; priceStep?: number };
   candles: Array<{
     open: number;
-    close: number;
     high: number;
     low: number;
+    close: number;
     volume: number;
-    cells?: Array<{ price: number; volume: number; bid: number; ask: number }>;
+    delta: number;
+    pocPrice: number;
+    cells: Array<{
+      price: number;
+      bid: number;
+      ask: number;
+      volume: number;
+      isPoc: boolean;
+    }>;
   }>;
   candleWidth: number;
   candleSpacing: number;
   layer?: "background" | "foreground";
+  language?: string;
 }
 
 /**
@@ -73,6 +96,7 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
     candleWidth,
     candleSpacing,
     layer = "foreground",
+    language = "RU",
   } = renderParams;
 
   const allDrawings = [...drawings, ...(drawingInProgress ? [drawingInProgress] : [])];
@@ -235,6 +259,225 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
       ctx.lineTo(x2 - headLength * Math.cos(angle + Math.PI / 6), y2 - headLength * Math.sin(angle + Math.PI / 6));
       ctx.closePath();
       ctx.fill();
+      ctx.restore();
+    } 
+    else if (d.type === "long" || d.type === "short") {
+      ctx.save();
+      
+      const entry = d.startPrice;
+      const target = d.endPrice;
+      const defaultStop = d.type === "long" 
+        ? entry - (target - entry)
+        : entry + (entry - target);
+      const stop = d.stopPrice !== undefined ? d.stopPrice : defaultStop;
+      
+      const yEntry = priceToY(entry);
+      const yTarget = priceToY(target);
+      const yStop = priceToY(stop);
+      
+      const xLeft = Math.min(x1, x2);
+      const xRight = Math.max(x1, x2);
+      const width = xRight - xLeft;
+      
+      const op = d.opacity !== undefined ? d.opacity : 0.22;
+      const fSize = d.fontSize || 10;
+      
+      const depositVal = d.deposit !== undefined ? d.deposit : 10000;
+      const riskVal = d.risk !== undefined ? d.risk : 1;
+      const rType = d.riskType || "percent";
+      const lang = language || "RU";
+      
+      const makerFeeDec = (d.makerFee !== undefined ? d.makerFee : 0.02) / 100;
+      const takerFeeDec = (d.takerFee !== undefined ? d.takerFee : 0.05) / 100;
+      const entryType = d.entryFeeType || "maker";
+      const exitType = d.exitFeeType || "taker";
+      
+      const entryFeeRate = entryType === "maker" ? makerFeeDec : takerFeeDec;
+      const exitFeeRate = exitType === "maker" ? makerFeeDec : takerFeeDec;
+      
+      // Target & Stop Distances
+      const stopDistance = Math.max(0.00001, Math.abs(stop - entry));
+      const targetDistance = Math.max(0.00001, Math.abs(target - entry));
+      
+      const riskCash = rType === "percent" ? depositVal * (riskVal / 100) : riskVal;
+      
+      // Position Qty calculation taking fees into account
+      const positionQty = riskCash / (stopDistance + (entry * entryFeeRate) + (stop * exitFeeRate));
+      const positionNotional = positionQty * entry;
+      const leverageVal = depositVal > 0 ? (positionNotional / depositVal).toFixed(1) : "0.0";
+      
+      // Fees breakdown
+      const entryFeeCash = positionQty * entry * entryFeeRate;
+      const targetExitFeeCash = positionQty * target * makerFeeDec; // Target close usually limit maker ordered
+      
+      // Net Profit (including commission)
+      const netProfit = (positionQty * targetDistance) - entryFeeCash - targetExitFeeCash;
+      const riskRewardRatio = targetDistance / stopDistance;
+      
+      // Target and Stop Percentages relative to entry
+      const pctTarget = (targetDistance / entry) * 100;
+      const pctStop = (stopDistance / entry) * 100;
+      
+      // Colors
+      const targetBg = d.colorTarget || (isLight ? "rgba(16, 185, 129, 0.22)" : "rgba(16, 185, 129, 0.25)");
+      const stopBg = d.colorStop || (isLight ? "rgba(239, 68, 68, 0.22)" : "rgba(239, 68, 68, 0.25)");
+      
+      // Draw Target Zone Box
+      ctx.globalAlpha = op;
+      ctx.fillStyle = d.type === "long" ? targetBg : stopBg;
+      ctx.fillRect(xLeft, Math.min(yTarget, yEntry), width, Math.abs(yTarget - yEntry));
+      
+      // Draw Stop Zone Box
+      ctx.fillStyle = d.type === "long" ? stopBg : targetBg;
+      ctx.fillRect(xLeft, Math.min(yEntry, yStop), width, Math.abs(yEntry - yStop));
+      ctx.globalAlpha = 1.0;
+      
+      // Draw separate target level, entry level, stop level lines
+      ctx.lineWidth = 1.5;
+      
+      // Target line (Green/Red)
+      ctx.strokeStyle = d.type === "long" ? "#10b981" : "#ef4444";
+      ctx.beginPath();
+      ctx.moveTo(xLeft, yTarget);
+      ctx.lineTo(xRight, yTarget);
+      ctx.stroke();
+      
+      // Stop line
+      ctx.strokeStyle = d.type === "long" ? "#ef4444" : "#10b981";
+      ctx.beginPath();
+      ctx.moveTo(xLeft, yStop);
+      ctx.lineTo(xRight, yStop);
+      ctx.stroke();
+      
+      // Entry line (Blue)
+      ctx.strokeStyle = isLight ? "#2563eb" : "#3b82f6";
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.moveTo(xLeft, yEntry);
+      ctx.lineTo(xRight, yEntry);
+      ctx.stroke();
+      
+      const priceStep = activePair.priceStep || 0.01;
+      const stepStr = priceStep.toString();
+      const dotIdx = stepStr.indexOf(".");
+      const priceStepDecimals = dotIdx === -1 ? 0 : Math.min(8, stepStr.length - dotIdx - 1);
+
+      const qtyStr = positionQty >= 1000 
+        ? positionQty.toFixed(0) 
+        : positionQty >= 100 
+          ? positionQty.toFixed(1) 
+          : positionQty >= 1 
+            ? positionQty.toFixed(3) 
+            : positionQty.toFixed(6);
+
+      // Label Texts
+      const targetText = lang === "RU"
+        ? `Цель: ${target.toFixed(priceStepDecimals)} (+${pctTarget.toFixed(2)}%) Сумма: ${netProfit.toFixed(2)}`
+        : `Target: ${target.toFixed(priceStepDecimals)} (+${pctTarget.toFixed(2)}%) PnL: ${netProfit.toFixed(2)}`;
+      
+      const stopText = lang === "RU"
+        ? `Стоп: ${stop.toFixed(priceStepDecimals)} (-${pctStop.toFixed(2)}%) Сумма: -${riskCash.toFixed(2)}`
+        : `Stop: ${stop.toFixed(priceStepDecimals)} (-${pctStop.toFixed(2)}%) PnL: -${riskCash.toFixed(2)}`;
+      
+      const middleLine1 = lang === "RU" ? `Кол-во: ${qtyStr}` : `Qty: ${qtyStr}`;
+      const middleLine2 = lang === "RU"
+        ? `Соотношение риск/прибыль: ${riskRewardRatio.toFixed(2)}`
+        : `Risk/Reward Ratio: ${riskRewardRatio.toFixed(2)}`;
+
+      const drawSolidBadge = (txt: string, x: number, y: number, bgColor: string, textColor: string, fontSize: number) => {
+        ctx.save();
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "center";
+        
+        const metrics = ctx.measureText(txt);
+        const txtW = metrics.width;
+        const padX = 10;
+        const padY = 5;
+        const bgW = txtW + padX * 2;
+        const bgH = fontSize + padY * 2;
+        
+        const bgX = x - bgW / 2;
+        const bgY = y - bgH / 2;
+        
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        if ((ctx as any).roundRect) {
+          (ctx as any).roundRect(bgX, bgY, bgW, bgH, 4);
+        } else {
+          ctx.rect(bgX, bgY, bgW, bgH);
+        }
+        ctx.fill();
+        
+        ctx.fillStyle = textColor;
+        ctx.fillText(txt, x, y);
+        ctx.restore();
+      };
+
+      const drawTwoLineBadge = (
+        l1: string,
+        l2: string,
+        x: number,
+        y: number,
+        bgColor: string,
+        borderColor: string,
+        textColor: string,
+        fontSize: number
+      ) => {
+        ctx.save();
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textBaseline = "top";
+        ctx.textAlign = "center";
+        
+        const m1 = ctx.measureText(l1);
+        const m2 = ctx.measureText(l2);
+        const txtW = Math.max(m1.width, m2.width);
+        
+        const padX = 12;
+        const padY = 7;
+        const lineGap = 4;
+        const bgW = txtW + padX * 2;
+        const bgH = fontSize * 2 + lineGap + padY * 2;
+        
+        const bgX = x - bgW / 2;
+        const bgY = y - bgH / 2;
+        
+        ctx.fillStyle = bgColor;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 1.5;
+        
+        ctx.beginPath();
+        if ((ctx as any).roundRect) {
+          (ctx as any).roundRect(bgX, bgY, bgW, bgH, 6);
+        } else {
+          ctx.rect(bgX, bgY, bgW, bgH);
+        }
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.fillStyle = textColor;
+        ctx.fillText(l1, x, bgY + padY);
+        ctx.fillText(l2, x, bgY + padY + fontSize + lineGap);
+        ctx.restore();
+      };
+
+      // Draw Badges centered vertically on the levels
+      const centerX = xLeft + width / 2;
+
+      // Draw Target Badge on Take Profit line (yTarget)
+      const targetBadgeColor = d.type === "long" ? "#10b981" : "#ef4444";
+      drawSolidBadge(targetText, centerX, yTarget, targetBadgeColor, "#ffffff", fSize + 1);
+
+      // Draw Stop Badge on Stop Loss line (yStop)
+      const stopBadgeColor = d.type === "long" ? "#ef4444" : "#10b981";
+      drawSolidBadge(stopText, centerX, yStop, stopBadgeColor, "#ffffff", fSize + 1);
+
+      // Draw Two Line Middle Badge on Entry line (yEntry)
+      const middleBg = isLight ? "rgba(13, 148, 136, 0.95)" : "rgba(13, 148, 136, 0.95)";
+      const middleBorder = isLight ? "rgba(13, 148, 136, 1.0)" : "rgba(20, 184, 166, 0.4)";
+      const middleTextClr = "#ffffff";
+      drawTwoLineBadge(middleLine1, middleLine2, centerX, yEntry, middleBg, middleBorder, middleTextClr, fSize + 1.5);
+
       ctx.restore();
     } 
     else if (d.type === "channel") {
@@ -488,7 +731,7 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
       const x2 = d.endX;
 
       // Bounding dash box
-      if (d.type !== "horizontal" && d.type !== "channel") {
+      if (d.type !== "horizontal" && d.type !== "channel" && d.type !== "long" && d.type !== "short") {
         ctx.save();
         ctx.strokeStyle = isLight ? "#2563eb" : "#3b82f6";
         ctx.lineWidth = 1.2;
@@ -514,6 +757,17 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
           { x: x2, y: y2 },
           { x: x2, y: y2_offset },
           { x: x1, y: y1_offset },
+        ];
+      } else if (d.type === "long" || d.type === "short") {
+        const yEntry = priceToY(d.startPrice);
+        const yTarget = priceToY(d.endPrice);
+        const yStop = priceToY(d.stopPrice !== undefined ? d.stopPrice : (d.type === "long" ? (d.startPrice - (d.endPrice - d.startPrice)) : (d.startPrice + (d.startPrice - d.endPrice))));
+        
+        handles = [
+          { x: x1, y: yEntry },
+          { x: x2, y: yEntry },
+          { x: (x1 + x2) / 2, y: yTarget },
+          { x: (x1 + x2) / 2, y: yStop },
         ];
       }
 

@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator, OrderBook } from "../types";
-import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight, TrendingUp, SlidersHorizontal, Lock } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight, TrendingUp, TrendingDown, SlidersHorizontal, Lock, Equal } from "lucide-react";
 import { storage } from "../lib/storage";
 import { AutoIcon, JapaneseIcon, FootprintIcon, ClustersIcon, BarsIcon } from "./icons";
 import { volumeOnChartIndicator, deltaIndicator, cvdIndicator, clusterSearchIndicator } from "../indicators";
@@ -138,6 +138,40 @@ export default function ClusterChart({
 
   // Selected drawing that has styling settings panel open (via double-click)
   const [volumeSettingsDrawingId, setVolumeSettingsDrawingId] = useState<number | null>(null);
+  const [positionSettingsDrawingId, setPositionSettingsDrawingId] = useState<number | null>(null);
+
+  // Position dynamic risk global settings
+  const [positionGlobalSettings, setPositionGlobalSettings] = useState(() => {
+    return storage.getJson<any>("procluster_position_settings", {
+      deposit: 10000,
+      risk: 1,
+      riskType: "percent",
+      colorTarget: "rgba(16, 185, 129, 0.22)",
+      colorStop: "rgba(239, 68, 68, 0.22)",
+      opacity: 0.22,
+      fontSize: 10,
+      makerFee: 0.02,
+      takerFee: 0.05,
+      entryFeeType: "maker",
+      exitFeeType: "taker"
+    });
+  });
+
+  const updatePositionSettings = (newSettings: Partial<typeof positionGlobalSettings>) => {
+    const updated = { ...positionGlobalSettings, ...newSettings };
+    setPositionGlobalSettings(updated);
+    storage.setJson("procluster_position_settings", updated);
+
+    if (positionSettingsDrawingId !== null) {
+      setDrawings(prev => prev.map(d =>
+        d.id === positionSettingsDrawingId ? { ...d, ...newSettings } : d
+      ));
+    } else {
+      setDrawings(prev => prev.map(d =>
+        (d.type === "long" || d.type === "short") ? { ...d, ...newSettings } : d
+      ));
+    }
+  };
 
   // Volume Profile global / default settings
   const [volProfileGlobalSettings, setVolProfileGlobalSettings] = useState(() => {
@@ -196,11 +230,15 @@ export default function ClusterChart({
 
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const workspaceDropdownRef = useRef<HTMLDivElement>(null);
+  const chartSettingsDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (workspaceDropdownRef.current && !workspaceDropdownRef.current.contains(event.target as Node)) {
         setShowWorkspaceMenu(false);
+      }
+      if (chartSettingsDropdownRef.current && !chartSettingsDropdownRef.current.contains(event.target as Node)) {
+        setIsChartSettingsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -765,7 +803,7 @@ export default function ClusterChart({
       if (areDrawingsVisible) {
         for (let i = drawings.length - 1; i >= 0; i--) {
           const d = drawings[i];
-          if (d.type !== "volume") continue; // We only care about double clicks on volume profiles
+          if (d.type !== "volume" && d.type !== "long" && d.type !== "short") continue;
           const y1 = priceToY(d.startPrice);
           const y2 = priceToY(d.endPrice);
           const x1 = d.startX - visibleScrollLeft;
@@ -773,11 +811,22 @@ export default function ClusterChart({
           
           const minX = Math.min(x1, x2);
           const maxX = Math.max(x1, x2);
-          const minY = Math.min(y1, y2);
-          const maxY = Math.max(y1, y2);
+          let minY = Math.min(y1, y2);
+          let maxY = Math.max(y1, y2);
+          
+          if (d.type === "long" || d.type === "short") {
+            const yStop = priceToY(d.stopPrice !== undefined ? d.stopPrice : (d.type === "long" ? (d.startPrice - (d.endPrice - d.startPrice)) : (d.startPrice + (d.startPrice - d.endPrice))));
+            minY = Math.min(y1, y2, yStop);
+            maxY = Math.max(y1, y2, yStop);
+          }
+          
           if (clickX >= minX && clickX <= maxX && clickY >= minY && clickY <= maxY) {
             setSelectedDrawingId(d.id);
-            setVolumeSettingsDrawingId(d.id);
+            if (d.type === "volume") {
+              setVolumeSettingsDrawingId(d.id);
+            } else {
+              setPositionSettingsDrawingId(d.id);
+            }
             e.preventDefault();
             e.stopPropagation();
             break;
@@ -844,6 +893,7 @@ export default function ClusterChart({
             // Start a dragging drawing
             const isChannel = activeDrawingTool === "channel";
             const isVolume = activeDrawingTool === "volume";
+            const isPosition = activeDrawingTool === "long" || activeDrawingTool === "short";
             setDrawingInProgress({
               id: Date.now(),
               type: activeDrawingTool,
@@ -854,7 +904,8 @@ export default function ClusterChart({
               stage: isChannel ? 1 : undefined,
               offsetPrice: isChannel ? 0 : undefined,
               text: "",
-              ...(isVolume ? volProfileGlobalSettings : {})
+              ...(isVolume ? volProfileGlobalSettings : {}),
+              ...(isPosition ? positionGlobalSettings : {})
             });
           }
           return; // Skip normal panning
@@ -898,6 +949,16 @@ export default function ClusterChart({
                 { x: x2, y: y2_offset, idx: 3 },
                 { x: x1, y: y1_offset, idx: 4 }
               ];
+            } else if (d.type === "long" || d.type === "short") {
+              const yEntry = priceToY(d.startPrice);
+              const yTarget = priceToY(d.endPrice);
+              const yStop = priceToY(d.stopPrice !== undefined ? d.stopPrice : (d.type === "long" ? (d.startPrice - (d.endPrice - d.startPrice)) : (d.startPrice + (d.startPrice - d.endPrice))));
+              handles = [
+                { x: x1, y: yEntry, idx: 1 },
+                { x: x2, y: yEntry, idx: 2 },
+                { x: (x1 + x2) / 2, y: yTarget, idx: 3 },
+                { x: (x1 + x2) / 2, y: yStop, idx: 4 }
+              ];
             }
             
             const clickedHandle = handles.find(h => {
@@ -922,11 +983,16 @@ export default function ClusterChart({
             const x1 = d.startX - visibleScrollLeft;
             const x2 = d.endX - visibleScrollLeft;
             
-            if (d.type === "volume" || d.type === "rect" || d.type === "ruler") {
+            if (d.type === "volume" || d.type === "rect" || d.type === "ruler" || d.type === "long" || d.type === "short") {
               const minX = Math.min(x1, x2);
               const maxX = Math.max(x1, x2);
-              const minY = Math.min(y1, y2);
-              const maxY = Math.max(y1, y2);
+              let minY = Math.min(y1, y2);
+              let maxY = Math.max(y1, y2);
+              if (d.type === "long" || d.type === "short") {
+                const yStop = priceToY(d.stopPrice !== undefined ? d.stopPrice : (d.type === "long" ? (d.startPrice - (d.endPrice - d.startPrice)) : (d.startPrice + (d.startPrice - d.endPrice))));
+                minY = Math.min(y1, y2, yStop);
+                maxY = Math.max(y1, y2, yStop);
+              }
               if (clickX >= minX && clickX <= maxX && clickY >= minY && clickY <= maxY) {
                 foundDrawingId = d.id;
                 break;
@@ -1007,6 +1073,7 @@ export default function ClusterChart({
               initialStartPrice: d.startPrice,
               initialEndX: d.endX,
               initialEndPrice: d.endPrice,
+              initialStopPrice: d.stopPrice,
             });
             return; // Skip normal panning
           }
@@ -1063,6 +1130,28 @@ export default function ClusterChart({
             offsetPrice
           };
         }
+        if (prev.type === "long") {
+          const diff = Math.abs(price - prev.startPrice);
+          const targetPrice = price > prev.startPrice ? price : prev.startPrice + diff;
+          const stopPrice = prev.startPrice - (targetPrice - prev.startPrice);
+          return {
+            ...prev,
+            endX: scrollRelativeX,
+            endPrice: targetPrice,
+            stopPrice: stopPrice
+          };
+        }
+        if (prev.type === "short") {
+          const diff = Math.abs(price - prev.startPrice);
+          const targetPrice = price < prev.startPrice ? price : prev.startPrice - diff;
+          const stopPrice = prev.startPrice + (prev.startPrice - targetPrice);
+          return {
+            ...prev,
+            endX: scrollRelativeX,
+            endPrice: targetPrice,
+            stopPrice: stopPrice
+          };
+        }
         return {
           ...prev,
           endX: scrollRelativeX,
@@ -1092,6 +1181,7 @@ export default function ClusterChart({
               endX: drawingDragState.initialEndX + deltaX,
               startPrice: drawingDragState.initialStartPrice + deltaPrice,
               endPrice: drawingDragState.initialEndPrice + deltaPrice,
+              stopPrice: drawingDragState.initialStopPrice !== undefined ? drawingDragState.initialStopPrice + deltaPrice : undefined
             };
           } else {
             const deltaX = mouseX - drawingDragState.initialX;
@@ -1101,6 +1191,7 @@ export default function ClusterChart({
             let nextEndX = d.endX;
             let nextEndPrice = d.endPrice;
             let nextOffsetPrice = d.offsetPrice;
+            let nextStopPrice = d.stopPrice;
             
             if (d.type === "channel") {
               if (drawingDragState.handleIndex === 1) {
@@ -1113,6 +1204,18 @@ export default function ClusterChart({
                 nextOffsetPrice = currentPrice - d.endPrice;
               } else if (drawingDragState.handleIndex === 4) {
                 nextOffsetPrice = currentPrice - d.startPrice;
+              }
+            } else if (d.type === "long" || d.type === "short") {
+              if (drawingDragState.handleIndex === 1) {
+                nextStartX = drawingDragState.initialStartX + deltaX;
+                nextStartPrice = currentPrice;
+              } else if (drawingDragState.handleIndex === 2) {
+                nextEndX = drawingDragState.initialEndX + deltaX;
+                nextStartPrice = currentPrice;
+              } else if (drawingDragState.handleIndex === 3) {
+                nextEndPrice = currentPrice;
+              } else if (drawingDragState.handleIndex === 4) {
+                nextStopPrice = currentPrice;
               }
             } else {
               if (drawingDragState.handleIndex === 1) {
@@ -1136,7 +1239,8 @@ export default function ClusterChart({
               startPrice: nextStartPrice,
               endX: nextEndX,
               endPrice: nextEndPrice,
-              offsetPrice: nextOffsetPrice
+              offsetPrice: nextOffsetPrice,
+              stopPrice: nextStopPrice
             };
           }
         }
@@ -2071,6 +2175,7 @@ export default function ClusterChart({
       candleWidth,
       candleSpacing,
       layer: "background",
+      language,
     });
 
     const startIdx = Math.max(0, Math.floor((visibleScrollLeft - margin.left - candleWidth) / (candleWidth + candleSpacing)));
@@ -2990,6 +3095,7 @@ export default function ClusterChart({
       candleWidth,
       candleSpacing,
       layer: "foreground",
+      language,
     });
 
     ctx.restore(); // Undoes translation of -visibleScrollLeft for viewport-wide elements
@@ -3092,7 +3198,7 @@ export default function ClusterChart({
 
     // 5.5 Draw the solid timeline footer strip and time axis labels on top of everything else (to hide overlapping candles/wicks)
     ctx.save();
-    ctx.fillStyle = isLight ? "rgba(241, 245, 249, 0.65)" : "#090b12";
+    ctx.fillStyle = isLight ? "rgba(241, 245, 249, 0.95)" : "#090b12";
     // We fill the entire bottom margin (timeline section) as a solid background to cover any overflowed elements from candles
     ctx.fillRect(0, totalSvgHeight - margin.bottom, viewportWidth, margin.bottom);
     
@@ -3243,11 +3349,11 @@ export default function ClusterChart({
 
   return (
     <div className={`rounded-2xl overflow-hidden flex flex-col flex-1 shadow-2xl relative transition-all duration-300 ${
-      isLight ? "bg-white border border-slate-200/50" : "liquid-glass-card"
+      isLight ? "bg-white border border-slate-300" : "liquid-glass-card"
     }`}>
       {/* Chart Tools Header */}
       <div className={`px-2.5 sm:px-5 py-1 sm:py-1.5 flex items-center justify-between z-20 backdrop-blur-lg border-b transition-all duration-300 ${
-        isLight ? "bg-white/35 border-slate-200/50" : "bg-slate-950/80 border-white/5"
+        isLight ? "bg-slate-200 border-slate-300" : "bg-slate-950/80 border-white/5"
       }`}>
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 flex-1">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-md shadow-emerald-500/30 shrink-0" />
@@ -3274,45 +3380,18 @@ export default function ClusterChart({
               {marketType}
             </button>
           </h3>
-
-          {/* Display active indicators on chart header */}
-          <div className="hidden md:flex items-center gap-1 ml-1 sm:ml-2 max-w-[120px] sm:max-w-[200px] md:max-w-[320px] lg:max-w-none overflow-x-auto whitespace-nowrap scrollbar-none py-0.5 shrink">
-            {indicators && indicators.filter(ind => ind.isActive && !["clusterSearch", "volumeOnChart", "stackedImbalance"].includes(ind.id)).map(ind => {
-              const isVisible = ind.isVisible !== false;
-              return (
-                <span 
-                  key={ind.id}
-                  className={`inline-flex items-center gap-1 px-1 py-0.5 rounded text-[8.5px] font-mono font-bold tracking-wider border shadow-sm transition-opacity duration-200 shrink-0 whitespace-nowrap ${
-                    !isVisible ? "opacity-40" : ""
-                  } ${
-                    isLight 
-                      ? "bg-slate-100 border-slate-250 text-slate-600" 
-                      : "bg-white/5 border-white/5 text-slate-300"
-                  }`}
-                  title={`${ind.label} (${ind.type}) - ${isVisible ? "Видимый" : "Скрытый"}`}
-                >
-                  {isVisible ? (
-                    <Layers className="w-2 h-2 text-blue-450 shrink-0" />
-                  ) : (
-                    <EyeOff className="w-2 h-2 text-rose-500 shrink-0" />
-                  )}
-                  <span className={`whitespace-nowrap ${!isVisible ? "line-through" : ""}`}>{ind.label.replace("(PROCLUSTER) ", "")}</span>
-                </span>
-              );
-            })}
-          </div>
         </div>
 
         {/* Toolbar Controls */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Zoom Buttons */}
           <div className={`flex rounded-lg sm:rounded-xl p-[2px] sm:p-[3px] border backdrop-blur-sm shadow-inner gap-0.5 transition-all duration-300 ${
-            isLight ? "bg-slate-100 border-slate-200" : "bg-slate-950/60 border-white/5"
+            isLight ? "bg-white border-slate-300 shadow-xs" : "bg-slate-950/60 border-white/5"
           }`} title="Horizontal Scale">
             <button
               onClick={() => handleZoom(15)}
               className={`p-1 rounded-md sm:rounded-lg transition-all duration-150 cursor-pointer ${
-                isLight ? "hover:bg-slate-200 text-slate-650 hover:text-slate-900" : "hover:bg-white/5 text-slate-400 hover:text-yellow-450"
+                isLight ? "hover:bg-slate-100 text-slate-700 hover:text-slate-950" : "hover:bg-white/5 text-slate-400 hover:text-yellow-450"
               }`}
               title="Zoom In (Expand Clusters)"
             >
@@ -3321,7 +3400,7 @@ export default function ClusterChart({
             <button
               onClick={() => handleZoom(-15)}
               className={`p-1 rounded-md sm:rounded-lg transition-all duration-150 cursor-pointer ${
-                isLight ? "hover:bg-slate-200 text-slate-650 hover:text-slate-900" : "hover:bg-white/5 text-slate-400 hover:text-yellow-450"
+                isLight ? "hover:bg-slate-100 text-slate-700 hover:text-slate-950" : "hover:bg-white/5 text-slate-400 hover:text-yellow-450"
               }`}
               title="Zoom Out"
             >
@@ -3331,12 +3410,12 @@ export default function ClusterChart({
 
           {/* Vertical Price Scale Buttons */}
           <div className={`flex rounded-lg sm:rounded-xl p-[2px] sm:p-[3px] border backdrop-blur-sm shadow-inner gap-0.5 transition-all duration-300 ${
-            isLight ? "bg-slate-100 border-slate-200" : "bg-slate-950/60 border-white/5"
+            isLight ? "bg-white border-slate-300 shadow-xs" : "bg-slate-950/60 border-white/5"
           }`} title="Vertical Price Scale">
             <button
               onClick={() => handleVerticalZoom(0.15)}
               className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold rounded-md sm:rounded-lg transition-all duration-150 cursor-pointer ${
-                isLight ? "hover:bg-slate-200 text-slate-600 hover:text-slate-900" : "hover:bg-white/5 text-slate-400 hover:text-cyan-405"
+                isLight ? "hover:bg-slate-100 text-slate-650 hover:text-slate-950" : "hover:bg-white/5 text-slate-400 hover:text-cyan-405"
               }`}
               title="Stretch Vertically (Narrow visible range)"
             >
@@ -3345,7 +3424,7 @@ export default function ClusterChart({
             <button
               onClick={() => handleVerticalZoom(-0.15)}
               className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold rounded-md sm:rounded-lg transition-all duration-150 cursor-pointer ${
-                isLight ? "hover:bg-slate-200 text-slate-600 hover:text-slate-900" : "hover:bg-white/5 text-slate-400 hover:text-cyan-405"
+                isLight ? "hover:bg-slate-100 text-slate-650 hover:text-slate-950" : "hover:bg-white/5 text-slate-400 hover:text-cyan-405"
               }`}
               title="Compress Vertically (Widen visible range)"
             >
@@ -3354,7 +3433,7 @@ export default function ClusterChart({
             <button
               onClick={handleResetZoom}
               className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-bold rounded-md sm:rounded-lg transition-all duration-150 font-mono cursor-pointer ${
-                isLight ? "hover:bg-slate-200 text-slate-600 hover:text-yellow-600" : "hover:bg-white/5 text-slate-400 hover:text-yellow-450"
+                isLight ? "hover:bg-slate-100 text-slate-650 hover:text-yellow-600" : "hover:bg-white/5 text-slate-400 hover:text-yellow-450"
               }`}
               title="Reset Zoom & Offsets"
             >
@@ -3363,21 +3442,81 @@ export default function ClusterChart({
           </div>
 
           {/* Chart Settings Button */}
-          <button
-            onClick={() => setIsChartSettingsOpen(true)}
-            className={`p-1 rounded-md sm:rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-center border ${
-              isLight
-                ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600 hover:text-slate-900 shadow-sm"
-                : "bg-slate-950/60 hover:bg-white/5 border-white/5 text-slate-400 hover:text-yellow-450"
-            }`}
-            title={language === "RU" ? "Настройки графика" : language === "KZ" ? "График баптаулары" : "Chart Settings"}
-          >
-            <SlidersHorizontal className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-          </button>
+          <div className="relative font-sans shrink-0" ref={chartSettingsDropdownRef}>
+            <button
+              onClick={() => setIsChartSettingsOpen(!isChartSettingsOpen)}
+              className={`p-1 rounded-md sm:rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-center border ${
+                isLight
+                  ? isChartSettingsOpen
+                    ? "bg-slate-100 border-slate-350 text-slate-950 shadow-inner"
+                    : "bg-white hover:bg-slate-100 border-slate-300 text-slate-700 hover:text-slate-950 shadow-sm"
+                  : isChartSettingsOpen
+                    ? "bg-white/10 border-white/20 text-yellow-450"
+                    : "bg-slate-950/60 hover:bg-white/5 border-white/5 text-slate-400 hover:text-yellow-450"
+              }`}
+              title={language === "RU" ? "Настройки графика" : language === "KZ" ? "График баптаулары" : "Chart Settings"}
+            >
+              <SlidersHorizontal className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+            </button>
+
+            {isChartSettingsOpen && (
+              <div
+                className={`absolute right-0 mt-1.5 w-64 rounded-xl p-3 z-50 text-left select-none shadow-2xl border animate-fadeIn ${
+                  isLight
+                    ? "bg-white border-slate-300 text-slate-900 shadow-xl"
+                    : "bg-[#090d16]/98 border border-white/10 text-slate-100"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 pb-2 border-b border-slate-500/15 dark:border-white/10 mb-2.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="text-[10px] font-black uppercase font-mono tracking-wider">
+                    {language === "RU" ? "Настройки графика" : language === "KZ" ? "График баптаулары" : "Chart Settings"}
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className={`p-2.5 rounded-lg border flex flex-col gap-1.5 transition-all ${
+                    isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                  }`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className={`text-[10.5px] font-bold font-mono uppercase tracking-wider block leading-none ${
+                          isLight ? "text-slate-700" : "text-slate-300"
+                        }`}>
+                          {language === "RU" ? "Обводка свечей" : "Candle outlines"}
+                        </span>
+                        <span className="text-[9px] text-slate-400 mt-1 block leading-normal font-sans">
+                          {language === "RU" 
+                            ? "Границы тела и фитилей свечи в режиме кластеров и футпринта" 
+                            : "Borders and wicks of the candlestick in clusters and footprint modes."}
+                        </span>
+                      </div>
+
+                      <label className="relative inline-flex items-center cursor-pointer select-none shrink-0 mt-0.5">
+                        <input 
+                          type="checkbox"
+                          id="toggle-candle-outline-btn"
+                          checked={showCandleOutline}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            setShowCandleOutline(val);
+                            storage.set("chart_settings_show_candle_outline", String(val));
+                          }}
+                          className={`w-3.5 h-3.5 rounded cursor-pointer focus:ring-amber-500 ${
+                            isLight ? "bg-white border-slate-300 text-amber-500" : "bg-slate-900 border-white/15 text-amber-520"
+                          }`}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           
           {/* Timezone Select Control */}
           <div className={`border px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-mono font-bold flex items-center gap-1 sm:gap-1.5 shadow-inner transition-all duration-300 ${
-            isLight ? "bg-slate-100 border-slate-200/60 text-slate-600" : "bg-slate-950/60 border-white/5 text-slate-400"
+            isLight ? "bg-white border-slate-300 text-slate-700" : "bg-slate-950/60 border-white/5 text-slate-400"
           }`}>
             <Globe className={`w-3 sm:w-3.5 h-3 sm:h-3.5 shrink-0 hidden lg:inline ${isLight ? "text-slate-500" : "text-slate-400"}`} />
             <select
@@ -3556,13 +3695,15 @@ export default function ClusterChart({
             {[
               { id: "trend", icon: Slash, titleRU: "Трендовая линия", titleEN: "Trend Line" },
               { id: "arrow", icon: ArrowUpRight, titleRU: "Стрелка направления", titleEN: "Direction Arrow" },
-              { id: "channel", icon: TrendingUp, titleRU: "Параллельный канал", titleEN: "Parallel Channel" },
+              { id: "channel", icon: Equal, titleRU: "Параллельный канал", titleEN: "Parallel Channel" },
               { id: "horizontal", icon: Minus, titleRU: "Горизонтальный уровень", titleEN: "Horizontal Level" },
               { id: "rect", icon: Square, titleRU: "Прямоугольник", titleEN: "Rectangle" },
               { id: "fibonacci", icon: Grid3X3, titleRU: "Уровни Фибоначчи", titleEN: "Fibonacci Retracement" },
               { id: "ruler", icon: Ruler, titleRU: "Линейка диапазона", titleEN: "Range Ruler" },
               { id: "text", icon: Type, titleRU: "Текстовая заметка", titleEN: "Text Annotation" },
               { id: "volume", icon: BarChart3, titleRU: "Профиль объема диапазона", titleEN: "Range Volume Profile" },
+              { id: "long", icon: TrendingUp, titleRU: "Длинная позиция (Long)", titleEN: "Long Position" },
+              { id: "short", icon: TrendingDown, titleRU: "Короткая позиция (Short)", titleEN: "Short Position" },
             ].map((tool) => {
               const IconComp = tool.icon;
               const isActive = activeDrawingTool === tool.id;
@@ -3580,7 +3721,27 @@ export default function ClusterChart({
                   }`}
                   title={title}
                 >
-                  <IconComp className="w-4 h-4" />
+                  {tool.id === "long" ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                      <circle cx="4" cy="5" r="1.5" />
+                      <line x1="6" y1="5" x2="20" y2="5" />
+                      <text x="12" y="12" fontFamily="sans-serif" fontSize="7.5" fontWeight="bold" textAnchor="middle" fill="currentColor" stroke="none">L</text>
+                      <line x1="4" y1="17" x2="20" y2="17" />
+                      <circle cx="4" cy="21" r="1.5" />
+                      <line x1="6" y1="21" x2="20" y2="21" />
+                    </svg>
+                  ) : tool.id === "short" ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                      <circle cx="4" cy="5" r="1.5" />
+                      <line x1="6" y1="5" x2="20" y2="5" />
+                      <line x1="4" y1="10" x2="20" y2="10" />
+                      <text x="12" y="18" fontFamily="sans-serif" fontSize="7.5" fontWeight="bold" textAnchor="middle" fill="currentColor" stroke="none">S</text>
+                      <circle cx="4" cy="21" r="1.5" />
+                      <line x1="6" y1="21" x2="20" y2="21" />
+                    </svg>
+                  ) : (
+                    <IconComp className="w-4 h-4" />
+                  )}
                   
                   {/* Tooltip on Hover to the right */}
                   <div className={`absolute left-full ml-2 top-1.2 font-sans font-semibold text-[10px] px-2 py-1 rounded bg-slate-950 text-slate-100 border border-white/10 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl`}>
@@ -3684,8 +3845,7 @@ export default function ClusterChart({
               
               {/* Viewport Sticky Wrapper for Overlay Legends */}
               {(() => {
-                const overlayIndicatorIds = ["clusterSearch", "volumeOnChart", "stackedImbalance"];
-                const activeOverlayIndicators = indicators ? indicators.filter(ind => ind.isActive && overlayIndicatorIds.includes(ind.id)) : [];
+                const activeOverlayIndicators = indicators ? indicators.filter(ind => ind.isActive) : [];
 
                 if (activeOverlayIndicators.length === 0) return null;
 
@@ -4148,10 +4308,10 @@ export default function ClusterChart({
         <div 
           className="absolute z-30 flex items-center gap-2 px-3 py-1 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 select-none"
           style={{
-            top: `${deltaTopY + 6}px`,
-            right: "100px", // Pinned just to the left of the 90px price scale panel
-            backgroundColor: isLight ? "rgba(241, 245, 249, 0.9)" : "rgba(15, 23, 42, 0.75)",
-            borderColor: isLight ? "rgba(203, 213, 225, 0.8)" : "rgba(255, 255, 255, 0.08)",
+            top: `${deltaTopY + 4}px`,
+            right: isMobile ? "62px" : "94px", // Closer to the edge of the price scale panel (58px/90px)
+            backgroundColor: isLight ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)",
+            borderColor: isLight ? "rgba(255, 255, 255, 0.88)" : "rgba(255, 255, 255, 0.08)",
           }}
         >
           {/* Label / Dynamic value indicator */}
@@ -4209,10 +4369,10 @@ export default function ClusterChart({
         <div 
           className="absolute z-30 flex items-center gap-2 px-3 py-1 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 select-none"
           style={{
-            top: `${cvdTopY + 6}px`,
-            right: "100px",
-            backgroundColor: isLight ? "rgba(241, 245, 249, 0.9)" : "rgba(15, 23, 42, 0.75)",
-            borderColor: isLight ? "rgba(203, 213, 225, 0.8)" : "rgba(255, 255, 255, 0.08)",
+            top: `${cvdTopY + 4}px`,
+            right: isMobile ? "62px" : "94px", // Closer to the edge of the price scale panel (58px/90px)
+            backgroundColor: isLight ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)",
+            borderColor: isLight ? "rgba(255, 255, 255, 0.88)" : "rgba(255, 255, 255, 0.08)",
           }}
         >
           {/* Label / Dynamic value indicator */}
@@ -4523,87 +4683,7 @@ export default function ClusterChart({
         </div>
       )}
 
-      {/* Chart Settings Modal */}
-      {isChartSettingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div 
-            className={`w-full max-w-sm rounded-2xl p-6 border shadow-2xl transition-all duration-300 ${
-              isLight 
-                ? "bg-white border-slate-250 text-slate-900" 
-                : "bg-[#0c101b] border-white/10 text-slate-100"
-            }`}
-          >
-            <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-5 select-none">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-amber-500" />
-                <h3 className="text-xs font-black uppercase font-mono tracking-wider">
-                  {language === "RU" ? "Настройки графика" : language === "KZ" ? "График баптаулары" : "Chart Settings"}
-                </h3>
-              </div>
-              <button 
-                onClick={() => setIsChartSettingsOpen(false)}
-                className={`p-1 rounded-full cursor-pointer transition-colors ${
-                  isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-slate-400"
-                }`}
-              >
-                ✕
-              </button>
-            </div>
 
-            {/* Settings Options */}
-            <div className="flex flex-col gap-4">
-              <div className={`p-4 rounded-xl border flex flex-col gap-2.5 transition-all ${
-                isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
-              }`}>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <span className={`text-[10.5px] font-bold font-mono uppercase tracking-wider block ${
-                      isLight ? "text-slate-700" : "text-slate-300"
-                    }`}>
-                      {language === "RU" ? "Обводка свечей" : "Candle outlines"}
-                    </span>
-                    <span className="text-[10px] text-slate-400 mt-1 block leading-normal">
-                      {language === "RU" 
-                        ? "Включение/выключение границ тела и фитилей свечи в режиме кластеров и футпринта" 
-                        : "Toggle borders and wicks of the candlestick in clusters and footprint modes."}
-                    </span>
-                  </div>
-
-                  <label className="relative inline-flex items-center cursor-pointer select-none">
-                    <input 
-                      type="checkbox"
-                      id="toggle-candle-outline-btn"
-                      checked={showCandleOutline}
-                      onChange={(e) => {
-                        const val = e.target.checked;
-                        setShowCandleOutline(val);
-                        storage.set("chart_settings_show_candle_outline", String(val));
-                      }}
-                      className={`w-4 h-4 rounded cursor-pointer focus:ring-amber-500 ${
-                        isLight ? "bg-white border-slate-300 text-amber-500" : "bg-slate-900 border-white/15 text-amber-550"
-                      }`}
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-2 mt-6 select-none">
-              <button
-                onClick={() => setIsChartSettingsOpen(false)}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer w-full leading-none flex items-center justify-center ${
-                  isLight 
-                    ? "bg-slate-100 hover:bg-slate-200 text-slate-705" 
-                    : "bg-white/5 hover:bg-white/10 text-slate-300"
-                }`}
-              >
-                {language === "RU" ? "Закрыть" : "Close"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Floating Volume Profile Settings Overlay */}
       {volumeSettingsDrawingId !== null && (() => {
@@ -4734,6 +4814,225 @@ export default function ClusterChart({
                   }}
                   className="w-5 h-5 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
                 />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+
+
+      {/* Floating Long/Short Position Settings Overlay */}
+      {positionSettingsDrawingId !== null && (() => {
+        const selDrawing = drawings.find((d) => d.id === positionSettingsDrawingId);
+        if (!selDrawing || (selDrawing.type !== "long" && selDrawing.type !== "short")) return null;
+
+        return (
+          <div 
+            className={`absolute top-[60px] left-[60px] z-50 p-4 rounded-2xl border flex flex-col gap-3 font-sans text-xs shadow-2xl w-72 backdrop-blur-md transition-all duration-300 ${
+              isLight 
+                ? "bg-white/95 border-slate-200/90 text-slate-800 shadow-slate-200/55" 
+                : "bg-slate-950/90 border-white/10 text-white shadow-black/80"
+            }`}
+          >
+            <div className="flex items-center justify-between border-b pb-2 border-slate-500/10">
+              <span className="font-extrabold text-[10.5px] uppercase tracking-wider font-mono">
+                {language === "RU" ? "Настройка позиции" : "Position Settings"}
+              </span>
+              <button 
+                onClick={() => setPositionSettingsDrawingId(null)}
+                className="p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Deposit size */}
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-[10px] uppercase opacity-75">{language === "RU" ? "Размер депозита ($)" : "Deposit Size ($)"}</span>
+              <input 
+                type="number"
+                value={selDrawing.deposit ?? positionGlobalSettings.deposit}
+                onChange={(e) => {
+                  updatePositionSettings({ deposit: parseFloat(e.target.value) || 0 });
+                }}
+                className={`px-2.5 py-1.5 text-xs rounded-lg border font-mono ${
+                  isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/10 text-white"
+                }`}
+              />
+            </div>
+
+            {/* Risk size & Type picker */}
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-[10px] uppercase opacity-75">{language === "RU" ? "Риск на сделку" : "Trade Risk"}</span>
+              <div className="flex gap-2">
+                <input 
+                  type="number"
+                  step="0.1"
+                  value={selDrawing.risk ?? positionGlobalSettings.risk}
+                  onChange={(e) => {
+                    updatePositionSettings({ risk: parseFloat(e.target.value) || 0 });
+                  }}
+                  className={`flex-1 px-2.5 py-1.5 text-xs rounded-lg border font-mono ${
+                    isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/10 text-white"
+                  }`}
+                />
+                <div className="flex rounded-lg overflow-hidden border border-slate-500/10">
+                  <button
+                    onClick={() => updatePositionSettings({ riskType: "percent" })}
+                    className={`px-3 py-1 bg-transparent font-bold cursor-pointer transition-colors ${
+                      (selDrawing.riskType ?? positionGlobalSettings.riskType) === "percent"
+                        ? "bg-amber-500/20 text-amber-500"
+                        : "hover:bg-white/5 opacity-60"
+                    }`}
+                  >
+                    %
+                  </button>
+                  <button
+                    onClick={() => updatePositionSettings({ riskType: "cash" })}
+                    className={`px-3 py-1 bg-transparent font-bold cursor-pointer transition-colors ${
+                      (selDrawing.riskType ?? positionGlobalSettings.riskType) === "cash"
+                        ? "bg-amber-500/20 text-amber-500"
+                        : "hover:bg-white/5 opacity-60"
+                    }`}
+                  >
+                    $
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Fees input */}
+            <div className="grid grid-cols-2 gap-2 border-t border-slate-500/10 pt-2.5">
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-[10px] uppercase opacity-75">{language === "RU" ? "Мейкер % (Лимит)" : "Maker % (Limit)"}</span>
+                <input 
+                  type="number"
+                  step="0.005"
+                  value={selDrawing.makerFee !== undefined ? selDrawing.makerFee : positionGlobalSettings.makerFee}
+                  onChange={(e) => {
+                    updatePositionSettings({ makerFee: parseFloat(e.target.value) || 0 });
+                  }}
+                  className={`px-2.5 py-1.5 text-xs rounded-lg border font-mono ${
+                    isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/10 text-white"
+                  }`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-[10px] uppercase opacity-75">{language === "RU" ? "Тейкер % (Рынок)" : "Taker % (Market)"}</span>
+                <input 
+                  type="number"
+                  step="0.005"
+                  value={selDrawing.takerFee !== undefined ? selDrawing.takerFee : positionGlobalSettings.takerFee}
+                  onChange={(e) => {
+                    updatePositionSettings({ takerFee: parseFloat(e.target.value) || 0 });
+                  }}
+                  className={`px-2.5 py-1.5 text-xs rounded-lg border font-mono ${
+                    isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/10 text-white"
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Execution Types */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] text-[#8a94a6]">{language === "RU" ? "Вход:" : "Entry:"}</span>
+                <select
+                  value={selDrawing.entryFeeType ?? positionGlobalSettings.entryFeeType}
+                  onChange={(e) => updatePositionSettings({ entryFeeType: e.target.value as any })}
+                  className={`px-1.5 py-1 rounded text-[10px] outline-none border ${
+                    isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/10 text-white"
+                  }`}
+                >
+                  <option value="maker">Limit (Maker)</option>
+                  <option value="taker">Market (Taker)</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] text-[#8a94a6]">{language === "RU" ? "Выход:" : "Exit:"}</span>
+                <select
+                  value={selDrawing.exitFeeType ?? positionGlobalSettings.exitFeeType}
+                  onChange={(e) => updatePositionSettings({ exitFeeType: e.target.value as any })}
+                  className={`px-1.5 py-1 rounded text-[10px] outline-none border ${
+                    isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-slate-900 border-white/10 text-white"
+                  }`}
+                >
+                  <option value="maker">Limit (Maker)</option>
+                  <option value="taker">Market (Taker)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Typography Text Size */}
+            <div className="flex flex-col gap-1 border-t border-slate-500/10 pt-2.5">
+              <div className="flex justify-between font-bold text-[10.5px]">
+                <span>{language === "RU" ? "Размер текста" : "Text Font Size"}</span>
+                <span className="font-mono text-amber-500">{selDrawing.fontSize ?? positionGlobalSettings.fontSize}px</span>
+              </div>
+              <input 
+                type="range"
+                min="8"
+                max="14"
+                step="1"
+                value={selDrawing.fontSize ?? positionGlobalSettings.fontSize}
+                onChange={(e) => {
+                  updatePositionSettings({ fontSize: parseInt(e.target.value) || 10 });
+                }}
+                className={`w-full accent-blue-600 rounded-lg h-1 ${isLight ? "bg-slate-200" : "bg-slate-800"}`}
+              />
+            </div>
+
+            {/* Opacity Slider */}
+            <div className="flex flex-col gap-1 border-t border-slate-500/10 pt-2.5">
+              <div className="flex justify-between font-bold text-[10.5px]">
+                <span>{language === "RU" ? "Прозрачность зон" : "Zones Opacity"}</span>
+                <span className="font-mono text-amber-500">
+                  {Math.round((selDrawing.opacity !== undefined ? selDrawing.opacity : positionGlobalSettings.opacity) * 100)}%
+                </span>
+              </div>
+              <input 
+                type="range"
+                min="0.05"
+                max="0.8"
+                step="0.05"
+                value={selDrawing.opacity !== undefined ? selDrawing.opacity : positionGlobalSettings.opacity}
+                onChange={(e) => {
+                  updatePositionSettings({ opacity: parseFloat(e.target.value) });
+                }}
+                className={`w-full accent-blue-600 rounded-lg h-1 ${isLight ? "bg-slate-200" : "bg-slate-800"}`}
+              />
+            </div>
+
+            {/* Zone Colors Row */}
+            <div className="grid grid-cols-2 gap-2 border-t border-slate-500/10 pt-2.5 pb-1">
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-[9px] uppercase opacity-75">{language === "RU" ? "Цвет цели" : "Target Color"}</span>
+                <div className="flex items-center gap-1.5">
+                  <input 
+                    type="color"
+                    value={selDrawing.colorTarget || positionGlobalSettings.colorTarget || "#10b981"}
+                    onChange={(e) => {
+                      updatePositionSettings({ colorTarget: e.target.value });
+                    }}
+                    className="w-6 h-6 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
+                  />
+                  <span className="text-[10px] text-zinc-500">Pick</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-[9px] uppercase opacity-75">{language === "RU" ? "Цвет стопа" : "Stop Color"}</span>
+                <div className="flex items-center gap-1.5">
+                  <input 
+                    type="color"
+                    value={selDrawing.colorStop || positionGlobalSettings.colorStop || "#ef4444"}
+                    onChange={(e) => {
+                      updatePositionSettings({ colorStop: e.target.value });
+                    }}
+                    className="w-6 h-6 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
+                  />
+                  <span className="text-[10px] text-zinc-500">Pick</span>
+                </div>
               </div>
             </div>
           </div>

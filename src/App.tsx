@@ -550,33 +550,102 @@ export default function App() {
       isActive: m.isActiveDefault ?? false,
       settings: m.defaultSettings
     }));
-
-    const parsed = storage.getJson<any[]>("procluster_indicators", null);
-    if (parsed && Array.isArray(parsed)) {
-      try {
-        return defaultList.map(defl => {
-          const matched = parsed.find(item => item && item.id === defl.id);
-          if (matched) {
-            return {
-              ...defl,
-              isActive: matched.isActive,
-              isFavorite: matched.isFavorite !== undefined ? matched.isFavorite : defl.isFavorite,
-              settings: matched.settings ? { ...defl.settings, ...matched.settings } : defl.settings
-            };
-          }
-          return defl;
-        });
-      } catch (err) {
-        console.error("Error loading indicators:", err);
-      }
-    }
     return defaultList;
   });
 
-  // Auto-save indicators to localStorage on modification
+  const currentScopeKey = `${activePair.symbol}_${interval}_${marketType}`;
+  const currentScopeKeyRef = useRef(currentScopeKey);
+  const isLoadingScopeSettingsRef = useRef(false);
+  const loadedScopeKeyRef = useRef("");
+
   useEffect(() => {
+    currentScopeKeyRef.current = currentScopeKey;
+  }, [currentScopeKey]);
+
+  // Load settings when scopeKey changes (specific symbol + timeframe + futures options)
+  useEffect(() => {
+    const scopeKey = currentScopeKey;
+    isLoadingScopeSettingsRef.current = true;
+
+    fetch(`/api/indicator/scoped-settings?scopeKey=${encodeURIComponent(scopeKey)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && data.indicators) {
+          // Verify that we match the current indicators structure
+          const defaultList: Indicator[] = MODULAR_INDICATORS.map(m => ({
+            id: m.id,
+            label: m.label,
+            category: m.category,
+            type: m.type,
+            isFavorite: true,
+            isActive: m.isActiveDefault ?? false,
+            settings: m.defaultSettings
+          }));
+
+          const merged = defaultList.map(defl => {
+            const matched = data.indicators.find((item: any) => item && item.id === defl.id);
+            if (matched) {
+              return {
+                ...defl,
+                isActive: matched.isActive,
+                isFavorite: matched.isFavorite !== undefined ? matched.isFavorite : defl.isFavorite,
+                settings: matched.settings ? { ...defl.settings, ...matched.settings } : defl.settings
+              };
+            }
+            return defl;
+          });
+
+          setIndicators(merged);
+        } else {
+          // Falls back to standard list
+          const defaultList: Indicator[] = MODULAR_INDICATORS.map(m => ({
+            id: m.id,
+            label: m.label,
+            category: m.category,
+            type: m.type,
+            isFavorite: true,
+            isActive: m.isActiveDefault ?? false,
+            settings: m.defaultSettings
+          }));
+          setIndicators(defaultList);
+        }
+
+        loadedScopeKeyRef.current = scopeKey;
+        setTimeout(() => {
+          if (currentScopeKeyRef.current === scopeKey) {
+            isLoadingScopeSettingsRef.current = false;
+          }
+        }, 100);
+      })
+      .catch(err => {
+        console.error("Failed to load indicators for symbol & timeframe:", err);
+        loadedScopeKeyRef.current = scopeKey;
+        isLoadingScopeSettingsRef.current = false;
+      });
+  }, [currentScopeKey]);
+
+  // Auto-save indicators to backend and fallback to localStorage on modification
+  useEffect(() => {
+    // Prevent overriding newly loaded scope configurations with previous ones
+    if (isLoadingScopeSettingsRef.current || loadedScopeKeyRef.current !== currentScopeKey) {
+      return;
+    }
+
     storage.setJson("procluster_indicators", indicators);
-  }, [indicators]);
+
+    fetch("/api/indicator/scoped-settings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        scopeKey: currentScopeKey,
+        indicators
+      })
+    }).catch(err => {
+      console.error("Failed to sync indicator settings to backend:", err);
+    });
+  }, [indicators, currentScopeKey]);
 
   const [isIndicatorsModalOpen, setIsIndicatorsModalOpen] = useState<boolean>(false);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState<boolean>(false);
@@ -1682,7 +1751,7 @@ export default function App() {
 
   return (
     <div className={`h-screen max-h-screen flex flex-col font-sans select-none antialiased relative overflow-hidden transition-all duration-300 ${
-      theme === "light" ? "light bg-[#e2e8f0] text-slate-900" : "bg-[#030712]/92 text-slate-100"
+      theme === "light" ? "light bg-[#cbd5e1] text-slate-900" : "bg-[#030712]/92 text-slate-100"
     }`}>
       {/* Dynamic Drifting Liquid Background Blobs (Lava-lamp style glass ambient glow) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -2006,10 +2075,10 @@ export default function App() {
           </AnimatePresence>
 
           {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
-          <section className={`hidden lg:flex backdrop-blur-md border-b px-2 py-2 sm:px-4 flex-wrap lg:flex-nowrap items-end select-none overflow-visible relative z-30 transition-shadow duration-300 gap-2 sm:gap-3 lg:gap-x-5 ${
+          <section className={`hidden lg:flex backdrop-blur-md px-2 py-2 sm:px-4 flex-wrap lg:flex-nowrap items-end select-none overflow-visible relative z-30 transition-all duration-300 gap-2 sm:gap-3 lg:gap-x-5 ${
             theme === "light"
-              ? "bg-white/95 border-slate-300 shadow-md"
-              : "bg-slate-950/40 border-slate-900/60 shadow-md"
+              ? "bg-slate-200/90 border-b border-slate-300 shadow-sm"
+              : "bg-slate-950/40 border-b border-slate-900/60 shadow-md"
           }`}>
 
             {/* 1. Ticker Dropdown Select */}

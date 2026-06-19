@@ -186,11 +186,11 @@ export default function Header({
 
   return (
     <header className={`border-b px-2 py-2 sm:px-6 sm:py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-1.5 lg:gap-4 z-50 sticky top-0 transition-all duration-300 relative ${
-      isLight ? "border-slate-200/50 shadow-sm" : "border-white/10 shadow-2xl"
+      isLight ? "border-slate-300 shadow-md shadow-slate-200/10" : "border-white/10 shadow-2xl"
     }`}>
       {/* Background layer decoupled to avoid nested backdrop-filter browser rendering conflicts */}
       <div className={`absolute inset-0 z-0 pointer-events-none rounded-none transition-all duration-300 ${
-        isLight ? "bg-white/55 backdrop-blur-3xl saturate-150" : "bg-slate-950/45 backdrop-blur-md"
+        isLight ? "bg-slate-100" : "bg-slate-950/45 backdrop-blur-md"
       }`} />
 
       {/* MOBILE FIRST ROW: Logo (left), Right controls: Theme, Profile, Admin | DESKTOP LEFT COLS */}
@@ -557,7 +557,7 @@ export default function Header({
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className={`flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-3 py-1 rounded-xl transition-all duration-200 cursor-pointer border shadow-inner hover:scale-[1.01] active:scale-[0.99] ${
                 isLight
-                  ? "border-slate-200 bg-slate-105 hover:bg-slate-205"
+                  ? "border-slate-300 bg-slate-200 hover:bg-slate-300"
                   : "border-white/5 bg-slate-950/40 hover:bg-slate-900/60"
               }`}
             >
@@ -699,7 +699,7 @@ export default function Header({
                       {headerUiTexts[language].language}
                     </span>
                     <div className={`grid grid-cols-3 gap-1.5 p-[3px] rounded-2xl border shadow-inner ${
-                      isLight ? "bg-slate-105 border-slate-200/50" : "bg-slate-950/60 border-white/5"
+                      isLight ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
                     }`}>
                       {["RU", "EN", "KZ"].map((lang) => {
                         const isSelected = language === lang;
@@ -744,7 +744,7 @@ export default function Header({
                       <div className={`grid ${
                         user && (user.name === "Admin" || user.email === "admin@procluster.io") ? "grid-cols-5" : "grid-cols-3"
                       } gap-1 p-[3px] rounded-2xl border shadow-inner ${
-                        isLight ? "bg-slate-105 border-slate-200/50" : "bg-slate-950/60 border-white/5"
+                        isLight ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
                       }`}>
                         {(user && (user.name === "Admin" || user.email === "admin@procluster.io") 
                           ? ["Guest", "Free", "Pro", "VIP", "Admin"] 

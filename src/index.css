@@ -357,55 +357,55 @@ html, body, #root {
 .light .liquid-glass-card {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.52) 0%,
-    rgba(255, 255, 255, 0.35) 45%,
-    rgba(255, 255, 255, 0.42) 100%
+    rgba(241, 245, 249, 0.95) 0%,
+    rgba(226, 232, 240, 0.9) 45%,
+    rgba(203, 213, 225, 0.85) 100%
   ) !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.8) !important;
-  border-top-color: rgba(255, 255, 255, 0.98) !important;
-  border-left-color: rgba(255, 255, 255, 0.92) !important;
+  border: 1.5px solid rgba(148, 163, 184, 0.4) !important;
+  border-top-color: rgba(255, 255, 255, 0.95) !important;
+  border-left-color: rgba(255, 255, 255, 0.75) !important;
   box-shadow: 
-    0 25px 55px -10px rgba(100, 116, 139, 0.12),
-    0 8px 18px rgba(100, 116, 139, 0.04),
-    0 0 32px 1px rgba(255, 255, 255, 0.18),
-    inset 0 2.5px 0px rgba(255, 255, 255, 0.98), /* Top glossy edge glare */
-    inset 2px 0px 0px rgba(255, 255, 255, 0.85), /* Left glossy edge glare */
-    inset 0 -16px 36px -12px rgba(255, 255, 255, 0.45), /* Milky frosted glass base reflection */
-    inset 0 16px 36px -12px rgba(255, 255, 255, 0.6) !important;
-  backdrop-filter: blur(55px) saturate(220%) !important;
-  -webkit-backdrop-filter: blur(55px) saturate(220%) !important;
+    0 35px 80px -15px rgba(15, 23, 42, 0.22),
+    0 12px 30px -5px rgba(15, 23, 42, 0.1),
+    0 0 25px 2px rgba(255, 255, 255, 0.15),
+    inset 0 1.8px 0px rgba(255, 255, 255, 0.95), /* Razor-thin glare */
+    inset 1px 0px 0px rgba(255, 255, 255, 0.8),
+    inset 0 -18px 36px -12px rgba(148, 163, 184, 0.25), /* Cool premium slate-base frosting */
+    inset 0 18px 36px -12px rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(40px) saturate(210%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(210%) !important;
 }
 
 .light .liquid-glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(148, 163, 184, 0.55) !important;
   border-top-color: rgba(255, 255, 255, 0.99) !important;
-  border-left-color: rgba(255, 255, 255, 0.96) !important;
+  border-left-color: rgba(255, 255, 255, 0.85) !important;
   box-shadow: 
-    0 32px 65px -8px rgba(100, 116, 139, 0.16),
-    0 12px 24px rgba(100, 116, 139, 0.06),
-    0 0 45px 3px rgba(255, 255, 255, 0.32),
-    inset 0 2.8px 0px rgba(255, 255, 255, 0.99),
-    inset 2.2px 0px 0px rgba(255, 255, 255, 0.92),
-    inset 0 -20px 40px -10px rgba(255, 255, 255, 0.55),
-    inset 0 20px 40px -10px rgba(255, 255, 255, 0.72) !important;
+    0 42px 90px -10px rgba(15, 23, 42, 0.25),
+    0 16px 36px rgba(15, 23, 42, 0.12),
+    0 0 35px 3px rgba(255, 255, 255, 0.25),
+    inset 0 2px 0px rgba(255, 255, 255, 0.99),
+    inset 1.2px 0px 0px rgba(255, 255, 255, 0.85),
+    inset 0 -22px 40px -10px rgba(148, 163, 184, 0.35),
+    inset 0 22px 40px -10px rgba(255, 255, 255, 0.55) !important;
 }
 
 .light .liquid-glass-active {
   background: linear-gradient(
     180deg,
-    rgba(251, 191, 36, 0.18) 0%,
-    rgba(251, 191, 36, 0.06) 30%,
-    rgba(255, 255, 255, 0.88) 100%
+    rgba(251, 191, 36, 0.22) 0%,
+    rgba(245, 158, 11, 0.12) 35%,
+    rgba(255, 255, 255, 0.95) 100%
   ) !important;
-  border: 1.5px solid rgba(245, 158, 11, 0.68) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.8) !important;
   border-top-color: rgba(255, 255, 255, 0.98) !important;
   border-left-color: rgba(255, 255, 255, 0.88) !important;
   box-shadow: 
-    0 12px 28px rgba(245, 158, 11, 0.16),
+    0 12px 28px rgba(245, 158, 11, 0.18),
     inset 0 1.5px 0px rgba(255, 255, 255, 0.98),
     inset 1px 0px 0px rgba(255, 255, 255, 0.88),
     inset 0 6px 14px rgba(255, 255, 255, 0.6),
-    inset 0 -6px 16px rgba(245, 158, 11, 0.06) !important;
+    inset 0 -6px 16px rgba(245, 158, 11, 0.08) !important;
   backdrop-filter: blur(32px) saturate(160%) !important;
   -webkit-backdrop-filter: blur(32px) saturate(160%) !important;
 }
@@ -413,20 +413,20 @@ html, body, #root {
 .light .liquid-glass-button {
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.92) 0%,
-    rgba(248, 250, 252, 0.8) 15%,
-    rgba(241, 245, 249, 0.65) 50%,
-    rgba(226, 232, 240, 0.55) 100%
+    rgba(248, 250, 252, 0.95) 0%,
+    rgba(226, 232, 240, 0.9) 15%,
+    rgba(203, 213, 225, 0.8) 50%,
+    rgba(148, 163, 184, 0.7) 100%
   ) !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.85) !important;
+  border: 1.5px solid rgba(148, 163, 184, 0.4) !important;
   border-top-color: rgba(255, 255, 255, 0.99) !important;
-  border-left-color: rgba(255, 255, 255, 0.92) !important;
+  border-left-color: rgba(255, 255, 255, 0.88) !important;
   box-shadow: 
-    0 5px 14px rgba(100, 116, 139, 0.05),
-    inset 0 1.8px 0px rgba(255, 255, 255, 0.98),
-    inset 1px 0px 0px rgba(255, 255, 255, 0.88),
-    inset 0 5px 10px rgba(255, 255, 255, 0.55),
-    inset 0 -5px 10px rgba(148, 163, 184, 0.08) !important;
+    0 5px 14px rgba(51, 65, 85, 0.08),
+    inset 0 1.5px 0px rgba(255, 255, 255, 0.98),
+    inset 0.8px 0px 0px rgba(255, 255, 255, 0.85),
+    inset 0 4px 10px rgba(255, 255, 255, 0.5),
+    inset 0 -5px 10px rgba(148, 163, 184, 0.15) !important;
   backdrop-filter: blur(24px) saturate(140%) !important;
   -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
   color: #1e293b !important;
@@ -577,17 +577,21 @@ html, body, #root {
 }
 
 .light .muddy-glass-popover {
-  background: rgba(255, 255, 255, 0.82) !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.95) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(241, 245, 249, 0.98) 0%,
+    rgba(203, 213, 225, 0.95) 100%
+  ) !important;
+  border: 1.5px solid rgba(148, 163, 184, 0.5) !important;
   border-top-color: rgba(255, 255, 255, 0.99) !important;
-  border-left-color: rgba(255, 255, 255, 0.96) !important;
+  border-left-color: rgba(255, 255, 255, 0.92) !important;
   box-shadow: 
-    0 24px 64px -16px rgba(15, 23, 42, 0.15),
-    0 4px 20px rgba(15, 23, 42, 0.06),
-    inset 0 2.5px 0px rgba(255, 255, 255, 0.98),
-    inset 1.5px 0px 0px rgba(255, 255, 255, 0.9) !important;
-  backdrop-filter: blur(45px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(45px) saturate(160%) !important;
+    0 35px 85px -10px rgba(15, 23, 42, 0.25),
+    0 10px 30px -5px rgba(15, 23, 42, 0.12),
+    inset 0 2px 0px rgba(255, 255, 255, 0.98),
+    inset 1px 0px 0px rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(35px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(35px) saturate(180%) !important;
 }
 
 /* Custom Scrollbars suited for modern terminals and themes */

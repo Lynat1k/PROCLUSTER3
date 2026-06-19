@@ -10,6 +10,7 @@ import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 import AdmZip from "adm-zip";
+import fs from "fs";
 
 dotenv.config();
 
@@ -154,6 +155,252 @@ Cumulative volume in the last 5 cycles is **${(totalVolume / 1000).toFixed(2)}M*
       res.json(getFallbackAnalysis());
     }
   });
+
+  // --- START INDICATOR PRESETS & SCOPED SEETING PERSISTENCE ENDPOINTS ---
+  const PRESETS_FILE = path.join(process.cwd(), "indicator_presets.json");
+  const SCOPED_SETTINGS_FILE = path.join(process.cwd(), "indicator_scoped_settings.json");
+
+  function readJsonFile<T>(filePath: string, defaultValue: T): T {
+    try {
+      if (fs.existsSync(filePath)) {
+        const data = fs.readFileSync(filePath, "utf-8");
+        return JSON.parse(data) as T;
+      }
+    } catch (err) {
+      console.error(`[PROCLUSTER Server] Error reading database file ${filePath}:`, err);
+    }
+    return defaultValue;
+  }
+
+  function writeJsonFile<T>(filePath: string, data: T): boolean {
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+      return true;
+    } catch (err) {
+      console.error(`[PROCLUSTER Server] Error writing database file ${filePath}:`, err);
+      return false;
+    }
+  }
+
+  // Endpoints for indicator presets (now indicator-specific!)
+  app.get("/api/indicator/presets", (req, res) => {
+    const indicatorId = req.query.indicatorId as string;
+    let presets = readJsonFile<any[]>(PRESETS_FILE, []);
+    
+    if (presets.length === 0) {
+      // Seed initial presets for different indicators
+      presets = [
+        {
+          id: "cs_default",
+          indicatorId: "clusterSearch",
+          name: "Стандартный поиск",
+          isDefault: true,
+          author: "Система",
+          settings: {
+            csMedEnabled: true,
+            csMedMinVolume: 100,
+            csMedMinSize: 8,
+            csMedMaxSize: 16,
+            csMedLocation: "any",
+            csMedShape: "circle",
+            csMedColorAsk: "#10b981",
+            csMedColorBid: "#ef4444",
+            csMedOpacity: 0.7,
+            csMedTgAlert: false,
+            csLargeEnabled: true,
+            csLargeMinVolume: 500,
+            csLargeMinSize: 10,
+            csLargeMaxSize: 22,
+            csLargeLocation: "any",
+            csLargeShape: "rhombus",
+            csLargeColorAsk: "#34d399",
+            csLargeColorBid: "#f43f5e",
+            csLargeOpacity: 0.9,
+            csLargeTgAlert: false,
+            csMedImbalancePercent: 60,
+            csLargeImbalancePercent: 60
+          }
+        },
+        {
+          id: "cs_whales",
+          indicatorId: "clusterSearch",
+          name: "Крупные киты (Whales)",
+          isDefault: false,
+          author: "Система",
+          settings: {
+            csMedEnabled: false,
+            csLargeEnabled: true,
+            csLargeMinVolume: 1200,
+            csLargeMinSize: 15,
+            csLargeMaxSize: 26,
+            csLargeLocation: "any",
+            csLargeShape: "star",
+            csLargeColorAsk: "#3b82f6",
+            csLargeColorBid: "#ec4899",
+            csLargeOpacity: 1.0,
+            csLargeTgAlert: true,
+            csLargeImbalancePercent: 75
+          }
+        },
+        {
+          id: "delta_candles",
+          indicatorId: "delta",
+          name: "Свечная дельта",
+          isDefault: true,
+          author: "Система",
+          settings: { sensitivity: 5, showLabels: true, deltaPlotType: "candles" }
+        },
+        {
+          id: "delta_bars",
+          indicatorId: "delta",
+          name: "Гистограммный вид",
+          isDefault: false,
+          author: "Система",
+          settings: { sensitivity: 5, showLabels: true, deltaPlotType: "bars" }
+        },
+        {
+          id: "cvd_line",
+          indicatorId: "cvd",
+          name: "Классическая линия",
+          isDefault: true,
+          author: "Система",
+          settings: { smoothing: 10, cvdLineColor: "#a855f7", cvdPeriod: "all", cvdPlotType: "line" }
+        },
+        {
+          id: "cvd_candles",
+          indicatorId: "cvd",
+          name: "Свечи CVD",
+          isDefault: false,
+          author: "Система",
+          settings: { smoothing: 5, cvdLineColor: "#3b82f6", cvdPeriod: "all", cvdPlotType: "candles" }
+        }
+      ];
+      writeJsonFile(PRESETS_FILE, presets);
+    }
+
+    if (indicatorId) {
+      const filtered = presets.filter(p => p.indicatorId === indicatorId);
+      return res.json({ presets: filtered });
+    }
+
+    res.json({ presets });
+  });
+
+  app.post("/api/indicator/presets", (req, res) => {
+    const { id, indicatorId, name, settings, isDefault, author } = req.body;
+    let presets = readJsonFile<any[]>(PRESETS_FILE, []);
+    
+    if (!name) {
+      return res.status(400).json({ error: "Preset name is required" });
+    }
+    if (!indicatorId) {
+      return res.status(400).json({ error: "indicatorId is required" });
+    }
+
+    const newPresetId = id || `preset_${Date.now()}`;
+    
+    // If setting a new preset as default, clear default status only for existing presets of THIS indicatorId
+    let updatedPresets = [...presets];
+    if (isDefault) {
+      updatedPresets = updatedPresets.map(p => 
+        p.indicatorId === indicatorId ? { ...p, isDefault: false } : p
+      );
+    }
+
+    const existingIndex = updatedPresets.findIndex(p => p.id === newPresetId);
+    const newPreset = {
+      id: newPresetId,
+      indicatorId,
+      name,
+      settings,
+      isDefault: !!isDefault,
+      author: author || "User"
+    };
+
+    if (existingIndex > -1) {
+      updatedPresets[existingIndex] = newPreset;
+    } else {
+      updatedPresets.push(newPreset);
+    }
+
+    // Default protection per indicatorId
+    const indicatorPresets = updatedPresets.filter(p => p.indicatorId === indicatorId);
+    if (indicatorPresets.length > 0 && !indicatorPresets.some(p => p.isDefault)) {
+      // Find the first preset for this indicator to make default
+      const firstId = indicatorPresets[0].id;
+      updatedPresets = updatedPresets.map(p => p.id === firstId ? { ...p, isDefault: true } : p);
+    }
+
+    writeJsonFile(PRESETS_FILE, updatedPresets);
+    
+    const finalFiltered = updatedPresets.filter(p => p.indicatorId === indicatorId);
+    res.json({ success: true, preset: newPreset, presets: finalFiltered });
+  });
+
+  app.delete("/api/indicator/presets/:id", (req, res) => {
+    const { id } = req.params;
+    const presets = readJsonFile<any[]>(PRESETS_FILE, []);
+    
+    const targetPreset = presets.find(p => p.id === id);
+    if (!targetPreset) {
+      return res.status(404).json({ error: "Preset not found" });
+    }
+
+    const indicatorId = targetPreset.indicatorId;
+    let updatedPresets = presets.filter(p => p.id !== id);
+    
+    const indicatorPresets = updatedPresets.filter(p => p.indicatorId === indicatorId);
+    if (indicatorPresets.length > 0 && !indicatorPresets.some(p => p.isDefault)) {
+      const firstId = indicatorPresets[0].id;
+      updatedPresets = updatedPresets.map(p => p.id === firstId ? { ...p, isDefault: true } : p);
+    }
+
+    writeJsonFile(PRESETS_FILE, updatedPresets);
+    
+    const finalFiltered = updatedPresets.filter(p => p.indicatorId === indicatorId);
+    res.json({ success: true, presets: finalFiltered });
+  });
+
+  // Endpoints for indicator scoped settings
+  app.get("/api/indicator/scoped-settings", (req, res) => {
+    const scopeKey = req.query.scopeKey as string;
+    if (!scopeKey) {
+      return res.status(400).json({ error: "scopeKey is required" });
+    }
+
+    const scopedSettings = readJsonFile<Record<string, any>>(SCOPED_SETTINGS_FILE, {});
+    const data = scopedSettings[scopeKey];
+    
+    if (data) {
+      return res.json({ success: true, indicators: data });
+    }
+    
+    // Look up system 'isDefault' preset if no custom scope set
+    const presets = readJsonFile<any[]>(PRESETS_FILE, []);
+    const defaultPreset = presets.find(p => p.isDefault);
+    if (defaultPreset) {
+      return res.json({ success: true, indicators: defaultPreset.indicators, source: "default_preset" });
+    }
+
+    res.json({ success: true, indicators: null });
+  });
+
+  app.post("/api/indicator/scoped-settings", (req, res) => {
+    const { scopeKey, indicators } = req.body;
+    if (!scopeKey) {
+      return res.status(400).json({ error: "scopeKey is required" });
+    }
+    if (!indicators || !Array.isArray(indicators)) {
+      return res.status(400).json({ error: "indicators array is required" });
+    }
+
+    const scopedSettings = readJsonFile<Record<string, any>>(SCOPED_SETTINGS_FILE, {});
+    scopedSettings[scopeKey] = indicators;
+    
+    writeJsonFile(SCOPED_SETTINGS_FILE, scopedSettings);
+    res.json({ success: true, scopeKey });
+  });
+  // --- END INDICATOR PRESETS & SCOPED SEETING PERSISTENCE ENDPOINTS ---
 
   app.get("/api/binance-klines", async (req, res) => {
     const symbol = (req.query.symbol || "BTCUSDT").toString().toUpperCase().replace("/", "");

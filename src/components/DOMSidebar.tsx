@@ -531,16 +531,16 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
   );
 
   return (
-    <div className={`rounded-2xl p-4 flex flex-col h-full shadow-2xl relative overflow-hidden text-xs transition-all duration-300 ${
+    <div className={`rounded-2xl p-4 flex flex-col h-full shadow-2xl relative overflow-hidden text-xs transition-all duration-300 liquid-glass-card ${
       isLight
-        ? "bg-white border border-slate-200 text-slate-800"
-        : "liquid-glass-card text-slate-100"
+        ? "text-slate-800"
+        : "text-slate-100"
     }`}>
       
       {/* CRYPTO FEAR & GREED INDEX WIDGET */}
       <div className={`rounded-xl p-2 mb-2 border transition-all duration-300 ${
         isLight 
-          ? "bg-white border-slate-200/90 shadow-sm text-slate-800" 
+          ? "bg-slate-100/50 border-slate-350 shadow-sm text-slate-800" 
           : "bg-[#0c101b] border-white/5 shadow-inner text-slate-100"
       }`}>
         {/* Header with Bitcoin logo */}
@@ -694,11 +694,11 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
 
       {/* 3. DEPTH OF MARKET (DOM) VERTICAL PRICE LADDER */}
       <div className={`flex-1 overflow-hidden flex flex-col rounded-xl border min-h-[140px] transition-all duration-300 ${
-        isLight ? "bg-slate-50 border-slate-200" : "bg-[#06080e]/90 border-white/5"
+        isLight ? "bg-slate-50/70 border-slate-350" : "bg-[#06080e]/90 border-white/5"
       }`}>
         {/* DOM Table Legend Header */}
         <div className={`grid grid-cols-[1fr_1.2fr] gap-3 border-b py-1.5 text-[8.5px] font-mono font-black uppercase tracking-widest shrink-0 transition-all duration-300 ${
-          isLight ? "bg-slate-100 border-slate-200 text-slate-600" : "bg-slate-950 border-white/5 text-slate-500"
+          isLight ? "bg-slate-100/80 border-slate-300 text-slate-600" : "bg-slate-950 border-white/5 text-slate-500"
         }`}>
           <div className="text-right pr-4">Size</div>
           <div className="text-left pl-3">Price ({activePair.symbol.split("/")[1] || "USDT"})</div>
@@ -778,7 +778,7 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark" }: DO
           }`}>
             <div 
               id="dot-matrix-price"
-              className={`font-matrix text-[30px] font-black tracking-widest leading-none text-center select-all ${
+              className={`font-matrix text-[21px] font-black tracking-widest leading-none text-center select-all ${
                 isLight ? "text-amber-900" : "text-amber-500"
               }`}
               style={{
