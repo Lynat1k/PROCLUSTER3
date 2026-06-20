@@ -402,6 +402,22 @@ Cumulative volume in the last 5 cycles is **${(totalVolume / 1000).toFixed(2)}M*
   });
   // --- END INDICATOR PRESETS & SCOPED SEETING PERSISTENCE ENDPOINTS ---
 
+  // --- START MAINTENANCE MODE ENDPOINTS ---
+  const MAINTENANCE_FILE = path.join(process.cwd(), "maintenance_config.json");
+
+  app.get("/api/maintenance/status", (req, res) => {
+    const config = readJsonFile<{ active: boolean }>(MAINTENANCE_FILE, { active: false });
+    res.json(config);
+  });
+
+  app.post("/api/maintenance/toggle", (req, res) => {
+    const { active } = req.body;
+    const config = { active: !!active };
+    writeJsonFile(MAINTENANCE_FILE, config);
+    res.json({ success: true, active: config.active });
+  });
+  // --- END MAINTENANCE MODE ENDPOINTS ---
+
   app.get("/api/binance-klines", async (req, res) => {
     const symbol = (req.query.symbol || "BTCUSDT").toString().toUpperCase().replace("/", "");
     const interval = (req.query.interval || "15m").toString();

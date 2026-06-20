@@ -31,6 +31,262 @@ import { getActiveGroupLimits as getActiveGroupLimitsFromTier } from "./lib/tier
 import { storage } from "./lib/storage";
 import { MODULAR_INDICATORS } from "./indicators";
 
+// --- Custom Maintenance View with Live Interactive Diagnostics ---
+function MaintenanceView({ language, onLanguageChange, onBecomeAdmin }: { language: "RU" | "EN" | "KZ"; onLanguageChange: (lang: "RU" | "EN" | "KZ") => void; onBecomeAdmin: () => void }) {
+  const [progress, setProgress] = useState(82.4);
+  const [logs, setLogs] = useState<string[]>([
+    "INITIALIZING COOPERATIVE RESTORATION PROTOCOL",
+    "ESTABLISHING CRYPTO GRAPHICAL SYNC WITH BACKUP FEED",
+    "CALIBRATING FOOTPRINT ACCELERATORS FOR COLD RESTART"
+  ]);
+
+  useEffect(() => {
+    const prgInterval = setInterval(() => {
+      setProgress(p => {
+        if (p >= 98.4) return 98.4;
+        return parseFloat((p + Math.random() * 0.18).toFixed(1));
+      });
+    }, 1200);
+
+    const logList = [
+      "DB CLUSTER OPTIMIZATION: NODE MIGRATION COMPLETE",
+      "REBUILDING SECURE CLUSTER CACHES FOR FOOTPRINTS",
+      "CALIBRATING TICK SIZES & ORDERBOOK SNAPSHOTS",
+      "INTEGRATING BACKEND LATENCY BUFFERS AND CHANNELS",
+      "SECURE AUDIT DETECTS ZERO COLD CORRUPTIONS",
+      "COORDINATING MIRRORED NODE MIGRATIONS",
+      "PROCLUSTER CORE SPEED INDEX IMPROVED BY 42%",
+      "KUBERNETES SECURE COMPUTE SCALE STABILIZED",
+      "CALIBRATING FOOTPRINT ACCELERATION SCHEMAS",
+      "TERMINATING STALE MEMCACHED STACKS"
+    ];
+
+    const logInterval = setInterval(() => {
+      setLogs(prev => {
+        const nextLog = logList[Math.floor(Math.random() * logList.length)];
+        return [...prev.slice(1), `[${new Date().toLocaleTimeString()}] ${nextLog}`];
+      });
+    }, 2850);
+
+    return () => {
+      clearInterval(prgInterval);
+      clearInterval(logInterval);
+    };
+  }, []);
+
+  return (
+    <div className="min-h-screen w-screen bg-[#030712] text-slate-100 font-sans select-none antialiased relative overflow-x-hidden flex flex-col justify-between">
+      {/* Immersive background glow effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 opacity-25">
+        <div className="absolute top-[10%] left-[5%] w-[450px] h-[450px] rounded-full bg-emerald-500/10 blur-[130px]" />
+        <div className="absolute bottom-[13%] right-[8%] w-[550px] h-[550px] rounded-full bg-cyan-500/10 blur-[150px]" />
+        <div className="absolute top-[40%] right-[30%] w-[350px] h-[350px] rounded-full bg-indigo-500/5 blur-[120px]" />
+      </div>
+
+      {/* Modern thin HUD Header */}
+      <header className="relative z-10 border-b border-white/5 bg-[#030712]/70 backdrop-blur-md px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="relative flex items-center justify-center">
+            <span className="absolute inline-flex h-3 w-3 rounded-full bg-emerald-500 opacity-75 animate-ping"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-sm font-black tracking-widest text-white">PROCLUSTER</span>
+            <span className="text-[10px] font-bold text-emerald-400 font-mono tracking-wider">CORE_RESTORE</span>
+          </div>
+        </div>
+
+        <div className="hidden md:flex items-center gap-6 text-[9.5px] font-mono text-slate-500">
+          <div className="flex items-center gap-1.5 border-r border-white/5 pr-4">
+            <span className="text-slate-400">NODE STATUS:</span>
+            <span className="text-emerald-400 font-bold">SYNCHRONIZING</span>
+          </div>
+          <div className="flex items-center gap-1.5 border-r border-white/5 pr-4">
+            <span className="text-slate-400">INDEX:</span>
+            <span className="text-teal-400 font-bold">{progress}%</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400">REF:</span>
+            <span className="text-emerald-400 font-bold">PRO_ENG_v4.2</span>
+          </div>
+        </div>
+
+        {/* Translation controls */}
+        <div className="flex items-center gap-1 text-[10px] bg-slate-900/60 p-1 rounded-lg border border-white/5">
+          {(["RU", "EN", "KZ"] as const).map((lang) => (
+            <button
+              key={lang}
+              type="button"
+              onClick={() => onLanguageChange(lang)}
+              className={`px-2.5 py-1 rounded font-bold tracking-wider transition-all duration-200 ${
+                language === lang ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {lang}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {/* Main Container / Cockpit layout */}
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 flex flex-col justify-center items-center gap-6">
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          
+          {/* LEFT: Cinematic Monitor Box (takes 7 cols on large screens) */}
+          <div className="lg:col-span-7 flex flex-col gap-3 w-full">
+            <div className="relative w-full rounded-2xl overflow-hidden border border-emerald-500/10 shadow-[0_0_50px_rgba(16,185,129,0.03)] bg-[#030712]">
+              {/* Reference image with flawless border dissolvers */}
+              <img
+                src="/src/assets/images/maintenance_works_1781960465329.jpg"
+                alt="Technical Works"
+                className="w-full object-cover aspect-[16/9] opacity-85 scale-[1.01]"
+                referrerPolicy="no-referrer"
+              />
+              
+              {/* Precision linear boundary blending overlays */}
+              <div className="absolute inset-y-0 left-0 w-[18%] bg-gradient-to-r from-[#030712] via-[#030712]/50 to-transparent pointer-events-none z-10" />
+              <div className="absolute inset-y-0 right-0 w-[18%] bg-gradient-to-l from-[#030712] via-[#030712]/50 to-transparent pointer-events-none z-10" />
+              <div className="absolute inset-x-0 top-0 h-[18%] bg-gradient-to-b from-[#030712] via-[#030712]/50 to-transparent pointer-events-none z-10" />
+              <div className="absolute inset-x-0 bottom-0 h-[22%] bg-gradient-to-t from-[#030712] via-[#030712]/60 to-transparent pointer-events-none z-10" />
+              
+              {/* Large radial vignetting layer for cinema-grade blending */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_25%,rgba(3,7,18,0.45)_65%,#030712_100%)] pointer-events-none z-10" />
+
+              {/* Glowing Corner Accents (Futuristic Viewfinder HUD style) */}
+              <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-emerald-500/30 pointer-events-none z-20" />
+              <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-emerald-500/30 pointer-events-none z-20" />
+              <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-emerald-500/30 pointer-events-none z-20" />
+              <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-emerald-500/30 pointer-events-none z-20" />
+
+              {/* Upper right live calibration pill */}
+              <div className="absolute top-4 right-4 bg-[#090d16]/80 backdrop-blur-md border border-emerald-500/15 text-[8px] font-mono text-emerald-400 uppercase tracking-widest px-2.5 py-1 rounded z-20 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                <span>SATELLITE_FEED_ON: 1080P</span>
+              </div>
+            </div>
+
+            {/* Diagnostic live ticker directly attached underneath the monitor */}
+            <div className="w-full bg-[#070b14]/70 border border-white/5 rounded-xl p-3 select-none font-mono text-[9px] text-emerald-400/80 leading-relaxed flex flex-col gap-1.5 backdrop-blur-sm">
+              <div className="text-[8px] font-bold text-slate-500 border-b border-white/5 pb-1 uppercase tracking-wider flex justify-between items-center">
+                <span>SYSTEM DIAGNOSTIC TELEMETRY LOGGER</span>
+                <span className="animate-pulse">STREAMING</span>
+              </div>
+              {logs.map((log, index) => (
+                <div key={index} className="truncate flex items-center gap-2">
+                  <span className="text-slate-600 font-bold">&gt;</span>
+                  <span>{log}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* RIGHT: Text content, dynamic gauge & checklists (takes 5 cols on large screens) */}
+          <div className="lg:col-span-5 flex flex-col gap-6 w-full text-left">
+            <div className="flex flex-col gap-3">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-[9.5px] font-extrabold uppercase tracking-widest w-fit animate-pulse">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>{language === "RU" ? "ТЕХНИЧЕСКИЙ РЕЖИМ" : language === "KZ" ? "ТЕХНИКАЛЫҚ РЕЖИМ" : "MAINTENANCE STATUS ENGINE"}</span>
+              </div>
+
+              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight leading-none text-white bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+                {language === "RU" && "Ведутся работы"}
+                {language === "KZ" && "Техникалық жұмыстар"}
+                {language === "EN" && "System Offline"}
+              </h1>
+              <p className="text-[11px] font-mono text-emerald-400/90 tracking-wider font-semibold uppercase leading-none">
+                {language === "RU" && "НАСТРОЙКА КЛАСТЕРНЫХ УЗЛОВ РЕЖИМА PROCLUSTER"}
+                {language === "KZ" && "PROCLUSTER ЖҮЙЕСІН СӘЙКЕСТЕНДІРУ ШАРАЛАРЫ"}
+                {language === "EN" && "COOPERATIVE COMPUTE NODE CALIBRATION"}
+              </p>
+
+              <div className="w-16 h-1 rounded-full bg-emerald-500/80 mt-1" />
+
+              <p className="text-xs md:text-sm leading-relaxed mt-2 text-slate-300">
+                {language === "RU" && "Основной terminal временно отключен на обслуживание. Наш инженер настраивает серверы и координирует миграцию кластерных узлов PROCLUSTER для калибровки и ускорения работы стакана. Мы скоро вернемся в строй!"}
+                {language === "KZ" && "Негізгі терминал уақытша техникалық қызмет көрсетуге өшірілді. Біздің инженер серверлерді баптауда және стаканның калибрленуін де, жұмысын жылдамдатуды да қамтамасыз етуде. Жақында ораламыз!"}
+                {language === "EN" && "The principal trading terminal is temporarily offline. Our system administrators are calibrating the compute servers and verifying core database nodes for footprint chart acceleration. We will be online shortly!"}
+              </p>
+            </div>
+
+            {/* Custom Interactive Speed meter & Progress Slider */}
+            <div className="p-4 rounded-xl border border-white/5 bg-[#090e1a]/60 backdrop-blur-sm flex flex-col gap-2.5 font-mono">
+              <div className="flex justify-between items-end text-[10px] font-bold tracking-wider">
+                <span className="text-slate-400">CLUSTER INTEGRATION INDEX:</span>
+                <span className="text-emerald-400 text-[11px]">{progress}%</span>
+              </div>
+              {/* Interactive custom glowing track */}
+              <div className="relative w-full h-3 rounded-full bg-slate-900 overflow-hidden border border-white/10">
+                <div 
+                  className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 rounded-full transition-all duration-1000 relative shadow-[0_0_12px_rgba(16,185,129,0.3)]"
+                  style={{ width: `${progress}%` }}
+                >
+                  <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[size:15px_15px] animate-[pushTrades_1s_linear_infinite]" />
+                </div>
+              </div>
+              <p className="text-[8px] text-slate-500 flex justify-between uppercase">
+                <span>STAGE 3: VERIFYING CHECKSUMS</span>
+                <span>EST: ~12 MIN</span>
+              </p>
+            </div>
+
+            {/* Structured modern checklist card */}
+            <div className="p-4 rounded-xl border border-white/5 bg-[#070c17]/50 backdrop-blur-sm flex flex-col gap-3 font-mono text-[9px] uppercase tracking-wider text-slate-400">
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <span className="text-[10px] font-bold text-slate-300">COMPLETION RUNBOOK REGISTER</span>
+                <span className="text-emerald-400 font-bold">STATE</span>
+              </div>
+              <div className="flex items-center justify-between font-mono text-[9px]">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span>{language === "RU" ? "Обновление кластерных баз" : "CLUSTER DATABASE RE-INDEXING"}</span>
+                </div>
+                <span className="text-emerald-400 font-bold font-mono">100% OK</span>
+              </div>
+              <div className="flex items-center justify-between font-mono text-[9px]">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span>{language === "RU" ? "Калибровка футпринт-графиков" : "FOOTPRINT ACCELERATION MAP"}</span>
+                </div>
+                <span className="text-amber-400 font-bold font-mono">IN_DEV</span>
+              </div>
+              <div className="flex items-center justify-between font-mono text-[9px]">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
+                  <span>{language === "RU" ? "Проверка безопасности ядра" : "CORE CRYPTO AUDIT v4.2"}</span>
+                </div>
+                <span className="text-emerald-400 font-bold font-mono">100% OK</span>
+              </div>
+            </div>
+
+            {/* Secure Admin Bypass Override Action */}
+            <button
+              type="button"
+              onClick={onBecomeAdmin}
+              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500/20 via-teal-500/10 to-indigo-500/20 hover:from-emerald-500/30 hover:via-teal-500/25 hover:to-indigo-500/30 border border-emerald-500/20 hover:border-emerald-500/50 text-emerald-400 hover:text-white font-mono text-[10px] uppercase font-black tracking-widest transition-all duration-300 shadow-[0_0_20px_rgba(16,185,129,0.05)] flex items-center justify-center gap-2.5 active:scale-[0.98]"
+            >
+              <Lock className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+              <span>{language === "RU" ? "ОБХОД СИСТЕМЫ / ВОЙТИ КАК АДМИНИСТРАТОР" : language === "KZ" ? "ЖҮЙЕНІ АЙНАЛЫП ӨТУ / ӘКІМШІ ҚҰҚЫҒЫН ТЕКСЕРУ" : "BYPASS RESTRICTION / AUTHENTICATE AS ADMIN"}</span>
+            </button>
+
+          </div>
+        </div>
+      </main>
+
+      {/* Cyberpunk Monospace micro-details Footer */}
+      <footer className="relative z-10 border-t border-white/5 bg-[#030712]/90 backdrop-blur-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-2 font-mono text-[8px] uppercase tracking-widest text-slate-500">
+        <div className="flex items-center gap-3">
+          <span>PROCLUSTER COOPERATIVE CORE MOTOR v4.2.1-RELEASE</span>
+          <span className="hidden sm:inline text-slate-700">|</span>
+          <span className="hidden sm:inline">SECURE SHELL PROTOCOL</span>
+        </div>
+        <span className="text-emerald-500/80 font-bold text-center sm:text-right">
+          {language === "RU" ? "СПАСИБО ЗА ВАШЕ ДОВЕРИЕ И ТЕРПЕНИЕ" : language === "KZ" ? "ҚОЛДАУЫҢЫЗ БЕН ТӨЗІМДІЛІГІҢІЗГЕ РАҚМЕТ" : "WE APPRECIATE YOUR STEADFAST PATIENCE"}
+        </span>
+      </footer>
+    </div>
+  );
+}
+
 export default function App() {
   // Theme management state
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -57,6 +313,46 @@ export default function App() {
       return next;
     });
   };
+
+  // Maintenance Mode state
+  const [maintenanceModeActive, setMaintenanceModeActive] = useState<boolean>(false);
+
+  useEffect(() => {
+    // 1. Fetch initially from server
+    fetch("/api/maintenance/status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.active === "boolean") {
+          setMaintenanceModeActive(data.active);
+        }
+      })
+      .catch((err) => console.error("Error fetching maintenance status:", err));
+
+    // 2. Setup periodic polling every 5 seconds so normal clients get locked out immediately when turned on
+    const interval = window.setInterval(() => {
+      fetch("/api/maintenance/status")
+        .then((res) => res.json())
+        .then((data) => {
+          if (typeof data.active === "boolean") {
+            setMaintenanceModeActive(data.active);
+          }
+        })
+        .catch((err) => console.error("Error polling maintenance status:", err));
+    }, 5000);
+
+    // 3. Setup custom event listener for instant reactive switches for the logged-in Admin toggling this
+    const handleEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<boolean>;
+      setMaintenanceModeActive(!!customEvent.detail);
+    };
+
+    window.addEventListener("maintenance_mode_changed", handleEvent);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("maintenance_mode_changed", handleEvent);
+    };
+  }, []);
 
   // Master Crypto Pairs (ticking prices)
   const [pairs, setPairs] = useState<CryptoPair[]>(() => {
@@ -1760,6 +2056,11 @@ export default function App() {
       }));
     }
   };
+
+  // --- Maintenance Mode Interceptor ---
+  if (maintenanceModeActive && userRole !== "Admin") {
+    return <MaintenanceView language={language} onLanguageChange={handleLanguageChange} onBecomeAdmin={() => { handleUserRoleChange("Admin"); setCurrentView("admin"); }} />;
+  }
 
   return (
     <div className={`h-screen max-h-screen flex flex-col font-sans select-none antialiased relative overflow-hidden transition-all duration-300 ${

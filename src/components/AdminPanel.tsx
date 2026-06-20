@@ -390,6 +390,44 @@ export default function AdminPanel({
     window.dispatchEvent(new Event("procluster_default_comp_changed"));
   }, [defaultCompFutures]);
 
+  // --- Maintenance Mode State & Fetchers ---
+  const [maintenanceActive, setMaintenanceActive] = useState<boolean>(false);
+  const [maintenanceLoading, setMaintenanceLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Fetch current maintenance status on mount
+    fetch("/api/maintenance/status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.active === "boolean") {
+          setMaintenanceActive(data.active);
+        }
+      })
+      .catch((err) => console.error("Error fetching maintenance status:", err));
+  }, []);
+
+  const handleToggleMaintenance = async () => {
+    setMaintenanceLoading(true);
+    try {
+      const nextActive = !maintenanceActive;
+      const res = await fetch("/api/maintenance/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: nextActive }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMaintenanceActive(data.active);
+        // Trigger a custom event to notify App.tsx immediately if needed
+        window.dispatchEvent(new CustomEvent("maintenance_mode_changed", { detail: data.active }));
+      }
+    } catch (err) {
+      console.error("Error toggling maintenance mode:", err);
+    } finally {
+      setMaintenanceLoading(false);
+    }
+  };
+
   const [tickerSuccessMsg, setTickerSuccessMsg] = useState("");
   const [compSuccessMsg, setCompSuccessMsg] = useState("");
 
@@ -2434,6 +2472,78 @@ export default function AdminPanel({
                   </div>
 
                 </form>
+              </div>
+
+              {/* MAINTENANCE MODE SECTION */}
+              <div id="maintenance-settings-card" className={`p-5 rounded-2xl border flex flex-col gap-4 mt-6 ${
+                isLight ? "bg-white border-slate-200 shadow-sm" : "liquid-glass-card"
+              }`}>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className={`w-5 h-5 ${maintenanceActive ? "text-amber-500 animate-pulse" : "text-slate-400"}`} />
+                  <div>
+                    <h3 className={`text-sm font-black uppercase tracking-wider ${isLight ? "text-slate-800" : "text-white"}`}>
+                      Технические работы (Обслуживание)
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Включение этого режима закроет доступ ко всему приложению для обычных пользователей. Только Админы (вы) смогут пользоваться системой.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-center">
+                  <div className="md:col-span-2 flex items-center gap-3">
+                    <div className="w-24 h-16 rounded-xl overflow-hidden border border-slate-500/10 dark:border-white/10 shrink-0 relative bg-slate-900">
+                      <img 
+                        src="/src/assets/images/maintenance_works_1781960465329.jpg" 
+                        alt="IT Repair" 
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-black/10" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className={`text-[11px] font-black uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-200"}`}>
+                        Заглушка активна: {maintenanceActive ? "ДА" : "НЕТ"}
+                      </span>
+                      <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                        Пользователи увидят страницу с изображением инженера за ремонтом серверов PROCLUSTER и сообщением об обслуживании.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      id="btn-toggle-maintenance"
+                      type="button"
+                      disabled={maintenanceLoading}
+                      onClick={handleToggleMaintenance}
+                      className={`px-5 py-3 rounded-xl font-black uppercase tracking-wider text-xs flex items-center gap-2 cursor-pointer transition-all duration-200 active:scale-95 ${
+                        maintenanceActive
+                          ? "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/20"
+                          : isLight
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/10"
+                            : "bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-400"
+                      }`}
+                    >
+                      {maintenanceLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Сохранение...</span>
+                        </>
+                      ) : maintenanceActive ? (
+                        <>
+                          <Pause className="w-4 h-4" />
+                          <span>Выключить тех. работы</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 animate-pulse" />
+                          <span>Включить тех. работы</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
 
             </div>
