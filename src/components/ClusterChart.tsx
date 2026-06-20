@@ -3488,13 +3488,13 @@ export default function ClusterChart({
 
             {isChartSettingsOpen && (
               <div
-                className={`absolute right-0 mt-1.5 w-64 rounded-xl p-3 z-50 text-left select-none shadow-2xl border animate-fadeIn ${
+                className={`absolute right-0 mt-1.5 w-[310px] max-h-[82vh] overflow-y-auto scrollbar-thin rounded-xl p-2.5 z-50 text-left select-none shadow-2xl border animate-fadeIn ${
                   isLight
                     ? "bg-white border-slate-300 text-slate-900 shadow-xl"
                     : "bg-[#090d16]/98 border border-white/10 text-slate-100"
                 }`}
               >
-                <div className="flex items-center gap-1.5 pb-2 border-b border-slate-500/15 dark:border-white/10 mb-2.5">
+                <div className="flex items-center gap-1.5 pb-2 border-b border-slate-500/15 dark:border-white/10 mb-2">
                   <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500" />
                   <span className="text-[10px] font-black uppercase font-mono tracking-wider">
                     {language === "RU" ? "Настройки графика" : language === "KZ" ? "График баптаулары" : "Chart Settings"}
@@ -3502,40 +3502,143 @@ export default function ClusterChart({
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <div className={`p-2.5 rounded-lg border flex flex-col gap-1.5 transition-all ${
+                  {/* Candle Outlines */}
+                  <div className={`p-1.5 px-2.5 rounded-lg border flex items-center justify-between transition-all ${
                     isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
                   }`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <span className={`text-[10.5px] font-bold font-mono uppercase tracking-wider block leading-none ${
-                          isLight ? "text-slate-700" : "text-slate-300"
-                        }`}>
-                          {language === "RU" ? "Обводка свечей" : "Candle outlines"}
-                        </span>
-                        <span className="text-[9px] text-slate-400 mt-1 block leading-normal font-sans">
-                          {language === "RU" 
-                            ? "Границы тела и фитилей свечи в режиме кластеров и футпринта" 
-                            : "Borders and wicks of the candlestick in clusters and footprint modes."}
-                        </span>
-                      </div>
+                    <span className={`text-[10px] font-bold font-mono uppercase tracking-wide block leading-none ${
+                      isLight ? "text-slate-700" : "text-slate-300"
+                    }`}>
+                      {language === "RU" ? "Обводка свечей" : language === "KZ" ? "Шамдардың жиектері" : "Candle outlines"}
+                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                      <input 
+                        type="checkbox"
+                        id="toggle-candle-outline-btn"
+                        checked={showCandleOutline}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setShowCandleOutline(val);
+                          storage.set("chart_settings_show_candle_outline", String(val));
+                        }}
+                        className={`w-3.5 h-3.5 rounded cursor-pointer focus:ring-amber-500 ${
+                          isLight ? "bg-white border-slate-300 text-amber-500" : "bg-slate-900 border-[#ffffff26] text-amber-520"
+                        }`}
+                      />
+                    </label>
+                  </div>
 
-                      <label className="relative inline-flex items-center cursor-pointer select-none shrink-0 mt-0.5">
-                        <input 
-                          type="checkbox"
-                          id="toggle-candle-outline-btn"
-                          checked={showCandleOutline}
-                          onChange={(e) => {
-                            const val = e.target.checked;
-                            setShowCandleOutline(val);
-                            storage.set("chart_settings_show_candle_outline", String(val));
-                          }}
-                          className={`w-3.5 h-3.5 rounded cursor-pointer focus:ring-amber-500 ${
-                            isLight ? "bg-white border-slate-300 text-amber-500" : "bg-slate-900 border-white/15 text-amber-520"
-                          }`}
-                        />
-                      </label>
+                  {/* Cluster Options */}
+                  <div className={`p-1.5 px-2.5 rounded-lg border flex items-center justify-between transition-all ${
+                    isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/5"
+                  }`}>
+                    <span className={`text-[10px] font-bold font-mono uppercase tracking-wide block leading-none ${
+                      isLight ? "text-slate-700" : "text-slate-300"
+                    }`}>
+                      {language === "RU" ? "Скрыть текст" : language === "KZ" ? "Мәтінді жасыру" : "Hide text"}
+                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                      <input 
+                        type="checkbox"
+                        checked={volProfileGlobalSettings.hideClusterText ?? false}
+                        onChange={(e) => {
+                          updateVolProfileSettings({ hideClusterText: e.target.checked });
+                        }}
+                        className={`w-3.5 h-3.5 rounded cursor-pointer focus:ring-amber-500 ${
+                          isLight ? "bg-white border-slate-300 text-amber-500" : "bg-slate-900 border-[#ffffff26] text-amber-520"
+                        }`}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Volume Profile Settings header */}
+                  <div className="text-[9px] font-extrabold uppercase tracking-widest font-mono text-amber-500 border-t border-slate-500/10 pt-1.5 pb-0.5">
+                    {language === "RU" ? "Глобальный профиль объема" : language === "KZ" ? "Көлем профилі (Жалпы)" : "Global Volume Profile"}
+                  </div>
+
+                  {/* Histogram Mode Toggle */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-[10px] font-bold font-mono uppercase tracking-wide ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                      {language === "RU" ? "Режим" : language === "KZ" ? "Режимі" : "Mode"}
+                    </span>
+                    <div className="flex rounded-lg p-[1.5px] border gap-1 select-none font-sans text-[10px] transition-all bg-black/15 border-slate-500/10 w-[140px]">
+                      <button
+                        onClick={() => updateVolProfileSettings({ histMode: "volume" })}
+                        className={`flex-1 py-0.5 text-center rounded text-[9px] font-bold transition-all cursor-pointer ${
+                          (volProfileGlobalSettings.histMode || "volume") === "volume"
+                            ? isLight
+                              ? "bg-white text-slate-800 shadow-xs"
+                              : "bg-blue-600/40 border border-blue-500/15 text-white"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        {language === "RU" ? "Объем" : language === "KZ" ? "Көлем" : "Vol"}
+                      </button>
+                      <button
+                        onClick={() => updateVolProfileSettings({ histMode: "delta" })}
+                        className={`flex-1 py-0.5 text-center rounded text-[9px] font-bold transition-all cursor-pointer ${
+                          volProfileGlobalSettings.histMode === "delta"
+                            ? isLight
+                              ? "bg-white text-slate-800 shadow-xs"
+                              : "bg-blue-600/40 border border-blue-500/15 text-white"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        {language === "RU" ? "Дельта" : language === "KZ" ? "Дельта" : "Delta"}
+                      </button>
                     </div>
                   </div>
+
+                  {/* Histogram Scale Selector */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-[10px] font-bold font-mono uppercase tracking-wide ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                      {language === "RU" ? "Масштаб" : language === "KZ" ? "Масштаб" : "Scale"}
+                    </span>
+                    <select
+                      value={volProfileGlobalSettings.scaleMode || "candle"}
+                      onChange={(e) => {
+                        updateVolProfileSettings({ scaleMode: e.target.value as any });
+                      }}
+                      className={`w-[140px] rounded-md px-1.5 py-0.5 text-[10px] outline-none transition-all border ${
+                        isLight
+                          ? "bg-slate-50 border-slate-250 text-slate-800 focus:border-blue-400"
+                          : "bg-slate-900 border-white/10 text-slate-200 focus:border-amber-500/40"
+                      }`}
+                    >
+                      <option value="candle">
+                        {language === "RU" ? "По свече" : language === "KZ" ? "Әр шам" : "Candle"}
+                      </option>
+                      <option value="visible">
+                        {language === "RU" ? "По видимой" : language === "KZ" ? "Көрінетін" : "Visible"}
+                      </option>
+                      <option value="custom">
+                        {language === "RU" ? "Свой" : language === "KZ" ? "Жеке" : "Custom"}
+                      </option>
+                    </select>
+                  </div>
+
+                  {/* Custom Scale Value Input */}
+                  {volProfileGlobalSettings.scaleMode === "custom" && (
+                    <div className="flex items-center justify-between gap-2 pl-1 animate-fadeIn">
+                      <span className="font-bold text-[9px] text-slate-400 font-mono uppercase">
+                        {language === "RU" ? "Лимит объёма" : language === "KZ" ? "Көлем шегі" : "Vol Limit"}
+                      </span>
+                      <input
+                        type="number"
+                        min="1"
+                        step="10"
+                        value={volProfileGlobalSettings.customScaleValue != null ? volProfileGlobalSettings.customScaleValue : 1000}
+                        onChange={(e) => {
+                          updateVolProfileSettings({ customScaleValue: parseFloat(e.target.value) || 1000 });
+                        }}
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] outline-none border w-[140px] font-mono ${
+                          isLight
+                            ? "bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-blue-400"
+                            : "bg-slate-900 border-white/10 text-slate-200 focus:ring-1 focus:ring-amber-500/30"
+                        }`}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             )}

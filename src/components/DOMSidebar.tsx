@@ -50,17 +50,90 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark", lang
   const lastInteractionTimeRef = useRef<number>(Date.now());
   const isAutoCenteringRef = useRef<boolean>(false);
 
+  // --- Compression Logic ---
+  const [domCompression, setDomCompression] = useState<number>(() => {
+    const saved = storage.get("procluster_dom_compression");
+    return saved ? parseFloat(saved) : 0;
+  });
+
+  useEffect(() => {
+    storage.set("procluster_dom_compression", domCompression.toString());
+  }, [domCompression]);
+
+  const getCompressionOptions = () => {
+    if (activePair.symbol.includes("BTC")) {
+      return [5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
+    }
+    if (activePair.symbol.includes("ETH")) {
+      return [1, 2, 3, 4, 5, 10, 15, 20, 30, 50];
+    }
+    if (activePair.symbol.includes("SOL")) {
+      return [0.25, 0.5, 1, 1.5, 2, 2.5, 5, 10, 15, 20];
+    }
+    const price = activePair.price || 100;
+    const baseOpt = price > 1000 ? 5 : (price > 100 ? 1 : 0.1);
+    return [
+      baseOpt, 
+      baseOpt * 2, 
+      baseOpt * 3, 
+      baseOpt * 4, 
+      baseOpt * 6, 
+      baseOpt * 8, 
+      baseOpt * 10, 
+      baseOpt * 12, 
+      baseOpt * 16, 
+      baseOpt * 20
+    ];
+  };
+
+  const getCompressedBook = () => {
+    const rawAsks = orderBook.asks || [];
+    const rawBids = orderBook.bids || [];
+    
+    if (domCompression <= 0) {
+      return { asks: rawAsks, bids: rawBids };
+    }
+    
+    const step = domCompression;
+    
+    const askGroups: { [price: number]: number } = {};
+    rawAsks.forEach(ask => {
+      const binnedPrice = Math.ceil(ask.price / step) * step;
+      askGroups[binnedPrice] = (askGroups[binnedPrice] || 0) + ask.amount;
+    });
+    
+    const bidGroups: { [price: number]: number } = {};
+    rawBids.forEach(bid => {
+      const binnedPrice = Math.floor(bid.price / step) * step;
+      bidGroups[binnedPrice] = (bidGroups[binnedPrice] || 0) + bid.amount;
+    });
+    
+    const compressedAsks = Object.entries(askGroups).map(([priceStr, amount]) => ({
+      price: parseFloat(priceStr),
+      amount,
+    })).sort((a, b) => a.price - b.price);
+    
+    const compressedBids = Object.entries(bidGroups).map(([priceStr, amount]) => ({
+      price: parseFloat(priceStr),
+      amount,
+    })).sort((a, b) => a.price - b.price); // Ascending initially, then we sliced/reversed
+    
+    return { asks: compressedAsks, bids: compressedBids };
+  };
+
+  const currentBook = getCompressedBook();
+
   // Center scroll vertically on mount or pair/book length changes
   useEffect(() => {
     if (scrollContainerRef.current) {
       const container = scrollContainerRef.current;
-      const asksCount = Math.min(200, orderBook.asks.length);
+      const asksCount = Math.min(200, currentBook.asks.length);
       const midElementCenter = (asksCount * 18) + 22;
       const midPoint = midElementCenter - (container.clientHeight / 2);
       container.scrollTop = midPoint;
       lastInteractionTimeRef.current = Date.now();
     }
-  }, [activePair.symbol, orderBook.bids.length, orderBook.asks.length]);
+  }, [activePair.symbol, currentBook.bids.length, currentBook.asks.length, domCompression]);
 
   // Track interaction and auto-center after 1 second of inactivity
   useEffect(() => {
@@ -87,7 +160,7 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark", lang
       if (now - lastInteractionTimeRef.current >= 1000) {
         if (scrollContainerRef.current) {
           const cont = scrollContainerRef.current;
-          const asksCount = Math.min(200, orderBook.asks.length);
+          const asksCount = Math.min(200, currentBook.asks.length);
           const midElementCenter = (asksCount * 18) + 22;
           const midPoint = midElementCenter - (cont.clientHeight / 2);
           if (Math.abs(cont.scrollTop - midPoint) > 5) {
@@ -109,7 +182,7 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark", lang
       }
       clearInterval(interval);
     };
-  }, [activePair.symbol, orderBook.asks.length]);
+  }, [activePair.symbol, currentBook.asks.length, domCompression]);
 
   // --- Persistent Simulator State ---
   const [balance, setBalance] = useState<number>(() => {
@@ -521,13 +594,13 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark", lang
 
   // Reverse asks so the highest price is at the top of the vertical ladder!
   // Show 200 levels for deeper scroll and analysis
-  const reversedAsks = [...orderBook.asks].slice(0, 200).reverse();
-  const slicedBids = [...orderBook.bids].slice(0, 200);
+  const reversedAsks = [...currentBook.asks].slice(0, 200).reverse();
+  const slicedBids = [...currentBook.bids].slice(0, 200);
 
   // Find overall maximum size in the book to properly scale horizontal depth bars
   const maxAmountInBook = Math.max(
-    ...orderBook.bids.map(b => b.amount),
-    ...orderBook.asks.map(a => a.amount),
+    ...currentBook.bids.map(b => b.amount),
+    ...currentBook.asks.map(a => a.amount),
     1
   );
 
@@ -694,6 +767,35 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark", lang
       </div>
 
       {/* 3. DEPTH OF MARKET (DOM) VERTICAL PRICE LADDER */}
+      <div className="flex items-center justify-between mt-2.5 mb-1 opacity-95 select-none px-1 shrink-0">
+        <h4 className="text-[10px] font-extrabold uppercase tracking-widest font-mono flex items-center gap-1">
+          <span className={isLight ? "text-slate-600" : "text-amber-500/90"}>
+            {language === "RU" ? "3. СТАКАН" : language === "KZ" ? "3. СТАКАН" : "3. ORDER BOOK"}
+          </span>
+        </h4>
+        <div className="flex items-center gap-1 font-sans">
+          <span className={`text-[8.5px] uppercase font-bold font-mono tracking-wide ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+            {language === "RU" ? "Сжатие:" : language === "KZ" ? "Сығылуы:" : "Comp:"}
+          </span>
+          <select
+            value={domCompression}
+            onChange={(e) => setDomCompression(parseFloat(e.target.value))}
+            className={`text-[9px] font-bold font-mono rounded px-1.5 py-0.5 outline-none border transition-all cursor-pointer ${
+              isLight
+                ? "bg-slate-100 border-slate-200 text-slate-750 hover:bg-slate-200"
+                : "bg-slate-950 border-white/10 text-slate-300 hover:border-amber-500/40"
+            }`}
+          >
+            <option value="0">1x</option>
+            {getCompressionOptions().map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}$
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className={`flex-1 overflow-hidden flex flex-col rounded-xl border min-h-[140px] transition-all duration-300 ${
         isLight ? "bg-slate-50/70 border-slate-350" : "bg-[#06080e]/90 border-white/5"
       }`}>
