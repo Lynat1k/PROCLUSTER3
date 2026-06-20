@@ -62,7 +62,7 @@ export default function IndicatorsModal({
   const [newPresetName, setNewPresetName] = useState("");
   const [isNewPresetDefault, setIsNewPresetDefault] = useState(false);
   const [presetMessage, setPresetMessage] = useState({ text: "", type: "" });
-  const [showPresetSection, setShowPresetSection] = useState(true);
+  const [showPresetSection, setShowPresetSection] = useState(false);
   const [isSavePopoverOpen, setIsSavePopoverOpen] = useState(false);
 
   const fetchPresets = (indicatorId?: string) => {
@@ -88,6 +88,7 @@ export default function IndicatorsModal({
           setProfileUserState(JSON.parse(saved));
         } catch (err) {}
       }
+      setShowPresetSection(false); // Fold by default when opening
     }
   }, [isOpen]);
 
@@ -97,6 +98,7 @@ export default function IndicatorsModal({
       setIsSavePopoverOpen(false);
       setNewPresetName("");
       setIsNewPresetDefault(false);
+      setShowPresetSection(false); // Collapse when selecting or changing indicator
     }
   }, [isOpen, selectedId]);
 
@@ -746,12 +748,218 @@ export default function IndicatorsModal({
                     }`}>
                       {selectedIndicator.label.replace("(PROCLUSTER) ", "")}
                     </h3>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 relative">
                       <span className={`text-[9px] font-bold rounded px-1.5 py-1 uppercase tracking-wide font-mono leading-none ${
                         isLight ? "bg-slate-200 text-slate-750" : "bg-white/10 text-slate-300"
                       }`}>
                         ТИП: {selectedIndicator.type}
                       </span>
+
+                      {/* --- Dropdown Presets Panel --- */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowPresetSection(!showPresetSection)}
+                          className={`flex items-center gap-1 py-0.5 px-2 rounded border text-[9px] font-extrabold cursor-pointer transition-all uppercase tracking-wider font-mono ${
+                            isLight
+                              ? "bg-slate-50 border-slate-250 hover:bg-slate-250 text-slate-700"
+                              : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
+                          }`}
+                        >
+                          <Layers className="w-3 h-3 text-emerald-500 animate-pulse" />
+                          <span>Шаблоны ({serverPresets.length})</span>
+                          <ChevronDown className="w-2.5 h-2.5 opacity-60" />
+                        </button>
+
+                        {showPresetSection && (
+                          <div className={`absolute left-0 mt-1.5 z-55 w-[345px] p-2.5 rounded-lg border shadow-xl flex flex-col gap-2 no-drag animate-fadeIn text-left ${
+                            isLight
+                              ? "bg-white border-slate-200 text-slate-800"
+                              : "bg-[#0b0f19] border-white/10 text-slate-300"
+                          }`}>
+                            <div className="flex items-center justify-between select-none pb-1.5 border-b border-dashed border-slate-500/15 dark:border-white/5">
+                              <span className={`text-[9.5px] font-black uppercase font-mono tracking-widest flex items-center gap-1 ${
+                                isLight ? "text-slate-650" : "text-amber-500/90"
+                              }`}>
+                                <Layers className="w-3 h-3 text-emerald-500" />
+                                <span>Пресеты ({serverPresets.length})</span>
+                              </span>
+                              <div className="flex items-center gap-1.5 font-sans">
+                                <button
+                                  onClick={() => {
+                                    setIsSavePopoverOpen(!isSavePopoverOpen);
+                                    if (!isSavePopoverOpen) {
+                                      setNewPresetName("");
+                                    }
+                                  }}
+                                  className={`flex items-center gap-1 py-0.5 px-2 rounded-md text-[9px] font-bold cursor-pointer transition-all ${
+                                    isSavePopoverOpen
+                                      ? isLight
+                                        ? "bg-rose-100 text-rose-700 hover:bg-rose-200"
+                                        : "bg-rose-500/15 text-rose-450 hover:bg-rose-500/25 border border-rose-500/10"
+                                      : isLight
+                                        ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-25"
+                                        : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20"
+                                  }`}
+                                >
+                                  {isSavePopoverOpen ? (
+                                    <>
+                                      <X className="w-3 h-3" />
+                                      <span>Отмена</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus className="w-3 h-3" />
+                                      <span>Новый</span>
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => setShowPresetSection(false)}
+                                  className={`p-1 rounded cursor-pointer ${isLight ? "hover:bg-slate-200 text-slate-500" : "hover:bg-white/5 text-slate-400"}`}
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                              {/* Save Preset inline form */}
+                              {isSavePopoverOpen && (
+                                <div className={`p-2 rounded-lg border flex flex-col gap-1.5 animate-fadeIn ${
+                                  isLight ? "bg-white border-slate-205 shadow-sm" : "bg-[#0b0f19] border-white/10"
+                                }`}>
+                                  <form
+                                    onSubmit={(e) => {
+                                      e.preventDefault();
+                                      handleSavePreset(selectedIndicator.id, newPresetName);
+                                      setIsSavePopoverOpen(false);
+                                    }}
+                                    className="flex flex-col gap-1.5"
+                                  >
+                                    <div className="flex gap-1.5">
+                                      <input
+                                        type="text"
+                                        placeholder="Имя пресета..."
+                                        value={newPresetName}
+                                        onChange={(e) => setNewPresetName(e.target.value)}
+                                        autoFocus
+                                        className={`flex-1 border rounded-md py-0.5 px-1.5 text-[10px] outline-none font-sans no-drag transition-colors ${
+                                          isLight
+                                            ? "bg-white border-slate-200 text-slate-900 focus:border-blue-450"
+                                            : "bg-[#030712]/50 border-white/10 text-white placeholder-slate-500 focus:border-yellow-500/40"
+                                        }`}
+                                      />
+                                      <button
+                                        type="submit"
+                                        className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-555 active:scale-[0.98] transition-all text-white rounded-md text-[10px] font-bold cursor-pointer shrink-0"
+                                      >
+                                        Окей
+                                      </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5 no-drag select-none">
+                                      <input
+                                        type="checkbox"
+                                        id="isDefaultCheckbox"
+                                        checked={isNewPresetDefault}
+                                        onChange={(e) => setIsNewPresetDefault(e.target.checked)}
+                                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-2.5 w-2.5"
+                                      />
+                                      <label htmlFor="isDefaultCheckbox" className="text-[8px] text-slate-500 font-bold cursor-pointer leading-none">
+                                        Сделать шаблоном по умолчанию
+                                      </label>
+                                    </div>
+                                  </form>
+                                </div>
+                              )}
+
+                              {presetMessage.text && (
+                                <div className={`p-1 px-2 rounded-md text-[10px] font-bold border text-center ${
+                                  presetMessage.type === "success"
+                                    ? isLight ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                                    : isLight ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                                }`}>
+                                  {presetMessage.text}
+                                </div>
+                              )}
+
+                              {/* Presets List */}
+                              <div className="flex flex-col gap-1.5">
+                                {serverPresets.length === 0 ? (
+                                  <div className="text-[10px] text-slate-500 italic pl-1 py-1">
+                                    У этого индикатора пока нет сохраненных пресетов настроек.
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col gap-1.5 max-h-[140px] overflow-y-auto pr-1 select-text">
+                                    {serverPresets.map((preset) => (
+                                      <div
+                                        key={preset.id}
+                                        className={`p-1.5 px-2 rounded-lg border transition-all flex items-center justify-between no-drag ${
+                                          isLight
+                                            ? "bg-white border-slate-200 shadow-sm hover:border-slate-300"
+                                            : "bg-[#111827]/30 border-white/5 hover:border-white/10"
+                                        }`}
+                                      >
+                                        <div className="flex flex-col min-w-0 pr-2">
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className={`text-[10px] font-bold truncate ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+                                              {preset.name}
+                                            </span>
+                                            {preset.isDefault && (
+                                              <span className={`text-[7px] font-extrabold px-1 py-[0.5px] rounded-full shrink-0 ${
+                                                isLight ? "bg-blue-100 text-blue-800 animate-pulse" : "bg-blue-500/20 text-blue-400 animate-pulse"
+                                              }`}>
+                                                ДЕФОЛТ
+                                              </span>
+                                            )}
+                                          </div>
+                                          <span className="text-[8px] font-mono text-slate-500">
+                                            Автор: {preset.author}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-1 shrink-0">
+                                          <button
+                                            onClick={() => {
+                                              handleLoadPreset(preset);
+                                              setShowPresetSection(false); // Close dropdown upon applying
+                                            }}
+                                            className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 active:scale-[0.98] transition text-white rounded-md text-[9px] font-bold cursor-pointer"
+                                          >
+                                            Применить
+                                          </button>
+
+                                          {!preset.isDefault && (
+                                            <button
+                                              onClick={(e) => handleToggleDefaultPreset(preset, e)}
+                                              className={`px-2 py-0.5 rounded-md text-[9px] font-bold transition cursor-pointer ${
+                                                isLight 
+                                                  ? "bg-slate-200 hover:bg-slate-355 text-slate-700 font-medium" 
+                                                  : "bg-white/5 hover:bg-white/10 text-slate-300 font-medium"
+                                              }`}
+                                            >
+                                              Дефолт
+                                            </button>
+                                          )}
+
+                                          <button
+                                            onClick={(e) => handleDeletePreset(preset.id, selectedIndicator.id, e)}
+                                            className={`p-1 rounded transition-all cursor-pointer ${
+                                              isLight ? "hover:bg-rose-100 text-slate-400 hover:text-rose-600" : "hover:bg-rose-500/10 text-slate-400 hover:text-rose-400"
+                                            }`}
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
@@ -816,22 +1024,18 @@ export default function IndicatorsModal({
                   </div>
                 </div>
 
-                {/* PRESETS SUBSECTION CARD (Indicator-scoped) */}
-                <div className={`p-4 rounded-xl border transition-all duration-300 flex flex-col no-drag ${
-                  isLight 
-                    ? "bg-slate-100/60 border-slate-200" 
-                    : "bg-[#0f172a]/40 border-white/5 text-slate-350"
-                }`}>
+                {/* PRESETS SUBSECTION CARD (Indicator-scoped) - MOVED TO DROPDOWN */}
+                <div className="hidden">
                   <div className="flex items-center justify-between select-none">
                     <button
                       onClick={() => setShowPresetSection(!showPresetSection)}
-                      className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-slate-400 font-mono cursor-pointer"
+                      className="flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wider text-slate-400 font-mono cursor-pointer"
                     >
-                      <Layers className="w-4 h-4 text-emerald-500" />
+                      <Layers className="w-3.5 h-3.5 text-emerald-500" />
                       <span>Пресеты ({serverPresets.length})</span>
                     </button>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {showPresetSection && (
                         <button
                           onClick={() => {
@@ -840,24 +1044,24 @@ export default function IndicatorsModal({
                               setNewPresetName("");
                             }
                           }}
-                          className={`flex items-center gap-1.5 py-1 px-2.5 rounded-lg text-[10.5px] font-bold cursor-pointer transition-all ${
+                          className={`flex items-center gap-1 py-0.5 px-2 rounded-md text-[9px] font-bold cursor-pointer transition-all ${
                             isSavePopoverOpen
                               ? isLight
                                 ? "bg-rose-100 text-rose-700 hover:bg-rose-200"
                                 : "bg-rose-500/15 text-rose-450 hover:bg-rose-500/25 border border-rose-500/10"
                               : isLight
-                                ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-205"
+                                ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-25"
                                 : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20"
                           }`}
                         >
                           {isSavePopoverOpen ? (
                             <>
-                              <X className="w-3.5 h-3.5" />
+                              <X className="w-3 h-3" />
                               <span>Отмена</span>
                             </>
                           ) : (
                             <>
-                              <Plus className="w-3.5 h-3.5" />
+                              <Plus className="w-3 h-3" />
                               <span>Сохранить параметры</span>
                             </>
                           )}
@@ -865,22 +1069,22 @@ export default function IndicatorsModal({
                       )}
                       <button
                         onClick={() => setShowPresetSection(!showPresetSection)}
-                        className={`p-1.5 rounded cursor-pointer ${isLight ? "hover:bg-slate-200 text-slate-500" : "hover:bg-white/5 text-slate-400"}`}
+                        className={`p-1 rounded cursor-pointer ${isLight ? "hover:bg-slate-200 text-slate-500" : "hover:bg-white/5 text-slate-400"}`}
                       >
-                        {showPresetSection ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        {showPresetSection ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                       </button>
                     </div>
                   </div>
 
                   {showPresetSection && (
-                    <div className="mt-4 flex flex-col gap-4">
+                    <div className="mt-2 text-left flex flex-col gap-2">
                       {/* Save Preset inline popup dropdown */}
                       {isSavePopoverOpen && (
-                        <div className={`p-3 rounded-xl border flex flex-col gap-2.5 animate-fadeIn ${
+                        <div className={`p-2 rounded-lg border flex flex-col gap-1.5 animate-fadeIn ${
                           isLight ? "bg-white border-slate-205 shadow-md" : "bg-[#0b0f19] border-white/10"
                         }`}>
-                          <div className="flex items-center justify-between border-b pb-1.5 border-dashed border-slate-500/20 dark:border-white/10">
-                            <span className={`text-[9.5px] font-black uppercase font-mono tracking-widest ${
+                          <div className="flex items-center justify-between border-b pb-1 border-dashed border-slate-500/15 dark:border-white/5">
+                            <span className={`text-[8.5px] font-bold uppercase font-mono tracking-wider ${
                               isLight ? "text-slate-600" : "text-yellow-500"
                             }`}>
                               Сохранить параметры в пресет
@@ -893,16 +1097,16 @@ export default function IndicatorsModal({
                               handleSavePreset(selectedIndicator.id, newPresetName);
                               setIsSavePopoverOpen(false);
                             }}
-                            className="flex flex-col gap-2"
+                            className="flex flex-col gap-1.5"
                           >
                             <div className="flex gap-1.5">
                               <input
                                 type="text"
-                                placeholder="Имя пресета (киты, скальпинг)..."
+                                placeholder="Имя пресета..."
                                 value={newPresetName}
                                 onChange={(e) => setNewPresetName(e.target.value)}
                                 autoFocus
-                                className={`flex-1 border rounded-lg py-1 px-2 text-xs outline-none font-sans no-drag transition-colors ${
+                                className={`flex-1 border rounded-md py-0.5 px-1.5 text-[10px] outline-none font-sans no-drag transition-colors ${
                                   isLight
                                     ? "bg-white border-slate-200 text-slate-900 focus:border-blue-450"
                                     : "bg-[#030712]/50 border-white/10 text-white placeholder-slate-500 focus:border-yellow-500/40"
@@ -910,21 +1114,21 @@ export default function IndicatorsModal({
                               />
                               <button
                                 type="submit"
-                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-550 active:scale-[0.98] transition-all text-white rounded-lg text-xs font-bold cursor-pointer shrink-0"
+                                className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-550 active:scale-[0.98] transition-all text-white rounded-md text-[10px] font-bold cursor-pointer shrink-0"
                               >
                                 Окей
                               </button>
                             </div>
 
-                            <div className="flex items-center gap-1.5 mt-0.5 no-drag select-none">
+                            <div className="flex items-center gap-1.5 no-drag select-none">
                               <input
                                 type="checkbox"
                                 id="isDefaultCheckbox"
                                 checked={isNewPresetDefault}
                                 onChange={(e) => setIsNewPresetDefault(e.target.checked)}
-                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3 w-3"
+                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-2.5 w-2.5"
                               />
-                              <label htmlFor="isDefaultCheckbox" className="text-[9px] text-slate-500 font-bold cursor-pointer leading-none">
+                              <label htmlFor="isDefaultCheckbox" className="text-[8px] text-slate-500 font-bold cursor-pointer leading-none">
                                 Сделать шаблоном по умолчанию
                               </label>
                             </div>
@@ -933,7 +1137,7 @@ export default function IndicatorsModal({
                       )}
 
                       {presetMessage.text && (
-                        <div className={`p-2 rounded-lg text-xs font-bold border text-center ${
+                        <div className={`p-1 px-2 rounded-md text-[10px] font-bold border text-center ${
                           presetMessage.type === "success"
                             ? isLight ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                             : isLight ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-rose-500/10 border-rose-500/20 text-rose-400"
@@ -943,44 +1147,44 @@ export default function IndicatorsModal({
                       )}
 
                       {/* Presets List */}
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-1.5">
                         {serverPresets.length === 0 ? (
-                          <div className="text-[11px] text-slate-500 italic pl-1">
+                          <div className="text-[10px] text-slate-500 italic pl-1">
                             У этого индикатора пока нет сохраненных пресетов настроек.
                           </div>
                         ) : (
-                          <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto pr-1 select-text">
+                          <div className="flex flex-col gap-1.5 max-h-[120px] overflow-y-auto pr-1 select-text">
                             {serverPresets.map((preset) => (
                               <div
                                 key={preset.id}
-                                className={`p-2.5 rounded-xl border transition-all flex items-center justify-between no-drag ${
+                                className={`p-1.5 px-2 rounded-lg border transition-all flex items-center justify-between no-drag ${
                                   isLight
                                     ? "bg-white border-slate-200 shadow-sm hover:border-slate-300"
                                     : "bg-[#111827]/30 border-white/5 hover:border-white/10"
                                 }`}
                               >
                                 <div className="flex flex-col min-w-0 pr-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className={`text-[11px] font-bold truncate ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className={`text-[10px] font-bold truncate ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                                       {preset.name}
                                     </span>
                                     {preset.isDefault && (
-                                      <span className={`text-[8.5px] font-black px-1.5 py-0.2 rounded-full ${
-                                        isLight ? "bg-blue-105 text-blue-800" : "bg-blue-500/20 text-blue-400"
+                                      <span className={`text-[7px] font-extrabold px-1 py-[0.5px] rounded-full shrink-0 ${
+                                        isLight ? "bg-blue-100 text-blue-800" : "bg-blue-500/20 text-blue-400"
                                       }`}>
                                         ДЕФОЛТ
                                       </span>
                                     )}
                                   </div>
-                                  <span className="text-[9px] font-mono text-slate-500">
+                                  <span className="text-[8px] font-mono text-slate-500">
                                     Автор: {preset.author}
                                   </span>
                                 </div>
 
-                                <div className="flex items-center gap-1.5 shrink-0">
+                                <div className="flex items-center gap-1 shrink-0">
                                   <button
                                     onClick={() => handleLoadPreset(preset)}
-                                    className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 active:scale-[0.98] transition text-white rounded text-[10px] font-bold cursor-pointer"
+                                    className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 active:scale-[0.98] transition text-white rounded-md text-[9px] font-bold cursor-pointer"
                                   >
                                     Применить
                                   </button>
@@ -988,9 +1192,9 @@ export default function IndicatorsModal({
                                   {!preset.isDefault && (
                                     <button
                                       onClick={(e) => handleToggleDefaultPreset(preset, e)}
-                                      className={`px-2.5 py-1 rounded text-[10px] font-bold transition cursor-pointer ${
+                                      className={`px-2 py-0.5 rounded-md text-[9px] font-bold transition cursor-pointer ${
                                         isLight 
-                                          ? "bg-slate-200 hover:bg-slate-350 text-slate-700 font-medium" 
+                                          ? "bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium" 
                                           : "bg-white/5 hover:bg-white/10 text-slate-300 font-medium"
                                       }`}
                                     >
@@ -1000,11 +1204,11 @@ export default function IndicatorsModal({
 
                                   <button
                                     onClick={(e) => handleDeletePreset(preset.id, selectedIndicator.id, e)}
-                                    className={`p-1.5 rounded transition-all cursor-pointer ${
-                                      isLight ? "hover:bg-rose-100 text-slate-400 hover:text-rose-600" : "hover:bg-rose-500/10 text-slate-405 hover:text-rose-400"
+                                    className={`p-1 rounded transition-all cursor-pointer ${
+                                      isLight ? "hover:bg-rose-100 text-slate-400 hover:text-rose-600" : "hover:bg-rose-500/10 text-slate-400 hover:text-rose-400"
                                     }`}
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-3 h-3" />
                                   </button>
                                 </div>
                               </div>
