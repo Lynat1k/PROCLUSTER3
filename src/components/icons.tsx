@@ -50,19 +50,18 @@ export const BarsIcon = ({ className }: { className?: string }) => (
 
 export const CandlePreviewIcon = ({ palette, theme }: { palette: "default" | "alternative"; theme?: string }) => {
   const isDefault = palette === "default";
-  const isLight = theme === "light";
   const bullColor = isDefault 
     ? "#10b981" 
-    : (isLight ? "#E3E3E3" : "#B6B2B2");
+    : "#E3E3E3";
   const bearColor = isDefault 
     ? "#f43f5e" 
-    : (isLight ? "#292929" : "#5E5E5E");
+    : "#665D5D";
   const bullBorder = isDefault 
     ? "#10b981" 
-    : (isLight ? "#2F2F2F" : "#D5D5D5");
+    : "#909090";
   const bearBorder = isDefault 
     ? "#f43f5e" 
-    : (isLight ? "#3A3A3A" : "#AEA7A7");
+    : "#858585";
 
   return (
     <svg width="22" height="18" viewBox="0 0 22 18" className="inline-block shrink-0 select-none">

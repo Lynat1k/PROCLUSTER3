@@ -969,9 +969,6 @@ export default function IndicatorsModal({
                                               </span>
                                             )}
                                           </div>
-                                          <span className="text-[8px] font-mono text-slate-500">
-                                            Автор: {preset.author}
-                                          </span>
                                         </div>
 
                                         <div className="flex items-center gap-1 shrink-0">
@@ -1232,9 +1229,6 @@ export default function IndicatorsModal({
                                       </span>
                                     )}
                                   </div>
-                                  <span className="text-[8px] font-mono text-slate-500">
-                                    Автор: {preset.author}
-                                  </span>
                                 </div>
 
                                 <div className="flex items-center gap-1 shrink-0">
