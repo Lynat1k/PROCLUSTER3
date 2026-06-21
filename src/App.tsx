@@ -2686,7 +2686,7 @@ export default function App() {
               <div className="relative font-sans" ref={paletteMenuRef}>
                 <button
                   onClick={() => setShowPaletteMenu(!showPaletteMenu)}
-                  className={`flex items-center justify-between gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all min-w-[110px] sm:min-w-[135px] h-[30px] select-none border ${
+                  className={`flex items-center justify-between gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all h-[30px] select-none border ${
                     theme === "light"
                       ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-800 font-extrabold shadow-sm"
                       : "liquid-glass-button border-white/5 text-slate-200 font-black"
@@ -2694,11 +2694,6 @@ export default function App() {
                 >
                   <div className="flex items-center gap-1 leading-none">
                     <CandlePreviewIcon palette={candlePalette} theme={theme} />
-                    <span className={`font-mono text-[10px] whitespace-nowrap ${theme === "light" ? "text-slate-700 font-black" : "text-white font-extrabold"}`}>
-                      {candlePalette === "default" 
-                        ? (language === "EN" ? "Default" : language === "KZ" ? "Әдепкі" : "Стандарт")
-                        : (language === "EN" ? "Alternative" : language === "KZ" ? "Балама" : "Альт")}
-                    </span>
                   </div>
                   <ChevronDown className={`w-3 h-3 transition-transform duration-200 shrink-0 ${
                     theme === "light" ? "text-slate-600" : "text-slate-400"

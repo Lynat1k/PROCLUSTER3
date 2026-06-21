@@ -27,11 +27,15 @@ export const FootprintIcon = ({ className }: { className?: string }) => (
 );
 
 export const ClustersIcon = ({ className }: { className?: string }) => (
-  <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="5" y="3" width="14" height="18" rx="2" strokeWidth="2" />
-    <line x1="5" y1="9" x2="19" y2="9" strokeWidth="1.5" />
-    <line x1="5" y1="15" x2="19" y2="15" strokeWidth="1.5" />
-    <line x1="12" y1="3" x2="12" y2="21" strokeWidth="1.2" strokeDasharray="2,2" />
+  <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    {/* Top Tile */}
+    <rect x="4" y="2" width="16" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" fill="currentColor" fillOpacity="0.1" />
+    
+    {/* Middle Tile (High Volume / Point of Control) */}
+    <rect x="4" y="9.5" width="16" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" fill="currentColor" fillOpacity="0.8" />
+    
+    {/* Bottom Tile */}
+    <rect x="4" y="17" width="16" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" fill="currentColor" fillOpacity="0.3" />
   </svg>
 );
 
