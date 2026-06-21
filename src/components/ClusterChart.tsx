@@ -118,6 +118,7 @@ export default function ClusterChart({
   const siLineWidth = typeof siSettings.siLineWidth === "number" ? siSettings.siLineWidth : 2;
 
   const [activeDrawingTool, setActiveDrawingTool] = useState<string | null>(null);
+  const [showZoomHint, setShowZoomHint] = useState<boolean>(false);
   const [drawings, setDrawings] = useState<any[]>([]);
   const [areDrawingsVisible, setAreDrawingsVisible] = useState<boolean>(() => {
     return storage.get("procluster_drawings_visible") !== "false";
@@ -3370,7 +3371,7 @@ export default function ClusterChart({
       {/* FPS Counter Overlay for Admin & VIP (Stationary, over the chart area, top-right of main body, left of the price scale y-axis) */}
       {(userRole === "Admin" || userRole?.toLowerCase() === "admin" || userRole === "VIP" || userRole?.toLowerCase() === "vip") && (
         <div 
-          className="absolute top-[3.25rem] right-[100px] z-40 flex items-center gap-1.5 font-mono text-[9px] font-bold text-emerald-400 bg-slate-950/80 backdrop-blur-md border border-emerald-500/20 px-2.5 py-1 rounded shadow-lg select-none pointer-events-auto"
+          className="absolute top-[3.25rem] right-[100px] z-35 flex items-center gap-1.5 font-mono text-[9px] font-bold text-emerald-400 bg-slate-950/80 backdrop-blur-md border border-emerald-500/20 px-2.5 py-1 rounded shadow-lg select-none pointer-events-auto"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span>FPS:</span>
@@ -3379,7 +3380,7 @@ export default function ClusterChart({
       )}
 
       {/* Chart Tools Header */}
-      <div className={`px-2.5 sm:px-5 py-1 sm:py-1.5 flex items-center justify-between z-20 backdrop-blur-lg border-b transition-all duration-300 ${
+      <div className={`px-2.5 sm:px-5 py-1 sm:py-1.5 flex items-center justify-between z-50 backdrop-blur-lg border-b transition-all duration-300 ${
         isLight ? "bg-slate-200 border-slate-300" : "bg-slate-950/80 border-white/5"
       }`}>
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 flex-1">
@@ -3808,10 +3809,38 @@ export default function ClusterChart({
             </div>
           )}
           
-          <div className={`border px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold flex items-center gap-1.5 hidden xl:flex shadow-inner transition-all duration-300 ${
-            isLight ? "bg-slate-100 border-slate-200/60 text-slate-600" : "bg-slate-950/60 border-white/5 text-slate-400"
-          }`}>
-            <Move className="w-3 h-3 text-slate-500" /> Click & Drag to Pan (2D)
+          <div 
+            onMouseEnter={() => setShowZoomHint(true)}
+            onMouseLeave={() => setShowZoomHint(false)}
+            className={`relative border px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold flex items-center gap-1.5 hidden lg:flex shadow-inner transition-all duration-300 cursor-help select-none ${
+              isLight ? "bg-slate-100 border-slate-200/60 text-slate-600 hover:bg-slate-200/50" : "bg-slate-950/60 border-white/5 text-slate-400 hover:bg-slate-900/80"
+            }`}
+          >
+            <Move className="w-3 h-3 text-slate-500 animate-pulse" /> Click & Drag to Pan (2D)
+            
+            {showZoomHint && (
+              <div className={`absolute top-full mt-2 right-0 w-64 p-3 rounded-lg shadow-xl text-[11px] leading-relaxed border flex flex-col gap-1.5 font-sans z-50 animate-fade-in ${
+                isLight 
+                  ? "bg-white border-slate-200 text-slate-700 shadow-slate-200/80" 
+                  : "bg-slate-950 border-white/10 text-slate-300 shadow-black/80 liquid-glass-panel"
+              }`}>
+                <div className="font-extrabold text-[10px] tracking-wider uppercase opacity-60 mb-1 font-mono">
+                  {language === "RU" ? "Управление масштабом" : language === "KZ" ? "Масштабтауды басқару" : "Zoom Controls"}
+                </div>
+                <div className="flex items-center justify-between gap-2 border-b border-dashed border-slate-100/10 pb-1.5">
+                  <span className="font-mono bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase">shift + scroll</span>
+                  <span className="font-semibold text-right">
+                    {language === "RU" ? "зум по вертикали" : language === "KZ" ? "вертикальді масштабтау" : "vertical zoom"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-0.5">
+                  <span className="font-mono bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase">ctrl + scroll</span>
+                  <span className="font-semibold text-right">
+                    {language === "RU" ? "зум по горизонтали" : language === "KZ" ? "горизонтальді масштабтау" : "horizontal zoom"}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
