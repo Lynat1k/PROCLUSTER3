@@ -128,8 +128,12 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark", lang
     if (scrollContainerRef.current) {
       const container = scrollContainerRef.current;
       const asksCount = Math.min(200, currentBook.asks.length);
-      const midElementCenter = (asksCount * 18) + 22;
-      const midPoint = midElementCenter - (container.clientHeight / 2);
+      const midElementCenter = (asksCount * 18) + 28;
+      const parent = container.parentElement;
+      const parentHeight = parent ? parent.clientHeight : container.clientHeight;
+      const header = parent ? parent.querySelector("#dom-table-header") : null;
+      const headerHeight = header ? header.clientHeight : 25;
+      const midPoint = midElementCenter - (parentHeight / 2) + headerHeight;
       container.scrollTop = midPoint;
       lastInteractionTimeRef.current = Date.now();
     }
@@ -161,8 +165,12 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark", lang
         if (scrollContainerRef.current) {
           const cont = scrollContainerRef.current;
           const asksCount = Math.min(200, currentBook.asks.length);
-          const midElementCenter = (asksCount * 18) + 22;
-          const midPoint = midElementCenter - (cont.clientHeight / 2);
+          const midElementCenter = (asksCount * 18) + 28;
+          const parent = cont.parentElement;
+          const parentHeight = parent ? parent.clientHeight : cont.clientHeight;
+          const header = parent ? parent.querySelector("#dom-table-header") : null;
+          const headerHeight = header ? header.clientHeight : 25;
+          const midPoint = midElementCenter - (parentHeight / 2) + headerHeight;
           if (Math.abs(cont.scrollTop - midPoint) > 5) {
             isAutoCenteringRef.current = true;
             cont.scrollTo({ top: midPoint, behavior: "smooth" });
@@ -796,11 +804,11 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark", lang
         </div>
       </div>
 
-      <div className={`flex-1 overflow-hidden flex flex-col rounded-xl border min-h-[140px] transition-all duration-300 ${
+      <div id="dom-ladder-container" className={`flex-1 overflow-hidden flex flex-col rounded-xl border min-h-[140px] transition-all duration-300 ${
         isLight ? "bg-slate-50/70 border-slate-350" : "bg-[#06080e]/90 border-white/5"
       }`}>
         {/* DOM Table Legend Header */}
-        <div className={`grid grid-cols-[1fr_1.2fr] gap-3 border-b py-1.5 text-[8.5px] font-mono font-black uppercase tracking-widest shrink-0 transition-all duration-300 ${
+        <div id="dom-table-header" className={`grid grid-cols-[1fr_1.2fr] gap-3 border-b py-1.5 text-[8.5px] font-mono font-black uppercase tracking-widest shrink-0 transition-all duration-300 ${
           isLight ? "bg-slate-100/80 border-slate-300 text-slate-600" : "bg-slate-950 border-white/5 text-slate-500"
         }`}>
           <div className="text-right pr-4">Size</div>

@@ -679,6 +679,47 @@ export default function App() {
     return storage.get("procluster_sidebar_collapsed") === "true";
   });
 
+  const [domCenterOffset, setDomCenterOffset] = useState<number | null>(null);
+
+  useEffect(() => {
+    const measure = () => {
+      const container = document.getElementById("dom-ladder-container");
+      const sidebar = document.getElementById("dom-sidebar-outer");
+      if (container && sidebar) {
+        const rect = container.getBoundingClientRect();
+        const sidebarRect = sidebar.getBoundingClientRect();
+        // The vertical center of the container relative to the sidebar:
+        const centerInSidebar = (rect.top - sidebarRect.top) + (rect.height / 2);
+        setDomCenterOffset(centerInSidebar);
+      }
+    };
+
+    measure();
+    const container = document.getElementById("dom-ladder-container");
+    let observer: ResizeObserver | null = null;
+    let fallbackTimer: any = null;
+
+    if (container) {
+      observer = new ResizeObserver(() => {
+        measure();
+      });
+      observer.observe(container);
+      fallbackTimer = window.setInterval(measure, 500);
+    }
+
+    window.addEventListener("resize", measure);
+
+    return () => {
+      if (observer) {
+        observer.disconnect();
+      }
+      window.removeEventListener("resize", measure);
+      if (fallbackTimer !== null) {
+        window.clearInterval(fallbackTimer);
+      }
+    };
+  }, [isSidebarCollapsed]);
+
   useEffect(() => {
     storage.set("procluster_sidebar_collapsed", isSidebarCollapsed ? "true" : "false");
   }, [isSidebarCollapsed]);
@@ -3113,15 +3154,18 @@ export default function App() {
               </div>
 
               {/* Right Sidebar Column: DOM Sidebar with Interactive Trading */}
-              <div className={`relative flex min-h-0 flex-col shrink-0 transition-all duration-300 ease-in-out ${
-                isSidebarCollapsed ? "lg:w-0 lg:ml-0" : "w-full lg:w-[380px]"
-              } ${
-                activeMobileTab === "dom" ? "flex" : "hidden lg:flex"
-              }`}>
+              <div 
+                id="dom-sidebar-outer"
+                className={`relative flex min-h-0 flex-col shrink-0 transition-all duration-300 ease-in-out ${
+                  isSidebarCollapsed ? "lg:w-0 lg:ml-0" : "w-full lg:w-[380px]"
+                } ${
+                  activeMobileTab === "dom" ? "flex" : "hidden lg:flex"
+                }`}
+              >
                 {/* Expand / Collapse Button */}
                 <button
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  className={`hidden lg:flex absolute top-1/2 -translate-y-1/2 z-35 items-center justify-center w-6 h-12 rounded-md border transition-all duration-200 cursor-pointer ${
+                  className={`hidden lg:flex absolute z-35 items-center justify-center w-6 h-12 rounded-md border transition-all duration-200 cursor-pointer ${
                     isSidebarCollapsed 
                       ? "-left-3 " + (theme === "light"
                           ? "bg-white hover:bg-slate-50 text-slate-600 border-slate-300 shadow-md hover:text-slate-900"
@@ -3130,7 +3174,7 @@ export default function App() {
                           ? "bg-white hover:bg-slate-50 text-slate-600 border-slate-200 shadow-sm hover:text-slate-900"
                           : "bg-slate-900 hover:bg-slate-850 text-slate-400 border-slate-750/80 hover:text-slate-200")
                   }`}
-                  style={{ transform: "translateY(-50%)" }}
+                  style={{ top: domCenterOffset !== null ? `${domCenterOffset}px` : "50%", transform: "translateY(-50%)" }}
                   title={
                     isSidebarCollapsed 
                       ? (language === "RU" ? "Развернуть стакан и индекс" : language === "KZ" ? "Стақанды жаю" : "Expand orderbook & sentiment sidebar")
