@@ -2994,15 +2994,10 @@ export default function App() {
                       : "border-transparent"
                   }`}
                 >
-                  {/* Active Badge indicator */}
-                  {workspaceLayout !== "1" && activeChartIndex === 0 && (
-                    <div className="absolute top-2 right-2.5 z-45 bg-yellow-500 text-slate-950 font-sans text-[8px] font-black uppercase px-2 py-0.5 rounded shadow-md tracking-widest leading-none select-none">
-                      {language === "RU" ? "Активен" : language === "KZ" ? "Белсенді" : "Active"}
-                    </div>
-                  )}
                   <ClusterChart
                     candles={candles0}
                     activePair={activePair0}
+                    isActiveChart={workspaceLayout !== "1" && activeChartIndex === 0}
                     indicators={indicators}
                     activeIndicators={activeIndicatorsObj}
                     indicatorSettings={indicatorSettings}
@@ -3079,15 +3074,10 @@ export default function App() {
                         : "border-transparent"
                     }`}
                   >
-                    {/* Active Badge indicator */}
-                    {activeChartIndex === 1 && (
-                      <div className="absolute top-2 right-2.5 z-45 bg-yellow-500 text-slate-950 font-sans text-[8px] font-black uppercase px-2 py-0.5 rounded shadow-md tracking-widest leading-none select-none">
-                        {language === "RU" ? "Активен" : language === "KZ" ? "Белсенді" : "Active"}
-                      </div>
-                    )}
                     <ClusterChart
                       candles={candles1}
                       activePair={activePair1}
+                      isActiveChart={activeChartIndex === 1}
                       indicators={indicators}
                       activeIndicators={activeIndicatorsObj}
                       indicatorSettings={indicatorSettings}

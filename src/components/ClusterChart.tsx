@@ -30,6 +30,7 @@ const parseHexColor = (hex: string): string => {
 interface ClusterChartProps {
   candles: ClusterCandle[];
   activePair: CryptoPair;
+  isActiveChart?: boolean;
   indicators?: Indicator[];
   activeIndicators?: Record<string, boolean>;
   indicatorSettings?: Record<string, any>;
@@ -58,6 +59,7 @@ interface ClusterChartProps {
 export default function ClusterChart({
   candles,
   activePair,
+  isActiveChart = false,
   indicators,
   activeIndicators = {
     clusterSearch: true,
@@ -3390,21 +3392,21 @@ export default function ClusterChart({
       )}
 
       {/* Chart Tools Header */}
-      <div className={`px-2.5 sm:px-5 py-1 sm:py-1.5 flex items-center justify-between z-50 backdrop-blur-lg border-b transition-all duration-300 ${
+      <div className={`px-2 sm:px-4 py-1 sm:py-1.5 flex items-center justify-between z-50 backdrop-blur-lg border-b transition-all duration-300 ${
         isLight ? "bg-slate-200 border-slate-300" : "bg-slate-950/80 border-white/5"
       }`}>
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 flex-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-md shadow-emerald-500/30 shrink-0" />
-          <h3 className={`text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 sm:gap-2 shrink-0 ${
+        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-nowrap min-w-0 flex-1 overflow-hidden mr-1">
+          <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 shadow-md shadow-emerald-500/30 shrink-0" />
+          <h3 className={`text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 ${
             isLight ? "text-slate-700" : "text-slate-200"
           }`}>
-            <span className={`font-display font-extrabold text-[12px] sm:text-sm tracking-tight ${
+            <span className={`font-display font-extrabold text-[11px] sm:text-xs md:text-sm tracking-tight shrink-0 ${
               isLight ? "text-slate-900" : "text-slate-100"
             }`}>{activePair.symbol}</span>
-            <span className="text-[10px] text-slate-500">•</span>
+            <span className="text-[9px] text-slate-500 shrink-0">•</span>
             <button
               onClick={onToggleMarketType}
-              className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2.5 py-0.5 rounded cursor-pointer border transition-all ${
+              className={`text-[8.5px] sm:text-[9.5px] font-bold px-1 sm:px-2 py-0.5 rounded cursor-pointer border transition-all shrink-0 ${
                 marketType === "SPOT"
                   ? isLight
                     ? "text-cyan-900 bg-cyan-100 border-cyan-300 font-extrabold shadow-sm hover:bg-cyan-200"
@@ -3417,6 +3419,17 @@ export default function ClusterChart({
             >
               {marketType}
             </button>
+            {isActiveChart && (
+              <>
+                <span className="text-[9px] text-slate-500 shrink-0">•</span>
+                <span className={`inline-flex items-center bg-yellow-500 text-slate-950 font-sans text-[8px] font-black uppercase px-1.5 py-0.5 rounded shadow-sm tracking-wide leading-none select-none shrink-0 ${workspaceLayout !== "1" ? "hidden" : "inline-flex"}`} style={{ height: "16px" }}>
+                  {language === "RU" ? "АКТИВЕН" : language === "KZ" ? "БЕЛСЕНДІ" : "ACTIVE"}
+                </span>
+                {workspaceLayout !== "1" && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 border border-yellow-300 shadow-md shadow-yellow-500/45 animate-pulse shrink-0 inline-block" title={language === "RU" ? "Активный график" : "Active Chart"} />
+                )}
+              </>
+            )}
           </h3>
         </div>
 
@@ -3656,7 +3669,9 @@ export default function ClusterChart({
           </div>
           
           {/* Timezone Select Control */}
-          <div className={`border px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-mono font-bold flex items-center gap-1 sm:gap-1.5 shadow-inner transition-all duration-300 ${
+          <div className={`border px-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-mono font-bold items-center gap-1 sm:gap-1.5 shadow-inner transition-all duration-300 ${
+            workspaceLayout !== "1" ? "hidden xl:flex" : "flex"
+          } ${
             isLight ? "bg-white border-slate-300 text-slate-700" : "bg-slate-950/60 border-white/5 text-slate-400"
           }`}>
             <Globe className={`w-3 sm:w-3.5 h-3 sm:h-3.5 shrink-0 hidden lg:inline ${isLight ? "text-slate-500" : "text-slate-400"}`} />
@@ -3685,7 +3700,7 @@ export default function ClusterChart({
               <option value="Asia/Tokyo" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
                 {language === "RU" ? "Токио" : language === "KZ" ? "Токио" : "Tokyo"}
               </option>
-              <option value="Europe/Paris" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
+              <option value="Europe/Paris" className={isLight ? "bg-white text-slate-900" : "bg-[#111827] text-slate-100"}>
                 {language === "RU" ? "Париж" : language === "KZ" ? "Париж" : "Paris"}
               </option>
               <option value="America/New_York" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
@@ -3858,12 +3873,18 @@ export default function ClusterChart({
       {/* 2D Panning Chart Workspace */}
       <div className="flex-1 flex relative overflow-hidden">
         {/* Drawing Tools sidebar panel */}
-        <div className={`w-11 flex-none flex flex-col items-center py-3 border-r select-none transition-all duration-300 relative z-30 ${
+        <div className={`${
+          workspaceLayout !== "1" ? "w-8 sm:w-9" : "w-9 sm:w-11"
+        } flex-none flex flex-col items-center py-1 sm:py-2.5 border-r select-none transition-all duration-300 relative z-30 ${
           isLight 
             ? "bg-slate-200 border-slate-300 text-slate-700 hover:text-slate-900" 
             : "bg-[#06080f]/90 border-white/5 text-slate-300 backdrop-blur-md"
         }`}>
-          <div className="flex flex-col gap-1.5 items-center w-full grow">
+          <div className={`flex flex-col items-center w-full grow overflow-y-auto scrollbar-none pr-[1px] sm:pr-[2px] ${
+            workspaceLayout !== "1" 
+              ? "gap-0.5 sm:gap-1 max-h-[calc(100%-45px)]" 
+              : "gap-0.5 sm:gap-1.5 items-center w-full grow overflow-y-auto scrollbar-none pr-[1px] sm:pr-[2px] max-h-[calc(100%-55px)] sm:max-h-[calc(100%-80px)]"
+          }`}>
             {[
               { id: "trend", icon: Slash, titleRU: "Трендовая линия", titleEN: "Trend Line" },
               { id: "arrow", icon: ArrowUpRight, titleRU: "Стрелка направления", titleEN: "Direction Arrow" },
@@ -3880,13 +3901,18 @@ export default function ClusterChart({
               const IconComp = tool.icon;
               const isActive = activeDrawingTool === tool.id;
               const title = language === "RU" ? tool.titleRU : tool.titleEN;
+              const sizeClass = workspaceLayout !== "1" 
+                ? "w-[13px] sm:w-[15px] h-[13px] sm:h-[15px]" 
+                : "w-[15px] sm:w-[20px] h-[15px] sm:h-[20px]";
               return (
                 <button
                   key={tool.id}
                   onClick={() => setActiveDrawingTool(isActive ? null : tool.id)}
-                  className={`p-2 rounded-lg transition-all duration-150 relative group cursor-pointer ${
+                  className={`rounded transition-all duration-150 relative group cursor-pointer ${
+                    workspaceLayout !== "1" ? "p-1" : "p-1 sm:p-2"
+                  } ${
                     isActive
-                      ? "bg-amber-500/15 text-amber-500 border border-amber-500/30"
+                      ? "bg-amber-500/15 text-amber-500 border border-amber-500/30 font-extrabold"
                       : isLight
                         ? "hover:bg-slate-300/60 text-slate-600 hover:text-slate-950 border border-transparent"
                         : "hover:bg-white/5 text-slate-400 hover:text-white border border-transparent"
@@ -3894,7 +3920,7 @@ export default function ClusterChart({
                   title={title}
                 >
                   {tool.id === "long" ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={sizeClass}>
                       <circle cx="4" cy="5" r="1.5" />
                       <line x1="6" y1="5" x2="20" y2="5" />
                       <text x="12" y="12" fontFamily="sans-serif" fontSize="7.5" fontWeight="bold" textAnchor="middle" fill="currentColor" stroke="none">L</text>
@@ -3903,7 +3929,7 @@ export default function ClusterChart({
                       <line x1="6" y1="21" x2="20" y2="21" />
                     </svg>
                   ) : tool.id === "short" ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={sizeClass}>
                       <circle cx="4" cy="5" r="1.5" />
                       <line x1="6" y1="5" x2="20" y2="5" />
                       <line x1="4" y1="10" x2="20" y2="10" />
@@ -3912,7 +3938,7 @@ export default function ClusterChart({
                       <line x1="6" y1="21" x2="20" y2="21" />
                     </svg>
                   ) : tool.id === "volume" ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={sizeClass}>
                       <line x1="4" y1="4" x2="4" y2="20" strokeWidth="1.5" opacity="0.6" />
                       <line x1="4" y1="6" x2="10" y2="6" strokeWidth="1.8" />
                       <line x1="4" y1="9" x2="16" y2="9" strokeWidth="1.8" />
@@ -3921,7 +3947,7 @@ export default function ClusterChart({
                       <line x1="4" y1="18" x2="10" y2="18" strokeWidth="1.8" />
                     </svg>
                   ) : tool.id === "fibonacci" ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={sizeClass}>
                       {/* Parallel grid levels */}
                       <line x1="3" y1="4" x2="21" y2="4" strokeWidth="1.5" opacity="0.9" />
                       <line x1="3" y1="7.5" x2="21" y2="7.5" strokeWidth="1" opacity="0.4" />
@@ -3936,7 +3962,7 @@ export default function ClusterChart({
                       <circle cx="19" cy="4" r="1.5" fill="currentColor" stroke="none" />
                     </svg>
                   ) : (
-                    <IconComp className="w-5 h-5" />
+                    <IconComp className={sizeClass} />
                   )}
                   
                   {/* Tooltip on Hover to the right */}
@@ -3949,12 +3975,16 @@ export default function ClusterChart({
           </div>
 
           {/* Separator line */}
-          <div className={`w-6 h-[1px] my-1.5 shrink-0 ${
+          <div className={`${
+            workspaceLayout !== "1" ? "w-3 sm:w-4" : "w-4 sm:w-6"
+          } h-[1px] my-1 shrink-0 ${
             isLight ? "bg-slate-300" : "bg-white/10"
           }`} />
 
           {/* Action buttons at the bottom of the sidebar */}
-          <div className="flex flex-col gap-1.5 items-center w-full mt-auto shrink-0">
+          <div className={`flex flex-col items-center w-full mt-auto shrink-0 ${
+            workspaceLayout !== "1" ? "gap-0.5 pb-0.5" : "gap-0.5 sm:gap-1.5 pb-1"
+          }`}>
             {/* Show/Hide Drawings */}
             <button
               onClick={() => {
@@ -3964,19 +3994,21 @@ export default function ClusterChart({
                   return next;
                 });
               }}
-              className={`p-2 rounded-lg transition-all duration-150 relative group cursor-pointer ${
+              className={`rounded transition-all duration-150 relative group cursor-pointer ${
+                workspaceLayout !== "1" ? "p-1" : "p-1 sm:p-2"
+              } ${
                 !areDrawingsVisible
                   ? "bg-amber-500/10 text-amber-500 border border-amber-500/25"
                   : isLight
-                    ? "hover:bg-slate-300/60 text-slate-600 hover:text-slate-950 border border-transparent"
+                    ? "hover:bg-slate-300/60 text-slate-600 hover:text-slate-955 border border-transparent"
                     : "hover:bg-white/5 text-slate-400 hover:text-white border border-transparent"
               }`}
               title={language === "RU" ? (areDrawingsVisible ? "Скрыть все рисунки" : "Показать все рисунки") : (areDrawingsVisible ? "Hide All Drawings" : "Show All Drawings")}
             >
               {areDrawingsVisible ? (
-                <Eye className="w-5 h-5" />
+                <Eye className={workspaceLayout !== "1" ? "w-[13px] sm:w-[15px] h-[13px] sm:h-[15px]" : "w-[15px] sm:w-[20px] h-[15px] sm:h-[20px]"} />
               ) : (
-                <EyeOff className="w-5 h-5 text-rose-500" />
+                <EyeOff className={`text-rose-500 ${workspaceLayout !== "1" ? "w-[13px] sm:w-[15px] h-[13px] sm:h-[15px]" : "w-[15px] sm:w-[20px] h-[15px] sm:h-[20px]"}`} />
               )}
               
               <div className={`absolute left-full ml-2 top-1.2 font-sans font-semibold text-[10px] px-2 py-1 rounded bg-slate-950 text-slate-100 border border-white/10 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl`}>
@@ -3993,7 +4025,9 @@ export default function ClusterChart({
                 }
               }}
               disabled={drawings.length === 0}
-              className={`p-2 rounded-lg transition-all duration-150 relative group border border-transparent ${
+              className={`rounded transition-all duration-150 relative group border border-transparent ${
+                workspaceLayout !== "1" ? "p-1" : "p-1 sm:p-2"
+              } ${
                 drawings.length === 0
                   ? "opacity-30 cursor-not-allowed text-slate-500"
                   : isLight
@@ -4002,7 +4036,7 @@ export default function ClusterChart({
               }`}
               title={language === "RU" ? "Удалить все рисунки" : "Clear Drawings"}
             >
-              <Trash2 className="w-5 h-5" />
+              <Trash2 className={workspaceLayout !== "1" ? "w-[13px] sm:w-[15px] h-[13px] sm:h-[15px]" : "w-[15px] sm:w-[20px] h-[15px] sm:h-[20px]"} />
               
               <div className={`absolute left-full ml-2 top-1.2 font-sans font-extrabold text-[10px] px-2 py-1 rounded bg-rose-950 text-rose-300 border border-rose-900/30 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl ${
                 drawings.length === 0 ? "group-hover:hidden" : ""
@@ -4047,10 +4081,14 @@ export default function ClusterChart({
 
                 return (
                   <div className="sticky left-0 top-0 w-0 h-0 pointer-events-none z-30">
-                    <div className="absolute left-3 sm:left-4 top-3 sm:top-4 pointer-events-auto flex flex-col gap-1.5 font-sans select-none max-w-sm sm:max-w-md transition-all duration-300">
+                    <div className={`absolute left-3 sm:left-4 top-3 sm:top-4 pointer-events-auto flex flex-col gap-1.5 font-sans select-none transition-all duration-300 ${
+                      workspaceLayout !== "1" || isMobile
+                        ? "max-w-[190px] xs:max-w-[220px] sm:max-w-xs md:max-w-sm" 
+                        : "max-w-xs sm:max-w-md"
+                    }`}>
                       
                       {/* Collapse/Expand Toggle Button */}
-                      <div className="flex items-center gap-1 select-none shrink-0">
+                      <div className="flex items-center gap-1 select-none shrink-0 border-none">
                         <button
                           onClick={() => {
                             const next = !isOverlayLegendCollapsed;
@@ -4090,33 +4128,43 @@ export default function ClusterChart({
                             return (
                               <div 
                                 key={ind.id}
-                                className={`group flex items-center justify-between gap-3 px-1.5 py-0.5 rounded transition-all duration-150 flex-nowrap whitespace-nowrap ${
+                                className={`group flex items-center justify-between rounded transition-all duration-150 flex-nowrap whitespace-nowrap w-full min-w-0 ${
+                                  workspaceLayout !== "1" || isMobile ? "gap-1.5 px-1 py-0.5" : "gap-3 px-1.5 py-0.5"
+                                } ${
                                   isLight 
                                     ? "hover:bg-slate-200/50" 
                                     : "hover:bg-white/[0.04]"
                                 } ${!isVisible ? "opacity-35" : ""}`}
                               >
                                 {/* Label & Pair Info */}
-                                <div className="flex items-center gap-1.5 font-mono text-[9.5px] sm:text-[10px] select-text min-w-0 font-bold flex-nowrap whitespace-nowrap">
-                                  {/* Return <ProCluster> prefix */}
-                                  <span className={`font-bold shrink-0 whitespace-nowrap ${
-                                    isLight ? "text-[#4f46e5]" : "text-cyan-400"
-                                  }`}>&lt;ProCluster&gt;</span>
+                                <div className="flex items-center gap-1 sm:gap-1.5 font-mono text-[9px] sm:text-[10px] select-text min-w-0 font-bold flex-nowrap whitespace-nowrap flex-grow flex-shrink">
+                                  {/* Return <ProCluster> prefix (Only in single-chart mode on desktop) */}
+                                  {workspaceLayout === "1" && !isMobile && (
+                                    <span className={`font-bold shrink-0 whitespace-nowrap ${
+                                      isLight ? "text-[#4f46e5]" : "text-cyan-400"
+                                    }`}>&lt;ProCluster&gt;</span>
+                                  )}
 
                                   <span className={`tracking-wide shrink whitespace-nowrap leading-tight hover:underline truncate ${
                                     isLight ? "text-slate-800" : "text-slate-100"
                                   } ${!isVisible ? "line-through text-slate-500" : ""}`}>
                                     {label}
                                   </span>
-                                  <span className={`text-[8px] sm:text-[8.5px] shrink-0 font-medium whitespace-nowrap ${
-                                    isLight ? "text-slate-500" : "text-slate-400"
-                                  }`}>
-                                    ({activePair.symbol.replace("/", "")}, {interval || "30m"})
-                                  </span>
+                                  {workspaceLayout === "1" && !isMobile && (
+                                    <span className={`text-[7.5px] sm:text-[8.5px] shrink-0 font-medium whitespace-nowrap ${
+                                      isLight ? "text-slate-500" : "text-slate-400"
+                                    }`}>
+                                      ({activePair.symbol.replace("/", "")}, {interval || "30m"})
+                                    </span>
+                                  )}
                                 </div>
 
                                 {/* Micro control actions */}
-                                <div className="flex items-center gap-0.5 shrink-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all duration-150">
+                                <div className={`flex items-center gap-0.5 shrink-0 transition-all duration-150 ${
+                                  workspaceLayout !== "1" || isMobile
+                                    ? "opacity-100" 
+                                    : "opacity-100 sm:opacity-0 group-hover:opacity-100"
+                                }`}>
                                   <button
                                     onClick={() => {
                                       if (onToggleVisibility) {
@@ -4184,7 +4232,7 @@ export default function ClusterChart({
         <div 
           className="absolute pointer-events-none select-none z-20 opacity-30 sm:opacity-40 transition-all duration-300 flex items-center gap-1.5"
           style={{ 
-            right: `${isMobile ? 74 : 106}px`,
+            right: `${isMobile || workspaceLayout !== "1" ? 74 : 106}px`,
             bottom: `${margin.bottom + deltaHeightTotal + cvdHeightTotal + 16}px` 
           }}
         >
@@ -4232,14 +4280,15 @@ export default function ClusterChart({
         className={`flex-none border-l select-none transition-all duration-300 relative flex flex-col justify-between cursor-ns-resize ${
           isLight ? "bg-[#f8fafc] border-slate-200" : "bg-[#06080f] border-white/5"
         }`}
-        style={{ height: totalSvgHeight, width: isMobile ? "58px" : "90px" }}
+        style={{ height: totalSvgHeight, width: isMobile || workspaceLayout !== "1" ? "64px" : "90px" }}
       >
         {(() => {
-          const scaleWidth = isMobile ? 58 : 90;
-          const labelX = isMobile ? 4 : 8;
+          const scaleWidth = isMobile || workspaceLayout !== "1" ? 64 : 90;
+          const labelX = scaleWidth - 6;
           const badgeWidth = scaleWidth - 8;
+          const textAnchor = "end";
           const formatPrice = (p: number) => {
-            const fd = isMobile ? 0 : (activePair.priceStep < 0.1 ? 3 : 1);
+            const fd = isMobile || workspaceLayout !== "1" ? 0 : (activePair.priceStep < 0.1 ? 3 : 1);
             return "$" + p.toLocaleString(undefined, { minimumFractionDigits: fd, maximumFractionDigits: fd });
           };
           return (
@@ -4284,10 +4333,10 @@ export default function ClusterChart({
                       x={labelX}
                       y={gridY + 4}
                       fill={isLight ? "#1e293b" : "#cbd5e1"}
-                      fontSize={isMobile ? "8.5" : "10.5"}
+                      fontSize={isMobile || workspaceLayout !== "1" ? "8.5" : "10.5"}
                       fontFamily="'Inter', -apple-system, sans-serif"
                       fontWeight="600"
-                      textAnchor="start"
+                      textAnchor={textAnchor}
                     >
                       {formatPrice(price)}
                     </text>
@@ -4299,7 +4348,7 @@ export default function ClusterChart({
               {(() => {
                 const activePriceY = priceToY(activePair.price);
                 if (activePriceY >= margin.top && activePriceY <= margin.top + chartHeight) {
-                  const bHeight = isMobile ? 18 : 22;
+                  const bHeight = isMobile || workspaceLayout !== "1" ? 18 : 22;
                   return (
                     <g key="fixed-active-price">
                       <rect
@@ -4313,13 +4362,13 @@ export default function ClusterChart({
                         strokeWidth="1.2"
                       />
                       <text
-                        x={labelX + 1}
+                        x={labelX}
                         y={activePriceY}
                         fill={isLight ? "#ffffff" : "#06080f"}
-                        fontSize={isMobile ? "10" : "12.5"}
+                        fontSize={isMobile || workspaceLayout !== "1" ? "9.5" : "12.5"}
                         fontFamily="'Inter', -apple-system, sans-serif"
                         fontWeight="900"
-                        textAnchor="start"
+                        textAnchor={textAnchor}
                         dominantBaseline="central"
                       >
                         {formatPrice(activePair.price)}
@@ -4356,7 +4405,7 @@ export default function ClusterChart({
                           fontSize={isMobile ? "8" : "9.5"}
                           fontFamily="'Inter', -apple-system, sans-serif"
                           fontWeight="bold"
-                          textAnchor="start"
+                          textAnchor={textAnchor}
                         >
                           {formatPrice(d.startPrice)}
                         </text>
@@ -4399,6 +4448,7 @@ export default function ClusterChart({
                     fontSize={isMobile ? "8" : "9"}
                     fontFamily="'Inter', -apple-system, sans-serif"
                     fontWeight="bold"
+                    textAnchor={textAnchor}
                   >
                     +{zoomedMaxCandleDelta.toFixed(1)}K
                   </text>
@@ -4410,6 +4460,7 @@ export default function ClusterChart({
                     fontSize={isMobile ? "8" : "9"}
                     fontFamily="'Inter', -apple-system, sans-serif"
                     fontWeight="bold"
+                    textAnchor={textAnchor}
                   >
                     0.0K
                   </text>
@@ -4421,6 +4472,7 @@ export default function ClusterChart({
                     fontSize={isMobile ? "8" : "9"}
                     fontFamily="'Inter', -apple-system, sans-serif"
                     fontWeight="bold"
+                    textAnchor={textAnchor}
                   >
                     -{zoomedMaxCandleDelta.toFixed(1)}K
                   </text>
@@ -4438,6 +4490,7 @@ export default function ClusterChart({
                     fontSize={isMobile ? "8" : "9"}
                     fontFamily="'Inter', -apple-system, sans-serif"
                     fontWeight="bold"
+                    textAnchor={textAnchor}
                   >
                     +{zoomedCvdMax.toFixed(1)}K
                   </text>
@@ -4449,6 +4502,7 @@ export default function ClusterChart({
                     fontSize={isMobile ? "8" : "9"}
                     fontFamily="'Inter', -apple-system, sans-serif"
                     fontWeight="bold"
+                    textAnchor={textAnchor}
                   >
                     {cvdCenterVal.toFixed(1)}K
                   </text>
@@ -4460,6 +4514,7 @@ export default function ClusterChart({
                     fontSize={isMobile ? "8" : "9"}
                     fontFamily="'Inter', -apple-system, sans-serif"
                     fontWeight="bold"
+                    textAnchor={textAnchor}
                   >
                     {zoomedCvdMin.toFixed(1)}K
                   </text>
@@ -4480,13 +4535,13 @@ export default function ClusterChart({
                     strokeWidth="1.2"
                   />
                   <text
-                    x={labelX + 2}
+                    x={labelX}
                     y={crosshair.y}
                     fill="#ffffff"
                     fontSize={isMobile ? "9" : "11"}
                     fontFamily="'Inter', -apple-system, sans-serif"
                     fontWeight="800"
-                    textAnchor="start"
+                    textAnchor={textAnchor}
                     dominantBaseline="central"
                     style={{ filter: "drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.6))" }}
                   >
@@ -4502,19 +4557,23 @@ export default function ClusterChart({
       {/* Absolute Pinned Indicators Control Overlays (Top-right of subcharts) */}
       {activeIndicators.delta && (
         <div 
-          className="absolute z-30 flex items-center gap-2 px-3 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 select-none"
+          className={`absolute z-30 flex items-center shadow-xl backdrop-blur-md transition-all duration-300 select-none border rounded-lg ${
+            isMobile || workspaceLayout !== "1"
+              ? "gap-1 px-1.5 py-0.5 text-[9px]"
+              : "gap-2 px-3 py-1 text-xs"
+          }`}
           style={{
             top: `${deltaTopY + 1}px`,
-            right: isMobile ? "62px" : "94px", // Closer to the edge of the price scale panel (58px/90px)
-            paddingTop: "3.5px",
-            paddingBottom: "3.5px",
+            right: isMobile || workspaceLayout !== "1" ? "68px" : "94px",
             backgroundColor: isLight ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)",
             borderColor: isLight ? "rgba(255, 255, 255, 0.88)" : "rgba(255, 255, 255, 0.08)",
           }}
         >
           {/* Label / Dynamic value indicator */}
-          <div className="flex items-center gap-1.5 font-mono text-[10px] sm:text-[11px] font-bold tracking-wider">
-            <span className={isLight ? "text-slate-800" : "text-white"}>(PROCLUSTER) DELTA</span>
+          <div className="flex items-center gap-1 sm:gap-1.5 font-mono text-[9px] sm:text-[11px] font-bold tracking-wider">
+            <span className={isLight ? "text-slate-800" : "text-white"}>
+              {isMobile || workspaceLayout !== "1" ? "DELTA" : "(PROCLUSTER) DELTA"}
+            </span>
             <span className={hoveredCandle ? (hoveredCandle.delta >= 0 ? "text-emerald-500 font-extrabold" : "text-rose-500 font-extrabold") : "text-slate-500"}>
               {deltaValueText}
             </span>
@@ -4523,7 +4582,7 @@ export default function ClusterChart({
           <div className={`w-[1px] h-3 ${isLight ? "bg-slate-300" : "bg-white/10"}`} />
 
           {/* Control Buttons */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5">
             <button
               onClick={() => onToggleIndicator?.("delta")}
               className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${
@@ -4533,7 +4592,7 @@ export default function ClusterChart({
               }`}
               title="Hide Delta"
             >
-              <Eye className="w-3.5 h-3.5" />
+              <Eye className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
             </button>
 
             <button
@@ -4545,7 +4604,7 @@ export default function ClusterChart({
               }`}
               title="Delta Settings"
             >
-              <Settings className="w-3.5 h-3.5" />
+              <Settings className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
             </button>
 
             <button
@@ -4557,7 +4616,7 @@ export default function ClusterChart({
               }`}
               title="Remove Delta Overlay"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
             </button>
           </div>
         </div>
@@ -4565,23 +4624,27 @@ export default function ClusterChart({
 
       {activeIndicators.cvd && (
         <div 
-          className="absolute z-30 flex items-center gap-2 px-3 rounded-lg border shadow-xl backdrop-blur-md transition-all duration-300 select-none"
+          className={`absolute z-30 flex items-center shadow-xl backdrop-blur-md transition-all duration-300 select-none border rounded-lg ${
+            isMobile || workspaceLayout !== "1"
+              ? "gap-1 px-1.5 py-0.5 text-[9px]"
+              : "gap-2 px-3 py-1 text-xs"
+          }`}
           style={{
             top: `${cvdTopY + 1}px`,
-            right: isMobile ? "62px" : "94px", // Closer to the edge of the price scale panel (58px/90px)
-            paddingTop: "3.5px",
-            paddingBottom: "3.5px",
+            right: isMobile || workspaceLayout !== "1" ? "68px" : "94px",
             backgroundColor: isLight ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)",
             borderColor: isLight ? "rgba(255, 255, 255, 0.88)" : "rgba(255, 255, 255, 0.08)",
           }}
         >
           {/* Label / Dynamic value indicator */}
-          <div className="flex items-center gap-1.5 font-mono text-[10px] sm:text-[11px] font-bold tracking-wider">
+          <div className="flex items-center gap-1 sm:gap-1.5 font-mono text-[9px] sm:text-[11px] font-bold tracking-wider">
             <span 
               className="w-1.5 h-1.5 rounded-full" 
               style={{ backgroundColor: cvdLineColor }} 
             />
-            <span className={isLight ? "text-slate-800" : "text-white"}>(PROCLUSTER) CVD</span>
+            <span className={isLight ? "text-slate-800" : "text-white"}>
+              {isMobile || workspaceLayout !== "1" ? "CVD" : "(PROCLUSTER) CVD"}
+            </span>
             <span 
               className="font-extrabold"
               style={{ 
@@ -4597,7 +4660,7 @@ export default function ClusterChart({
           <div className={`w-[1px] h-3 ${isLight ? "bg-slate-300" : "bg-white/10"}`} />
 
           {/* Control Buttons */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5">
             <button
               onClick={() => onToggleIndicator?.("cvd")}
               className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${
@@ -4607,7 +4670,7 @@ export default function ClusterChart({
               }`}
               title="Hide CVD"
             >
-              <Eye className="w-3.5 h-3.5" />
+              <Eye className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
             </button>
 
             <button
@@ -4619,7 +4682,7 @@ export default function ClusterChart({
               }`}
               title="CVD Settings"
             >
-              <Settings className="w-3.5 h-3.5" />
+              <Settings className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
             </button>
 
             <button
@@ -4631,7 +4694,7 @@ export default function ClusterChart({
               }`}
               title="Remove CVD"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
             </button>
           </div>
         </div>

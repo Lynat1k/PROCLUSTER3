@@ -49,6 +49,25 @@ export default function IndicatorsModal({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string>("clusterSearch");
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [activeMobileView, setActiveMobileView] = useState<"list" | "settings">("list");
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 960);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const selectIndicatorMobile = (id: string) => {
+    setSelectedId(id);
+    if (window.innerWidth < 960) {
+      setActiveMobileView("settings");
+    }
+  };
+
   // Dynamic sizing state
   const [size, setSize] = useState({ width: 855, height: 800 });
   const [resizing, setResizing] = useState(false);
@@ -247,6 +266,7 @@ export default function IndicatorsModal({
       initialIndicators.current = cloned;
       setOffset({ x: 0, y: 0 }); // Reset window offset on open
       setSize({ width: 855, height: 800 }); // Reset size on open
+      setActiveMobileView("list"); // Reset mobile view on open
     }
     prevIsOpen.current = isOpen;
   }, [isOpen]);
@@ -449,26 +469,36 @@ export default function IndicatorsModal({
   const addedIndicators = draft.filter((ind) => ind.isActive);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none bg-transparent">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 pointer-events-none bg-transparent">
       <div 
         className="pointer-events-auto relative"
-        style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+        style={isMobile ? undefined : { transform: `translate(${offset.x}px, ${offset.y}px)` }}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.94, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 15 }}
-          className={`rounded-3xl flex flex-col overflow-hidden font-sans border shadow-2xl relative muddy-glass-popover ${
+          className={`rounded-2xl md:rounded-3xl flex flex-col overflow-hidden font-sans border shadow-2xl relative muddy-glass-popover ${
             isLight
               ? "border-slate-200/50 text-slate-850"
               : "border-white/10 text-slate-200"
           }`}
-          style={{ width: `${size.width}px`, height: `${size.height}px` }}
+          style={isMobile ? {
+            width: "calc(100vw - 16px)",
+            maxWidth: "500px",
+            height: "calc(100vh - 20px)",
+            maxHeight: "720px"
+          } : {
+            width: `${size.width}px`,
+            height: `${size.height}px`
+          }}
         >
           {/* HEADER (Draggable panel header) */}
           <div 
-            onMouseDown={handleMouseDown}
-            className={`flex items-center justify-between px-6 py-4.5 border-b transition-all duration-300 cursor-grab active:cursor-grabbing select-none ${
+            onMouseDown={isMobile ? undefined : handleMouseDown}
+            className={`flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4.5 border-b transition-all duration-300 ${
+              isMobile ? "" : "cursor-grab active:cursor-grabbing select-none"
+            } ${
               isLight ? "bg-white/30 border-slate-200/80 text-slate-800" : "border-white/5 bg-slate-950/20"
             }`}
           >
@@ -494,7 +524,13 @@ export default function IndicatorsModal({
           <div className="flex-1 flex min-h-0 overflow-hidden">
             
             {/* LEFT SIDEBAR: Active list (ON TOP) & Accordions (Categories & Lists) */}
-            <div className={`w-[335px] p-4 border-r flex flex-col gap-4 select-none transition-all duration-300 shrink-0 ${
+            <div className={`${
+              isMobile
+                ? activeMobileView === "list"
+                  ? "w-full border-r-0"
+                  : "hidden"
+                : "w-[335px] border-r shrink-0"
+            } p-4 flex flex-col gap-4 select-none transition-all duration-300 ${
               isLight ? "bg-slate-50/50 border-slate-200" : "bg-slate-900/10 border-white/5"
             }`}>
               {/* Search Input */}
@@ -539,7 +575,7 @@ export default function IndicatorsModal({
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -8 }}
                             key={ind.id}
-                            onClick={() => setSelectedId(ind.id)}
+                            onClick={() => selectIndicatorMobile(ind.id)}
                             className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer no-drag ${
                               !isVisible ? "opacity-60" : ""
                             } ${
@@ -681,7 +717,7 @@ export default function IndicatorsModal({
                                 return (
                                   <div
                                     key={ind.id}
-                                    onClick={() => setSelectedId(ind.id)}
+                                    onClick={() => selectIndicatorMobile(ind.id)}
                                     className={`flex items-center justify-between px-2 py-1 rounded-lg cursor-pointer transition select-none border no-drag ${
                                       isSelected
                                         ? isLight
@@ -733,11 +769,31 @@ export default function IndicatorsModal({
             </div>
 
           {/* RIGHT COLUMN: Real configuration panel of the active selected indicator */}
-          <div className={`flex-1 p-5 overflow-y-auto flex flex-col gap-5 select-none transition-all duration-300 ${
+          <div className={`${
+            isMobile
+              ? activeMobileView === "settings"
+                ? "w-full flex-1"
+                : "hidden"
+              : "flex-1"
+          } p-4 sm:p-5 overflow-y-auto flex flex-col gap-5 select-none transition-all duration-300 ${
             isLight ? "bg-slate-50/70 scrollbar-thin-light" : "bg-slate-950/5 scrollbar-thin-dark"
           }`}>
             {selectedIndicator ? (
-              <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-4 sm:gap-5">
+                {/* Mobile Back Button */}
+                {isMobile && (
+                  <button
+                    onClick={() => setActiveMobileView("list")}
+                    className={`self-start inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl text-xs font-bold font-sans tracking-wide transition border cursor-pointer no-drag ${
+                      isLight
+                        ? "bg-slate-100 hover:bg-slate-200 border-slate-250 text-slate-700"
+                        : "bg-white/5 hover:bg-white/10 border-white/5 text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    ← {language === "RU" ? "Назад к выбору" : language === "KZ" ? "Тізімге оралу" : "Back to indicators"}
+                  </button>
+                )}
+
                 {/* Title Card */}
                 <div className={`flex items-center justify-between pb-3 border-b transition-all duration-300 ${
                   isLight ? "border-slate-200" : "border-white/5"
@@ -771,7 +827,7 @@ export default function IndicatorsModal({
                         </button>
 
                         {showPresetSection && (
-                          <div className={`absolute left-0 mt-1.5 z-55 w-[345px] p-2.5 rounded-lg border shadow-xl flex flex-col gap-2 no-drag animate-fadeIn text-left ${
+                          <div className={`absolute left-0 mt-1.5 z-55 w-[calc(100vw-36px)] sm:w-[345px] max-w-[345px] p-2.5 rounded-lg border shadow-xl flex flex-col gap-2 no-drag animate-fadeIn text-left ${
                             isLight
                               ? "bg-white border-slate-200 text-slate-800"
                               : "bg-[#0b0f19] border-white/10 text-slate-300"
@@ -2186,10 +2242,10 @@ export default function IndicatorsModal({
         </div>
 
         {/* BOTTOM FOOTER */}
-        <div className={`flex items-center justify-between px-6 py-4.5 border-t transition-all duration-300 ${
+        <div className={`flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4.5 border-t transition-all duration-300 ${
           isLight ? "bg-white/30 border-slate-200" : "border-white/5 bg-slate-950/20"
         }`}>
-          <div className="flex items-center gap-4.5 select-none text-[10.5px] font-mono text-slate-500 pb-0.5">
+          <div className="hidden sm:flex items-center gap-4 select-none text-[10.5px] font-mono text-slate-500 pb-0.5">
             <span>
               Хоткей: <span className={`font-bold px-1.5 py-0.5 rounded border transition-colors ${
                 isLight ? "bg-slate-105 text-slate-600 border-slate-200" : "bg-white/5 text-slate-400 border-white/5"
@@ -2203,10 +2259,10 @@ export default function IndicatorsModal({
               <span>Изменения применяются мгновенно</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-end">
             <button
               onClick={handleCancel}
-              className={`px-5 py-2 rounded-xl text-xs font-bold font-sans transition cursor-pointer ${
+              className={`px-4 sm:px-5 py-1.5 sm:py-2 rounded-xl text-xs font-bold font-sans transition cursor-pointer ${
                 isLight 
                   ? "hover:bg-slate-200/80 text-slate-600 hover:text-slate-800"
                   : "hover:bg-white/5 text-slate-400 hover:text-slate-200"
@@ -2216,7 +2272,7 @@ export default function IndicatorsModal({
             </button>
             <button
               onClick={handleApply}
-              className="px-6 py-2 bg-[#2563eb] hover:bg-blue-600 text-white rounded-xl text-xs font-extrabold font-sans transition-all active:scale-[0.98] shadow-lg cursor-pointer flex items-center gap-1.5"
+              className="px-5 sm:px-6 py-1.5 sm:py-2 bg-[#2563eb] hover:bg-blue-600 text-white rounded-xl text-xs font-extrabold font-sans transition-all active:scale-[0.98] shadow-lg cursor-pointer flex items-center gap-1.5"
             >
               <Activity className="w-3.5 h-3.5 text-blue-200" />
               <span>Применить</span>
@@ -2225,14 +2281,16 @@ export default function IndicatorsModal({
         </div>
 
         {/* RESIZE HANDLE */}
-        <div
-          onMouseDown={handleResizeMouseDown}
-          className="absolute bottom-[6px] right-[6px] w-[21px] h-[21px] cursor-se-resize flex items-end justify-end p-0.5 select-none z-50 no-drag"
-        >
-          <svg width="11" height="11" viewBox="0 0 11 11" className="text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
-            <path d="M11 0 L0 11 M11 4 L4 11 M11 8 L8 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </div>
+        {!isMobile && (
+          <div
+            onMouseDown={handleResizeMouseDown}
+            className="absolute bottom-[6px] right-[6px] w-[21px] h-[21px] cursor-se-resize flex items-end justify-end p-0.5 select-none z-50 no-drag"
+          >
+            <svg width="11" height="11" viewBox="0 0 11 11" className="text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+              <path d="M11 0 L0 11 M11 4 L4 11 M11 8 L8 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
+        )}
       </motion.div>
       </div>
     </div>
