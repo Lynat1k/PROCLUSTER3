@@ -176,20 +176,30 @@ export default function ClusterChart({
 
   // Volume Profile global / default settings
   const [volProfileGlobalSettings, setVolProfileGlobalSettings] = useState(() => {
-    const savedUser = storage.getJson<any>("procluster_user", null);
-    if (savedUser && savedUser.settings && savedUser.settings.volProfile) {
-      return savedUser.settings.volProfile;
-    }
-    return storage.getJson<any>("procluster_volume_profile_settings", {
+    const defaultSettings = {
       extendPoc: false,
       opacity: 0.28,
+      vaOpacity: 0.28,
+      otherOpacity: 0.08,
+      pocOpacity: 0.85,
+      bgOpacity: 0.03,
+      borderOpacity: 0.35,
       volColor: "#3b82f6",
       pocColor: "#3b82f6",
       scaleMode: "candle",
       customScaleValue: 1000,
       histMode: "volume",
       hideClusterText: false
-    });
+    };
+    const savedUser = storage.getJson<any>("procluster_user", null);
+    if (savedUser && savedUser.settings && savedUser.settings.volProfile) {
+      return { ...defaultSettings, ...savedUser.settings.volProfile };
+    }
+    const savedLocal = storage.getJson<any>("procluster_volume_profile_settings", null);
+    if (savedLocal) {
+      return { ...defaultSettings, ...savedLocal };
+    }
+    return defaultSettings;
   });
 
   const updateVolProfileSettings = (newSettings: Partial<typeof volProfileGlobalSettings>) => {
@@ -4297,15 +4307,15 @@ export default function ClusterChart({
                         y={activePriceY - bHeight / 2}
                         width={scaleWidth - 4}
                         height={bHeight}
-                        fill={isLight ? "rgba(15, 23, 42, 0.12)" : "rgba(245, 158, 11, 0.22)"}
+                        fill={isLight ? "#1e293b" : "#f59e0b"}
                         rx="3.5"
-                        stroke={isLight ? "rgba(15, 23, 42, 0.25)" : "rgba(245, 158, 11, 0.55)"}
+                        stroke={isLight ? "#0f172a" : "#d97706"}
                         strokeWidth="1.2"
                       />
                       <text
                         x={labelX + 1}
                         y={activePriceY}
-                        fill={isLight ? "#0f172a" : "#facc15"}
+                        fill={isLight ? "#ffffff" : "#06080f"}
                         fontSize={isMobile ? "10" : "12.5"}
                         fontFamily="'Inter', -apple-system, sans-serif"
                         fontWeight="900"
@@ -4882,235 +4892,194 @@ export default function ClusterChart({
 
         return (
           <div 
-            className={`absolute top-[60px] left-[60px] z-50 p-4 rounded-2xl border flex flex-col gap-3.5 font-sans text-xs shadow-2xl w-64 backdrop-blur-md transition-all duration-300 ${
+            className={`absolute top-[60px] left-[60px] z-50 p-3.5 rounded-xl border flex flex-col gap-2 font-sans text-xs shadow-2xl w-72 backdrop-blur-md transition-all duration-300 ${
               isLight 
-                ? "bg-white/95 border-slate-200/90 text-slate-800 shadow-slate-200/55" 
-                : "bg-slate-950/90 border-white/10 text-white shadow-black/80"
+                ? "bg-white/95 border-slate-200/95 text-slate-800 shadow-slate-200/40" 
+                : "bg-slate-950/95 border-white/10 text-white shadow-black/90"
             }`}
           >
-            <div className="flex items-center justify-between border-b pb-2 border-slate-500/10">
-              <span className="font-extrabold text-[10.5px] uppercase tracking-wider font-mono">
-                {language === "RU" ? "Настройка профиля объема" : "Volume Profile Settings"}
+            <div className="flex items-center justify-between border-b pb-1.5 border-slate-500/10">
+              <span className="font-extrabold text-[10px] uppercase tracking-wider font-mono">
+                {language === "RU" ? "Параметры профиля объема" : "Volume Profile Settings"}
               </span>
               <button 
                 onClick={() => setVolumeSettingsDrawingId(null)}
-                className="p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer text-slate-400 hover:text-white"
+                className="p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer text-slate-400 hover:text-white text-[10px]"
               >
                 ✕
               </button>
             </div>
 
-            {/* Checkbox: Продлевать POC линию */}
-            <label className="flex items-start gap-2.5 cursor-pointer py-1 select-none hover:opacity-90">
-              <input 
-                type="checkbox"
-                checked={volProfileGlobalSettings.extendPoc ?? false}
-                onChange={(e) => {
-                  updateVolProfileSettings({ extendPoc: e.target.checked });
-                }}
-                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5"
-              />
-              <div className="flex flex-col">
-                <span className="font-bold text-[11px] leading-tight">
-                  {language === "RU" ? "Продлевать РОС до касания" : "Extend POC to Touch"}
-                </span>
-                <span className={`text-[9.5px] leading-relaxed mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                  {language === "RU" 
-                    ? "Уровень POC растянутого профиля объема будет продлеваться, пока его не коснется или не пересечет другая свеча." 
-                    : "The POC level line of the stretched profile will continue until a future candle touches or intersects it."}
-                </span>
-              </div>
-            </label>
-
-            {/* Scale Mode Select */}
-            <div className="flex flex-col gap-1.5 border-t border-slate-500/10 pt-2.5">
-              <span className="font-bold text-[10.5px]">
-                {language === "RU" ? "Гистограмма (масштаб)" : "Histogram Scale"}
-              </span>
-              <select
-                value={volProfileGlobalSettings.scaleMode || "candle"}
-                onChange={(e) => {
-                  updateVolProfileSettings({ scaleMode: e.target.value as any });
-                }}
-                className={`w-full rounded-lg px-2.5 py-1.5 text-[11px] outline-none transition-all border ${
-                  isLight
-                    ? "bg-slate-50 border-slate-200 text-slate-800"
-                    : "bg-[#0b0f19] border-white/10 text-slate-200"
-                }`}
-              >
-                <option value="candle">
-                  {language === "RU" ? "По каждой свече" : "Per each candle"}
-                </option>
-                <option value="visible">
-                  {language === "RU" ? "По видимой части графика" : "Per visible part of chart"}
-                </option>
-                <option value="custom">
-                  {language === "RU" ? "Свое значение (число)" : "Custom value (number)"}
-                </option>
-              </select>
-            </div>
-
-            {/* Custom Scale Value (Number Input) - only visible if scaleMode is "custom" */}
-            {(volProfileGlobalSettings.scaleMode === "custom") && (
-              <div className="flex flex-col gap-1.5 pl-1.5 animate-fadeIn">
-                <span className="font-bold text-[9.5px] text-slate-400">
-                  {language === "RU" ? "Значение объема" : "Volume Value"}
-                </span>
-                <input
-                  type="number"
-                  min="1"
-                  step="10"
-                  value={volProfileGlobalSettings.customScaleValue != null ? volProfileGlobalSettings.customScaleValue : 1000}
-                  onChange={(e) => {
-                    updateVolProfileSettings({ customScaleValue: parseFloat(e.target.value) || 1000 });
-                  }}
-                  className={`rounded-lg px-2.5 py-1.5 text-[11px] outline-none border w-full font-mono ${
-                    isLight
-                      ? "bg-white border-slate-200 text-slate-800 focus:ring-1 focus:ring-blue-400"
-                      : "bg-[#0b0f19] border-white/10 text-slate-200 focus:ring-1 focus:ring-yellow-500/40"
-                  }`}
-                />
-              </div>
-            )}
-
-            {/* Histogram Mode Select */}
-            <div className="flex flex-col gap-1.5 border-t border-slate-500/10 pt-2.5">
-              <span className="font-bold text-[10.5px]">
-                {language === "RU" ? "Режим гистограммы" : "Histogram Mode"}
-              </span>
-              <div className="flex rounded-lg p-[2px] border gap-1 select-none font-sans text-[11px] transition-all bg-black/10">
-                <button
-                  onClick={() => updateVolProfileSettings({ histMode: "volume" })}
-                  className={`flex-1 py-1 text-center rounded-md font-bold transition-all cursor-pointer ${
-                    (volProfileGlobalSettings.histMode || "volume") === "volume"
-                      ? isLight
-                        ? "bg-white text-slate-800 shadow-xs"
-                        : "bg-blue-600/40 border border-blue-550/15 text-white"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  {language === "RU" ? "Объем" : "Volume"}
-                </button>
-                <button
-                  onClick={() => updateVolProfileSettings({ histMode: "delta" })}
-                  className={`flex-1 py-1 text-center rounded-md font-bold transition-all cursor-pointer ${
-                    volProfileGlobalSettings.histMode === "delta"
-                      ? isLight
-                        ? "bg-white text-slate-800 shadow-xs"
-                        : "bg-blue-600/40 border border-blue-550/15 text-white"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  {language === "RU" ? "Дельта" : "Delta"}
-                </button>
-              </div>
-            </div>
-
-            {/* Checkbox: Скрывать текст в кластерах */}
-            <label className="flex items-start gap-2.5 cursor-pointer py-1 select-none hover:opacity-90 border-t border-slate-500/10 pt-2.5">
-              <input 
-                type="checkbox"
-                checked={volProfileGlobalSettings.hideClusterText ?? false}
-                onChange={(e) => {
-                  updateVolProfileSettings({ hideClusterText: e.target.checked });
-                }}
-                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5"
-              />
-              <div className="flex flex-col">
-                <span className="font-bold text-[11px] leading-tight">
-                  {language === "RU" ? "Скрывать текст в кластерах" : "Hide text in clusters"}
-                </span>
-                <span className={`text-[9.5px] leading-relaxed mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                  {language === "RU" 
-                    ? "Скрывает числовые значения объемов/дельты внутри свечных кластеров для чистоты графика." 
-                    : "Hides numeric volume/delta values inside candle clusters for chart neatness."}
-                </span>
-              </div>
-            </label>
-
-            {/* Opacity Slider */}
-            <div className="flex flex-col gap-1.5 border-t border-slate-500/10 pt-2.5">
-              <div className="flex justify-between font-bold text-[10.5px]">
-                <span>{language === "RU" ? "Прозрачность гистограммы" : "Histogram Opacity"}</span>
-                <span className="font-mono font-bold text-amber-500">
-                  {Math.round((volProfileGlobalSettings.opacity !== undefined ? volProfileGlobalSettings.opacity : (isLight ? 0.18 : 0.28)) * 100)}%
-                </span>
-              </div>
-              <input 
-                type="range"
-                min="0.05"
-                max="0.8"
-                step="0.05"
-                value={volProfileGlobalSettings.opacity !== undefined ? volProfileGlobalSettings.opacity : (isLight ? 0.18 : 0.28)}
-                onChange={(e) => {
-                  updateVolProfileSettings({ opacity: parseFloat(e.target.value) });
-                }}
-                className={`w-full accent-blue-600 rounded-lg h-1 ${isLight ? "bg-slate-200" : "bg-slate-800"}`}
-              />
-            </div>
-
-            {/* Histogram Color Picker */}
-            <div className="flex flex-col gap-1.5 border-t border-slate-500/10 pt-2.5">
-              <span className="font-bold text-[10.5px]">{language === "RU" ? "Цвет гистограммы" : "Histogram Color"}</span>
-              <div className="flex items-center gap-2">
-                {[
-                  { hex: "#3b82f6", bg: "bg-blue-500" },
-                  { hex: "#a855f7", bg: "bg-purple-500" },
-                  { hex: "#f97316", bg: "bg-orange-500" },
-                  { hex: "#22c55e", bg: "bg-green-500" },
-                  { hex: "#eab308", bg: "bg-yellow-500" },
-                ].map(p => (
-                  <button 
-                    key={p.hex}
-                    onClick={() => {
-                      updateVolProfileSettings({ volColor: p.hex });
-                    }}
-                    className={`w-5 h-5 rounded-full ${p.bg} cursor-pointer hover:scale-110 active:scale-95 transition-all border ${
-                      (volProfileGlobalSettings.volColor || "#3b82f6") === p.hex ? "border-white ring-2 ring-blue-500" : "border-transparent"
-                    }`}
-                  />
-                ))}
+            {/* Compact Toggle options lists (no descriptions, side-by-side or stacked cleanly) */}
+            <div className="flex flex-col gap-1 py-1">
+              <label className="flex items-center gap-2 cursor-pointer py-0.5 select-none hover:opacity-90 text-[10px]">
                 <input 
-                  type="color"
-                  value={volProfileGlobalSettings.volColor || (isLight ? "#2563eb" : "#3b82f6")}
+                  type="checkbox"
+                  checked={volProfileGlobalSettings.extendPoc ?? false}
                   onChange={(e) => {
-                    updateVolProfileSettings({ volColor: e.target.value });
+                    updateVolProfileSettings({ extendPoc: e.target.checked });
                   }}
-                  className="w-5 h-5 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
+                  className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
                 />
+                <span className="font-semibold text-slate-300">
+                  {language === "RU" ? "Продлевать POC линию" : "Extend POC Line"}
+                </span>
+              </label>
+            </div>
+
+            {/* Colors Grid */}
+            <div className="grid grid-cols-2 gap-2 border-t border-slate-500/10 pt-1.5">
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-[9px] uppercase opacity-75">
+                  {language === "RU" ? "Цвет профиля" : "Profile Color"}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <input 
+                    type="color"
+                    value={volProfileGlobalSettings.volColor || (isLight ? "#2563eb" : "#3b82f6")}
+                    onChange={(e) => {
+                      updateVolProfileSettings({ volColor: e.target.value });
+                    }}
+                    className="w-5 h-5 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
+                  />
+                  <span className="text-[9.5px] font-mono opacity-80 select-all">
+                    {volProfileGlobalSettings.volColor || (isLight ? "#2563eb" : "#3b82f6")}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-[9px] uppercase opacity-75">
+                  {language === "RU" ? "Цвет линии POC" : "POC Color"}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <input 
+                    type="color"
+                    value={volProfileGlobalSettings.pocColor || (isLight ? "#2563eb" : "#3b82f6")}
+                    onChange={(e) => {
+                      updateVolProfileSettings({ pocColor: e.target.value });
+                    }}
+                    className="w-5 h-5 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
+                  />
+                  <span className="text-[9.5px] font-mono opacity-80 select-all">
+                    {volProfileGlobalSettings.pocColor || (isLight ? "#2563eb" : "#3b82f6")}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* POC Line Color Picker */}
-            <div className="flex flex-col gap-1.5 border-t border-slate-500/10 pt-2.5">
-              <span className="font-bold text-[10.5px]">{language === "RU" ? "Цвет линии POC" : "POC Line Color"}</span>
-              <div className="flex items-center gap-2">
-                {[
-                  { hex: "#2563eb", bg: "bg-blue-600" },
-                  { hex: "#dc2626", bg: "bg-red-600" },
-                  { hex: "#ea580c", bg: "bg-orange-600" },
-                  { hex: "#16a34a", bg: "bg-green-600" },
-                  { hex: "#ca8a04", bg: "bg-yellow-600" },
-                ].map(p => (
-                  <button 
-                    key={p.hex}
-                    onClick={() => {
-                      updateVolProfileSettings({ pocColor: p.hex });
-                    }}
-                    className={`w-5 h-5 rounded-full ${p.bg} cursor-pointer hover:scale-110 active:scale-95 transition-all border ${
-                      (volProfileGlobalSettings.pocColor || (isLight ? "#2563eb" : "#3b82f6")) === p.hex ? "border-blue-500 ring-2 ring-amber-500" : "border-slate-500/30"
-                    }`}
-                  />
-                ))}
+            {/* Five Custom Opacity Sliders (Highly Compact Row Groups) */}
+            <div className="flex flex-col gap-1.5 border-t border-slate-500/10 pt-1.5">
+              <span className="font-bold text-[9px] uppercase tracking-wider opacity-75 text-amber-500 font-mono">
+                {language === "RU" ? "Тонкая настройка прозрачности" : "Fine Opacity Tuning"}
+              </span>
+
+              {/* 1. Value Area Opacity */}
+              <div className="flex flex-col gap-0.5">
+                <div className="flex justify-between text-[9px]">
+                  <span className="opacity-85">{language === "RU" ? "Value Area / 70% по Гауссу" : "Value Area / 70% Gauss"}</span>
+                  <span className="font-mono font-bold text-blue-500">
+                    {Math.round((volProfileGlobalSettings.vaOpacity !== undefined ? volProfileGlobalSettings.vaOpacity : (volProfileGlobalSettings.opacity !== undefined ? volProfileGlobalSettings.opacity : 0.28)) * 100)}%
+                  </span>
+                </div>
                 <input 
-                  type="color"
-                  value={volProfileGlobalSettings.pocColor || (isLight ? "#2563eb" : "#3b82f6")}
+                  type="range"
+                  min="0.01"
+                  max="0.9"
+                  step="0.01"
+                  value={volProfileGlobalSettings.vaOpacity !== undefined ? volProfileGlobalSettings.vaOpacity : (volProfileGlobalSettings.opacity !== undefined ? volProfileGlobalSettings.opacity : 0.28)}
                   onChange={(e) => {
-                    updateVolProfileSettings({ pocColor: e.target.value });
+                    const val = parseFloat(e.target.value);
+                    updateVolProfileSettings({ opacity: val, vaOpacity: val });
                   }}
-                  className="w-5 h-5 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
+                  className="w-full accent-blue-600 h-1 bg-slate-500/10 rounded-lg cursor-pointer"
                 />
               </div>
+
+              {/* 2. Remaining/Other Profile Zone Opacity */}
+              <div className="flex flex-col gap-0.5">
+                <div className="flex justify-between text-[9px]">
+                  <span className="opacity-85">{language === "RU" ? "Остальная зона профиля" : "Rest of Profile Zone"}</span>
+                  <span className="font-mono font-bold text-blue-500">
+                    {Math.round((volProfileGlobalSettings.otherOpacity !== undefined ? volProfileGlobalSettings.otherOpacity : 0.08) * 100)}%
+                  </span>
+                </div>
+                <input 
+                  type="range"
+                  min="0.0"
+                  max="0.5"
+                  step="0.01"
+                  value={volProfileGlobalSettings.otherOpacity !== undefined ? volProfileGlobalSettings.otherOpacity : 0.08}
+                  onChange={(e) => {
+                    updateVolProfileSettings({ otherOpacity: parseFloat(e.target.value) });
+                  }}
+                  className="w-full accent-blue-600 h-1 bg-slate-500/10 rounded-lg cursor-pointer"
+                />
+              </div>
+
+              {/* 3. POC Level Opacity */}
+              <div className="flex flex-col gap-0.5">
+                <div className="flex justify-between text-[9px]">
+                  <span className="opacity-85">{language === "RU" ? "РОС уровень" : "POC Line Level"}</span>
+                  <span className="font-mono font-bold text-blue-500">
+                    {Math.round((volProfileGlobalSettings.pocOpacity !== undefined ? volProfileGlobalSettings.pocOpacity : 0.85) * 100)}%
+                  </span>
+                </div>
+                <input 
+                  type="range"
+                  min="0.05"
+                  max="1.0"
+                  step="0.05"
+                  value={volProfileGlobalSettings.pocOpacity !== undefined ? volProfileGlobalSettings.pocOpacity : 0.85}
+                  onChange={(e) => {
+                    updateVolProfileSettings({ pocOpacity: parseFloat(e.target.value) });
+                  }}
+                  className="w-full accent-blue-600 h-1 bg-slate-500/10 rounded-lg cursor-pointer"
+                />
+              </div>
+
+              {/* 4. Background Opacity */}
+              <div className="flex flex-col gap-0.5">
+                <div className="flex justify-between text-[9px]">
+                  <span className="opacity-85">{language === "RU" ? "Фон профиля" : "Profile Background"}</span>
+                  <span className="font-mono font-bold text-blue-500">
+                    {Math.round((volProfileGlobalSettings.bgOpacity !== undefined ? volProfileGlobalSettings.bgOpacity : 0.03) * 100)}%
+                  </span>
+                </div>
+                <input 
+                  type="range"
+                  min="0.0"
+                  max="0.25"
+                  step="0.01"
+                  value={volProfileGlobalSettings.bgOpacity !== undefined ? volProfileGlobalSettings.bgOpacity : 0.03}
+                  onChange={(e) => {
+                    updateVolProfileSettings({ bgOpacity: parseFloat(e.target.value) });
+                  }}
+                  className="w-full accent-blue-600 h-1 bg-slate-500/10 rounded-lg cursor-pointer"
+                />
+              </div>
+
+              {/* 5. Outline/Border Opacity */}
+              <div className="flex flex-col gap-0.5">
+                <div className="flex justify-between text-[9px]">
+                  <span className="opacity-85">{language === "RU" ? "Обводка границы профиля" : "Border/Box Outline"}</span>
+                  <span className="font-mono font-bold text-blue-500">
+                    {Math.round((volProfileGlobalSettings.borderOpacity !== undefined ? volProfileGlobalSettings.borderOpacity : 0.35) * 100)}%
+                  </span>
+                </div>
+                <input 
+                  type="range"
+                  min="0.0"
+                  max="1.0"
+                  step="0.05"
+                  value={volProfileGlobalSettings.borderOpacity !== undefined ? volProfileGlobalSettings.borderOpacity : 0.35}
+                  onChange={(e) => {
+                    updateVolProfileSettings({ borderOpacity: parseFloat(e.target.value) });
+                  }}
+                  className="w-full accent-blue-600 h-1 bg-slate-500/10 rounded-lg cursor-pointer"
+                />
+              </div>
+
             </div>
           </div>
         );

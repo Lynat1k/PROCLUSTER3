@@ -27,6 +27,11 @@ export interface DrawingItem {
   fontSize?: number;
   extendPoc?: boolean;
   opacity?: number;
+  vaOpacity?: number;
+  otherOpacity?: number;
+  pocOpacity?: number;
+  bgOpacity?: number;
+  borderOpacity?: number;
   volColor?: string;
   pocColor?: string;
 
@@ -524,14 +529,27 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
       ctx.restore();
     } 
     else if (d.type === "volume") {
+      const hexToRgba = (hexColor: string, alpha: number) => {
+        if (hexColor.startsWith("rgba")) return hexColor;
+        const cleanHex = hexColor.replace("#", "");
+        const r = parseInt(cleanHex.substring(0, 2), 16) || 59;
+        const g = parseInt(cleanHex.substring(2, 4), 16) || 130;
+        const b = parseInt(cleanHex.substring(4, 6), 16) || 246;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      };
+
+      const baseColor = d.volColor || (isLight ? "#2563eb" : "#3b82f6");
+      const bgOpacity = d.bgOpacity !== undefined ? d.bgOpacity : 0.03;
+      const borderOpacity = d.borderOpacity !== undefined ? d.borderOpacity : 0.35;
+
       ctx.beginPath();
-      ctx.strokeStyle = "rgba(168, 85, 247, 0.8)";
+      ctx.strokeStyle = hexToRgba(baseColor, borderOpacity);
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
       ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(168, 85, 247, 0.03)";
+      ctx.fillStyle = hexToRgba(baseColor, bgOpacity);
       ctx.fill();
 
       const minX = Math.min(x1, x2);
@@ -565,11 +583,7 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
                   Math.max(0, Math.floor((maxPrice - cell.price) / priceStep))
                 );
                 if (binIdx >= 0) {
-                  if (d.histMode === "delta") {
-                    profileBins[binIdx] += (cell.ask - cell.bid);
-                  } else {
-                    profileBins[binIdx] += cell.volume;
-                  }
+                  profileBins[binIdx] += cell.volume;
                 }
               }
             });
@@ -582,11 +596,7 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
                 Math.max(0, Math.floor((maxPrice - avgPrice) / priceStep))
               );
               if (binIdx >= 0) {
-                if (d.histMode === "delta") {
-                  profileBins[binIdx] += c.delta;
-                } else {
-                  profileBins[binIdx] += c.volume;
-                }
+                profileBins[binIdx] += c.volume;
               }
             }
           }
@@ -638,41 +648,18 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
 
         ctx.save();
 
-        const hexToRgba = (hexColor: string, alpha: number) => {
-          if (hexColor.startsWith("rgba")) return hexColor;
-          const cleanHex = hexColor.replace("#", "");
-          const r = parseInt(cleanHex.substring(0, 2), 16) || 59;
-          const g = parseInt(cleanHex.substring(2, 4), 16) || 130;
-          const b = parseInt(cleanHex.substring(4, 6), 16) || 246;
-          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        };
-
-        const baseColor = d.volColor || (isLight ? "#2563eb" : "#3b82f6");
-        const customOpacity = d.opacity !== undefined ? d.opacity : (isLight ? 0.18 : 0.28);
+        const vaOpacity = d.vaOpacity !== undefined ? d.vaOpacity : (d.opacity !== undefined ? d.opacity : (isLight ? 0.18 : 0.28));
+        const otherOpacity = d.otherOpacity !== undefined ? d.otherOpacity : (d.opacity !== undefined ? d.opacity * 0.3 : 0.08);
+        const pocOpacity = d.pocOpacity !== undefined ? d.pocOpacity : 0.85;
 
         // 1. Draw a clear, styled background for the 70% Value Area Zone (Зона баланса 70%)
         const vaY1 = bMinY + lowIdx * bHeightStep;
         const vaY2 = bMinY + (highIdx + 1) * bHeightStep;
-        ctx.fillStyle = isLight ? "rgba(59, 130, 246, 0.02)" : "rgba(59, 130, 246, 0.03)";
+        ctx.fillStyle = hexToRgba(baseColor, bgOpacity * 1.5);
         ctx.fillRect(minX, vaY1, Math.abs(x2 - x1), vaY2 - vaY1);
 
-        // Calculate custom scale denominator
-        let denom = maxBinVal;
-        const dScaleMode = d.scaleMode || "candle";
-        if (dScaleMode === "visible") {
-          const visibleStart = Math.max(0, Math.floor((visibleScrollLeft - margin.left) / (candleWidth + candleSpacing)));
-          const visibleEnd = Math.min(candles.length - 1, Math.floor((visibleScrollLeft + viewportWidth - margin.left) / (candleWidth + candleSpacing)));
-          let maxVisibleCandleVol = 1.0;
-          for (let i = visibleStart; i <= visibleEnd; i++) {
-            const c = candles[i];
-            if (c && c.volume > maxVisibleCandleVol) {
-              maxVisibleCandleVol = c.volume;
-            }
-          }
-          denom = maxVisibleCandleVol * 0.15;
-        } else if (dScaleMode === "custom") {
-          denom = d.customScaleValue || 1000;
-        }
+        // Calculate custom scale denominator - always scale dynamically to fit bounds perfectly
+        const denom = maxBinVal;
 
         // 2. Draw volume profile bars (Value Area vs Out-of-Value-Area)
         for (let b = 0; b < bucketCount; b++) {
@@ -680,19 +667,16 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
           if (binVol === 0) continue;
 
           const absBinVol = Math.abs(binVol);
-          const drawW = (absBinVol / Math.max(1, denom)) * maxDrawWidth;
+          const drawW = Math.min(Math.abs(x2 - x1), (absBinVol / Math.max(1, denom)) * maxDrawWidth);
           const binY = bMinY + b * bHeightStep;
           const isInValueArea = b >= lowIdx && b <= highIdx;
 
-          let barColor = baseColor;
-          if (d.histMode === "delta") {
-            barColor = binVol >= 0 ? "#10b981" : "#ef4444";
-          }
+          const barColor = baseColor;
 
           if (isInValueArea) {
-            ctx.fillStyle = hexToRgba(barColor, customOpacity);
+            ctx.fillStyle = hexToRgba(barColor, vaOpacity);
           } else {
-            ctx.fillStyle = hexToRgba(barColor, customOpacity * 0.3);
+            ctx.fillStyle = hexToRgba(barColor, otherOpacity);
           }
 
           // Render contiguous bars without space or subpixel gaps to form a perfectly solid block
@@ -702,7 +686,7 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
         // 3. Draw VAL and VAH dashed boundaries (subtle, less visible)
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = isLight ? "rgba(100, 116, 139, 0.20)" : "rgba(148, 163, 184, 0.20)";
+        ctx.strokeStyle = hexToRgba(isLight ? "#64748b" : "#94a3b8", borderOpacity * 0.6);
 
         // VAH (Value Area High) line
         ctx.beginPath();
@@ -718,7 +702,7 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
         ctx.setLineDash([]);
 
         // VAL/VAH Labels
-        ctx.fillStyle = isLight ? "rgba(100, 116, 139, 0.45)" : "rgba(148, 163, 184, 0.45)";
+        ctx.fillStyle = hexToRgba(isLight ? "#475569" : "#cbd5e1", 0.45);
         ctx.font = "8px 'JetBrains Mono', monospace";
         ctx.fillText("VAH (70%)", maxX - 65, vaY1 - 3);
         ctx.fillText("VAL (70%)", maxX - 65, vaY2 + 9);
@@ -743,7 +727,7 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
           }
         }
 
-        ctx.strokeStyle = d.pocColor || (isLight ? "#2563eb" : "#3b82f6");
+        ctx.strokeStyle = hexToRgba(d.pocColor || (isLight ? "#2563eb" : "#3b82f6"), pocOpacity);
         ctx.lineWidth = 2.2;
         ctx.beginPath();
         ctx.moveTo(minX, pocY);
@@ -751,7 +735,7 @@ export function drawDrawingObjects(ctx: CanvasRenderingContext2D, renderParams: 
         ctx.stroke();
 
         // POC Label
-        ctx.fillStyle = d.pocColor || (isLight ? "#1d4ed8" : "#60a5fa");
+        ctx.fillStyle = hexToRgba(d.pocColor || (isLight ? "#1d4ed8" : "#60a5fa"), pocOpacity);
         ctx.font = "bold 9px 'JetBrains Mono', monospace";
         ctx.fillText("POC", minX + 5, pocY - 4);
 
