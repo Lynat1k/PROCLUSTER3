@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { CryptoPair } from "../types";
-import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders, Sparkles, HelpCircle, Send, Youtube } from "lucide-react";
+import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders, Sparkles, HelpCircle, Send, Youtube, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { authTexts, headerUiTexts } from "../i18n/header";
 import { 
@@ -94,18 +94,29 @@ export default function Header({
 
   const [copied, setCopied] = useState(false);
 
+  const [isLangOpen, setIsLangOpen] = useState(false);
+  const [isMobileLangOpen, setIsMobileLangOpen] = useState(false);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileLangDropdownRef = useRef<HTMLDivElement>(null);
 
   // Seed default admin account on startup so the user can test login immediately
   useEffect(() => {
     seedAdminAccount();
   }, []);
 
-  // Close dropdown on click outside
+  // Close dropdowns on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
+      }
+      if (langDropdownRef.current && !langDropdownRef.current.contains(event.target as Node)) {
+        setIsLangOpen(false);
+      }
+      if (mobileLangDropdownRef.current && !mobileLangDropdownRef.current.contains(event.target as Node)) {
+        setIsMobileLangOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -218,6 +229,67 @@ export default function Header({
               <Sun className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500/10" />
             )}
           </button>
+
+          {/* MOBILE LANGUAGE SWITCHER DROPDOWN */}
+          <div className="relative" ref={mobileLangDropdownRef}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMobileLangOpen(!isMobileLangOpen);
+              }}
+              className={`flex items-center gap-1 px-1.5 py-1 rounded-xl border cursor-pointer hover:scale-105 active:scale-95 transition-all text-[10px] font-mono font-bold ${
+                isLight
+                  ? "bg-slate-200 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
+                  : "bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-slate-300 hover:text-white shadow-inner"
+              }`}
+            >
+              <Globe className="w-3 h-3 text-slate-500 hover:text-slate-400" />
+              <span>{language}</span>
+              <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-200 ${isMobileLangOpen ? "rotate-180" : ""}`} />
+            </button>
+            
+            <AnimatePresence>
+              {isMobileLangOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.15 }}
+                  className={`absolute right-0 mt-1.5 w-24 rounded-xl border shadow-lg overflow-hidden z-50 ${
+                    isLight
+                      ? "bg-white border-slate-200"
+                      : "bg-[#0c0f1d] border-white/10"
+                  }`}
+                >
+                  <div className="p-1 flex flex-col gap-0.5">
+                    {(["RU", "EN", "KZ"] as const).map((lang) => {
+                      const isSelected = language === lang;
+                      return (
+                        <button
+                          key={lang}
+                          onClick={() => {
+                            onLanguageChange(lang);
+                            setIsMobileLangOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-colors border-0 outline-none cursor-pointer ${
+                            isSelected
+                              ? isLight
+                                ? "bg-slate-100 text-slate-900 font-extrabold"
+                                : "bg-white/10 text-white font-extrabold"
+                              : isLight
+                                ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                : "text-slate-400 hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          {lang}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* PROFILE / SIGN IN BUTTONS */}
           {user ? (
@@ -346,42 +418,7 @@ export default function Header({
                       </div>
                     </div>
 
-                    <div className={`mt-3 pt-3 border-t ${isLight ? "border-slate-100" : "border-white/5"}`}>
-                      <div className={`grid grid-cols-3 gap-1 p-[2px] rounded-xl border ${
-                        isLight ? "bg-slate-100 border-slate-200/50" : "bg-slate-950/60 border-white/5"
-                      }`}>
-                        {["RU", "EN", "KZ"].map((lang) => {
-                          const isSelected = language === lang;
-                          return (
-                            <button
-                              key={lang}
-                              onClick={() => onLanguageChange(lang as any)}
-                              className="py-1 rounded-lg text-[9.5px] font-bold font-mono cursor-pointer text-center relative border-0 outline-none"
-                            >
-                              {isSelected && (
-                                <motion.div
-                                  layoutId="activeLanguageMobile"
-                                  className={`absolute inset-0 rounded-lg ${
-                                    isLight 
-                                      ? "bg-slate-300 border border-slate-400 shadow-sm"
-                                      : "bg-slate-800 border border-white/10 shadow-md"
-                                  }`}
-                                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                                  style={{ zIndex: 0 }}
-                                />
-                              )}
-                              <span className={`relative z-10 ${
-                                isSelected
-                                  ? isLight ? "text-slate-900 font-black" : "text-white font-black"
-                                  : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
-                              }`}>
-                                {lang}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+
 
                     <div className={`mt-3 pt-3 border-t text-left ${isLight ? "border-slate-100" : "border-white/5"}`}>
                       <button
@@ -550,6 +587,64 @@ export default function Header({
           )}
         </button>
 
+        {/* LANGUAGE SWITCHER DROPDOWN (Desktop) */}
+        <div className="relative" ref={langDropdownRef}>
+          <button
+            onClick={() => setIsLangOpen(!isLangOpen)}
+            className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border cursor-pointer hover:scale-105 active:scale-95 transition-all text-xs font-mono font-bold ${
+              isLight
+                ? "bg-slate-205 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
+                : "bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-slate-300 hover:text-white shadow-inner"
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5 text-slate-500 hover:text-slate-400" />
+            <span>{language}</span>
+            <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isLangOpen ? "rotate-180" : ""}`} />
+          </button>
+          
+          <AnimatePresence>
+            {isLangOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.15 }}
+                className={`absolute right-0 mt-1.5 w-24 rounded-xl border shadow-lg overflow-hidden z-50 ${
+                  isLight
+                    ? "bg-white border-slate-200"
+                    : "bg-[#0c0f1d] border-white/10"
+                }`}
+              >
+                <div className="p-1 flex flex-col gap-0.5">
+                  {(["RU", "EN", "KZ"] as const).map((lang) => {
+                    const isSelected = language === lang;
+                    return (
+                      <button
+                        key={lang}
+                        onClick={() => {
+                          onLanguageChange(lang);
+                          setIsLangOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-colors border-0 outline-none cursor-pointer ${
+                          isSelected
+                            ? isLight
+                              ? "bg-slate-100 text-slate-900 font-extrabold"
+                              : "bg-white/10 text-white font-extrabold"
+                            : isLight
+                              ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                              : "text-slate-400 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        {lang === "RU" ? "RU" : lang === "EN" ? "EN" : "KZ"}
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         {user ? (
           // USER IS LOGGED IN (Desktop)
           <div className="relative">
@@ -691,48 +786,7 @@ export default function Header({
                     </div>
                   </div>
 
-                  {/* Language selection block */}
-                  <div className={`mt-4 pt-3.5 border-t ${isLight ? "border-slate-100" : "border-white/5"}`}>
-                    <span className={`text-[9px] font-mono font-extrabold tracking-widest uppercase block mb-2 px-1 ${
-                      isLight ? "text-slate-550" : "text-slate-405"
-                    }`}>
-                      {headerUiTexts[language].language}
-                    </span>
-                    <div className={`grid grid-cols-3 gap-1.5 p-[3px] rounded-2xl border shadow-inner ${
-                      isLight ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
-                    }`}>
-                      {["RU", "EN", "KZ"].map((lang) => {
-                        const isSelected = language === lang;
-                        return (
-                          <button
-                            key={lang}
-                            onClick={() => onLanguageChange(lang as any)}
-                            className="py-1.5 rounded-xl text-[10.5px] font-bold font-mono cursor-pointer text-center relative border-0 outline-none"
-                          >
-                            {isSelected && (
-                              <motion.div
-                                layoutId="activeLanguageDesktop"
-                                className={`absolute inset-0 rounded-xl ${
-                                  isLight 
-                                    ? "bg-slate-300 border border-slate-400 shadow-sm"
-                                    : "bg-slate-800 border border-white/10 shadow-md"
-                                  }`}
-                                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                                style={{ zIndex: 0 }}
-                              />
-                            )}
-                            <span className={`relative z-10 transition-colors duration-200 ${
-                              isSelected
-                                ? isLight ? "text-slate-900 font-extrabold" : "text-white font-extrabold"
-                                : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
-                            }`}>
-                              {lang}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+
 
                   {userRole === "Admin" && (
                     <div className={`mt-4 pt-3.5 border-t ${isLight ? "border-slate-100" : "border-white/5"}`}>
