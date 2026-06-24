@@ -994,6 +994,10 @@ export default function App() {
   const tickerMenuRef = useRef<HTMLDivElement>(null);
   const [showPaletteMenu, setShowPaletteMenu] = useState<boolean>(false);
   const paletteMenuRef = useRef<HTMLDivElement>(null);
+  const [showCompressionMenu, setShowCompressionMenu] = useState<boolean>(false);
+  const compressionMenuRef = useRef<HTMLDivElement>(null);
+  const [showMobileCompressionMenu, setShowMobileCompressionMenu] = useState<boolean>(false);
+  const mobileCompressionMenuRef = useRef<HTMLDivElement>(null);
 
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(() => {
     const saved = storage.getJson<any>("procluster_user", null);
@@ -1109,6 +1113,12 @@ export default function App() {
       }
       if (workspaceMenuRef.current && !workspaceMenuRef.current.contains(event.target as Node)) {
         setShowWorkspaceMenu(false);
+      }
+      if (compressionMenuRef.current && !compressionMenuRef.current.contains(event.target as Node)) {
+        setShowCompressionMenu(false);
+      }
+      if (mobileCompressionMenuRef.current && !mobileCompressionMenuRef.current.contains(event.target as Node)) {
+        setShowMobileCompressionMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -2368,49 +2378,121 @@ export default function App() {
                     </div>
 
                     {/* 7. Compression */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 relative font-sans" ref={mobileCompressionMenuRef}>
                       <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
-                        theme === "light" ? "text-slate-550" : "text-slate-400/80"
+                        theme === "light" ? "text-slate-555" : "text-slate-400/80"
                       }`}>
                         {language === "EN" ? "Compression" : "Сжатие шага"}
                       </span>
-                      <select
-                        value={compressionMultiplier}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value);
-                          const limits = getActiveGroupLimits();
-                          if (val > limits.compressionLevels) {
-                            window.dispatchEvent(new CustomEvent("procluster_open_tariffs_modal"));
-                            return;
-                          }
-                          setCompressionMultiplier(val);
-                        }}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
-                          theme === "light"
-                            ? "bg-slate-100 border-slate-300 text-slate-800 shadow-inner"
-                            : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
-                        }`}
-                      >
-                        {[1, 2, 3, 4, 5, 6].map((multiplier) => {
-                          const limits = getActiveGroupLimits();
-                          const isLocked = multiplier > limits.compressionLevels;
-                          const isBtc = activePair.symbol.toUpperCase().includes("BTC");
-                          const baseComp = isBtc 
-                            ? (marketType === "FUTURES" ? 25 : 500) 
-                            : 25;
-                          const actualValue = baseComp * multiplier;
-                          return (
-                            <option 
-                              key={multiplier} 
-                              value={multiplier} 
-                              disabled={false}
-                              className={theme === "light" ? "text-slate-900 font-sans" : "bg-slate-950 text-slate-350 font-sans"}
+                      {(() => {
+                        const isBtc = activePair.symbol.toUpperCase().includes("BTC");
+                        const baseComp = isBtc 
+                          ? (marketType === "FUTURES" ? 25 : 500) 
+                          : 25;
+                        return (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setShowMobileCompressionMenu(!showMobileCompressionMenu)}
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full text-left select-none ${
+                                theme === "light"
+                                  ? "bg-slate-100 border-slate-300 text-slate-800 shadow-inner"
+                                  : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
+                              }`}
                             >
-                              {multiplier}x ({actualValue}){isLocked ? " 🔒" : ""}
-                            </option>
-                          );
-                        })}
-                      </select>
+                              <span>
+                                {compressionMultiplier}x ({baseComp * compressionMultiplier})
+                              </span>
+                              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 shrink-0 ${
+                                theme === "light" ? "text-slate-600" : "text-slate-400"
+                              } ${showMobileCompressionMenu ? "rotate-180" : ""}`} />
+                            </button>
+
+                            <AnimatePresence>
+                              {showMobileCompressionMenu && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                                  style={{ originY: 0 }}
+                                  className={`absolute left-0 right-0 mt-1 rounded-xl p-1.5 z-50 text-left select-none shadow-2xl backdrop-blur-md border transition-all duration-300 ${
+                                    theme === "light"
+                                      ? "bg-white border-slate-300 text-slate-900 shadow-xl"
+                                      : "bg-[#090d16]/98 border border-white/10 text-slate-100"
+                                  }`}
+                                >
+                                  <div className="flex flex-col gap-0.5 max-h-56 overflow-y-auto scrollbar-thin-dark">
+                                    {[1, 2, 3, 4, 5, 6].map((multiplier) => {
+                                      const limits = getActiveGroupLimits();
+                                      const isLocked = multiplier > limits.compressionLevels;
+                                      const actualValue = baseComp * multiplier;
+                                      const isRecommended = isBtc && marketType === "FUTURES" && interval === "15m" && actualValue === 100;
+
+                                      return (
+                                        <button
+                                          key={multiplier}
+                                          type="button"
+                                          onClick={() => {
+                                            if (isLocked) {
+                                              window.dispatchEvent(new CustomEvent("procluster_open_tariffs_modal"));
+                                              return;
+                                            }
+                                            setCompressionMultiplier(multiplier);
+                                            setShowMobileCompressionMenu(false);
+                                          }}
+                                          className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left cursor-pointer transition-all ${
+                                            compressionMultiplier === multiplier
+                                              ? theme === "light"
+                                                ? "bg-slate-100 text-slate-800 font-extrabold"
+                                                : "bg-white/5 text-white font-extrabold"
+                                              : theme === "light"
+                                                ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                                                : "text-slate-300 hover:text-white hover:bg-white/5"
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-1.5 select-none w-full min-w-0">
+                                            <span className="font-mono text-xs">
+                                              {multiplier}x ({actualValue})
+                                            </span>
+                                            {isRecommended && (
+                                              <div className="group relative flex items-center shrink-0 ml-auto">
+                                                <span className={`text-[9px] font-sans font-bold px-1 py-0.5 rounded border cursor-help select-none ${
+                                                  theme === "light"
+                                                    ? "bg-amber-100 border-amber-300 text-amber-800"
+                                                    : "bg-amber-500/20 border-amber-500/30 text-yellow-500"
+                                                }`}>
+                                                  {language === "EN" ? "recommended" : "рекомендуемое"}
+                                                </span>
+                                                <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 w-52 p-2.5 text-[10px] leading-relaxed rounded-xl shadow-xl z-[100] text-center font-sans border font-medium ${
+                                                  theme === "light"
+                                                    ? "bg-slate-900 text-white border-slate-800"
+                                                    : "bg-slate-950 border border-white/10 text-slate-200 shadow-2xl"
+                                                }`}>
+                                                  {language === "EN"
+                                                    ? "this is the recommended compression for default indicator settings from the author of PROCLUSTER"
+                                                    : "это рекомендуемое сжатие для дефолтных настроек индикаторов от автора PROCLUSTER"
+                                                  }
+                                                  <div className={`absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent ${
+                                                    theme === "light" ? "border-t-slate-900" : "border-t-slate-950"
+                                                  }`}></div>
+                                                </div>
+                                              </div>
+                                            )}
+                                            {isLocked && <span className="ml-1 text-[10px]">🔒</span>}
+                                          </div>
+                                          {compressionMultiplier === multiplier && (
+                                            <Check className="w-3 tracking-tight ml-1 text-amber-500 shrink-0" />
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* 8. Indicators settings triggers */}
@@ -2867,49 +2949,121 @@ export default function App() {
             </div>
 
             {/* 7. Chart Compression Select */}
-            <div className="shrink-0">
+            <div className="shrink-0 relative font-sans" ref={compressionMenuRef}>
               <span className={`text-[10px] uppercase font-mono tracking-widest font-bold block mb-0.5 ${
                 theme === "light" ? "text-slate-600 font-bold" : "text-slate-400/80"
               }`}>
                 {language === "EN" ? "Compression" : language === "KZ" ? "Сығылу" : "Сжатие"}
               </span>
-              <select
-                value={compressionMultiplier}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  const limits = getActiveGroupLimits();
-                  if (val > limits.compressionLevels) {
-                    window.dispatchEvent(new CustomEvent("procluster_open_tariffs_modal"));
-                    return;
-                  }
-                  setCompressionMultiplier(val);
-                }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full min-w-[80px] sm:min-w-[105px] ${
-                  theme === "light"
-                    ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-800 shadow-sm"
-                    : "bg-slate-950/60 border-white/5 text-slate-300 hover:text-slate-100 liquid-glass-button"
-                }`}
-              >
-                {[1, 2, 3, 4, 5, 6].map((multiplier) => {
-                  const limits = getActiveGroupLimits();
-                  const isLocked = multiplier > limits.compressionLevels;
-                  const isBtc = activePair.symbol.toUpperCase().includes("BTC");
-                  const baseComp = isBtc 
-                    ? (marketType === "FUTURES" ? 25 : 500) 
-                    : 25;
-                  const actualValue = baseComp * multiplier;
-                  return (
-                    <option 
-                      key={multiplier} 
-                      value={multiplier} 
-                      disabled={false}
-                      className={theme === "light" ? "bg-white text-slate-900 font-sans" : "bg-slate-950 text-slate-350 font-sans"}
+              {(() => {
+                const isBtc = activePair.symbol.toUpperCase().includes("BTC");
+                const baseComp = isBtc 
+                  ? (marketType === "FUTURES" ? 25 : 500) 
+                  : 25;
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowCompressionMenu(!showCompressionMenu)}
+                      className={`flex items-center justify-between px-2.5 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full min-w-[100px] sm:min-w-[125px] text-left select-none ${
+                        theme === "light"
+                          ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-800 shadow-sm"
+                          : "bg-slate-950/60 border-white/5 text-slate-300 hover:text-slate-100 liquid-glass-button"
+                      }`}
                     >
-                      {multiplier}x ({actualValue}){isLocked ? " 🔒" : ""}
-                    </option>
-                  );
-                })}
-              </select>
+                      <span>
+                        {compressionMultiplier}x ({baseComp * compressionMultiplier})
+                      </span>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 shrink-0 ${
+                        theme === "light" ? "text-slate-600" : "text-slate-400"
+                      } ${showCompressionMenu ? "rotate-180" : ""}`} />
+                    </button>
+
+                    <AnimatePresence>
+                      {showCompressionMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                          style={{ originY: 0 }}
+                          className={`absolute left-0 mt-1 rounded-xl p-1.5 z-50 text-left select-none shadow-2xl backdrop-blur-md border transition-all duration-300 min-w-[200px] sm:min-w-[230px] ${
+                            theme === "light"
+                              ? "bg-white border-slate-300 text-slate-900 shadow-xl"
+                              : "bg-[#090d16]/98 border border-white/10 text-slate-100"
+                          }`}
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            {[1, 2, 3, 4, 5, 6].map((multiplier) => {
+                              const limits = getActiveGroupLimits();
+                              const isLocked = multiplier > limits.compressionLevels;
+                              const actualValue = baseComp * multiplier;
+                              const isRecommended = isBtc && marketType === "FUTURES" && interval === "15m" && actualValue === 100;
+
+                              return (
+                                <button
+                                  key={multiplier}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isLocked) {
+                                      window.dispatchEvent(new CustomEvent("procluster_open_tariffs_modal"));
+                                      return;
+                                    }
+                                    setCompressionMultiplier(multiplier);
+                                    setShowCompressionMenu(false);
+                                  }}
+                                  className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left cursor-pointer transition-all ${
+                                    compressionMultiplier === multiplier
+                                      ? theme === "light"
+                                        ? "bg-slate-100 text-slate-800 font-extrabold"
+                                        : "bg-white/5 text-white font-extrabold"
+                                      : theme === "light"
+                                        ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                                        : "text-slate-300 hover:text-white hover:bg-white/5"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5 select-none w-full min-w-0">
+                                    <span className="font-mono text-xs">
+                                      {multiplier}x ({actualValue})
+                                    </span>
+                                    {isRecommended && (
+                                      <div className="group relative flex items-center shrink-0 ml-auto">
+                                        <span className={`text-[9px] font-sans font-bold px-1 py-0.5 rounded border cursor-help select-none ${
+                                          theme === "light"
+                                            ? "bg-amber-100 border-amber-300 text-amber-800"
+                                            : "bg-amber-500/20 border-amber-500/30 text-yellow-500"
+                                        }`}>
+                                          {language === "EN" ? "recommended" : "рекомендуемое"}
+                                        </span>
+                                        <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 w-52 p-2.5 text-[10px] leading-relaxed rounded-xl shadow-xl z-[100] text-center font-sans border font-medium ${
+                                          theme === "light"
+                                            ? "bg-slate-900 text-white border-slate-800"
+                                            : "bg-slate-950 border border-white/10 text-slate-200 shadow-2xl"
+                                        }`}>
+                                          {language === "EN"
+                                            ? "this is the recommended compression for default indicator settings from the author of PROCLUSTER"
+                                            : "это рекомендуемое сжатие для дефолтных настроек индикаторов от автора PROCLUSTER"
+                                          }
+                                          <div className={`absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent ${
+                                            theme === "light" ? "border-t-slate-900" : "border-t-slate-950"
+                                          }`}></div>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {isLocked && <span className="ml-1 text-[10px]">🔒</span>}
+                                  </div>
+                                  {compressionMultiplier === multiplier && (
+                                    <Check className="w-3 tracking-tight ml-1 text-amber-500 shrink-0" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </>
+                );
+              })()}
             </div>
 
             {/* 7.5 Anomalies Switcher */}
