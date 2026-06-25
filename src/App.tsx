@@ -3355,7 +3355,7 @@ export default function App() {
               <div 
                 id="dom-sidebar-outer"
                 className={`relative flex flex-col shrink-0 transition-all duration-300 ease-in-out w-full ${
-                  isSidebarCollapsed ? "lg:w-0 lg:ml-0" : "lg:w-[380px]"
+                  isSidebarCollapsed ? "lg:w-0 lg:ml-0" : "lg:w-[340px]"
                 } ${
                   activeMobileTab === "dom" ? "flex flex-1 h-full min-h-0" : "hidden lg:flex"
                 }`}
