@@ -2519,7 +2519,7 @@ export default function App() {
           </AnimatePresence>
 
           {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
-          <section className={`hidden lg:flex backdrop-blur-md px-2 py-2 sm:px-4 flex-wrap lg:flex-nowrap items-end select-none overflow-visible relative z-30 transition-all duration-300 gap-2 sm:gap-3 lg:gap-x-5 ${
+          <section className={`hidden lg:flex backdrop-blur-md px-2 py-1 sm:px-4 flex-wrap lg:flex-nowrap items-end select-none overflow-visible relative z-30 transition-all duration-300 gap-2 sm:gap-3 lg:gap-x-5 ${
             theme === "light"
               ? "bg-slate-200/90 border-b border-slate-300 shadow-sm"
               : "bg-slate-950/40 border-b border-slate-900/60 shadow-md"
