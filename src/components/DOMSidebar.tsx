@@ -123,27 +123,47 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark", lang
 
   const currentBook = getCompressedBook();
 
-  // Center scroll vertically on mount or pair/book length changes
+  // Center scroll vertically on mount, pair changes, or container visibility/resize
   useEffect(() => {
-    if (scrollContainerRef.current) {
-      const container = scrollContainerRef.current;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const centerScroll = () => {
       const asksCount = Math.min(200, currentBook.asks.length);
       const midElementCenter = (asksCount * 18) + 28;
       const parent = container.parentElement;
       const parentHeight = parent ? parent.clientHeight : container.clientHeight;
+      if (parentHeight <= 0) return;
       const header = parent ? parent.querySelector("#dom-table-header") : null;
       const headerHeight = header ? header.clientHeight : 25;
       const midPoint = midElementCenter - (parentHeight / 2) + headerHeight;
       container.scrollTop = midPoint;
       lastInteractionTimeRef.current = Date.now();
-    }
+    };
+
+    // Center initially if visible
+    centerScroll();
+
+    // Set up observer for layout/tab visibility changes
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        if (entry.contentRect.height > 0) {
+          centerScroll();
+        }
+      }
+    });
+
+    observer.observe(container);
+
+    return () => {
+      observer.disconnect();
+    };
   }, [activePair.symbol, currentBook.bids.length, currentBook.asks.length, domCompression]);
 
-  // Track interaction and auto-center after 1 second of inactivity
+  // Track interaction and auto-center after 3 seconds of inactivity
   useEffect(() => {
     const handleScroll = () => {
       if (isAutoCenteringRef.current) {
-        // Scroll event from auto-centering, ignore it
         return;
       }
       lastInteractionTimeRef.current = Date.now();
@@ -153,21 +173,28 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark", lang
       lastInteractionTimeRef.current = Date.now();
     };
 
+    const handleTouchStart = () => {
+      lastInteractionTimeRef.current = Date.now();
+    };
+
     const container = scrollContainerRef.current;
     if (container) {
       container.addEventListener("scroll", handleScroll, { passive: true });
       container.addEventListener("mousemove", handleMouseMove, { passive: true });
+      container.addEventListener("touchstart", handleTouchStart, { passive: true });
+      container.addEventListener("touchmove", handleTouchStart, { passive: true });
     }
 
     const interval = setInterval(() => {
       const now = Date.now();
-      if (now - lastInteractionTimeRef.current >= 1000) {
+      if (now - lastInteractionTimeRef.current >= 3000) {
         if (scrollContainerRef.current) {
           const cont = scrollContainerRef.current;
           const asksCount = Math.min(200, currentBook.asks.length);
           const midElementCenter = (asksCount * 18) + 28;
           const parent = cont.parentElement;
           const parentHeight = parent ? parent.clientHeight : cont.clientHeight;
+          if (parentHeight <= 0) return; // don't center if hidden
           const header = parent ? parent.querySelector("#dom-table-header") : null;
           const headerHeight = header ? header.clientHeight : 25;
           const midPoint = midElementCenter - (parentHeight / 2) + headerHeight;
@@ -187,6 +214,8 @@ export default function DOMSidebar({ orderBook, activePair, theme = "dark", lang
       if (container) {
         container.removeEventListener("scroll", handleScroll);
         container.removeEventListener("mousemove", handleMouseMove);
+        container.removeEventListener("touchstart", handleTouchStart);
+        container.removeEventListener("touchmove", handleTouchStart);
       }
       clearInterval(interval);
     };

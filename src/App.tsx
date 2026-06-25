@@ -2192,27 +2192,27 @@ export default function App() {
                     : "bg-slate-950/95 border-slate-900/60 text-slate-100"
                 }`}
               >
-                <div className="p-4 flex flex-col gap-4 max-h-[80vh] overflow-y-auto">
-                  <div className="flex items-center justify-between border-b pb-2">
-                    <span className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
+                <div className="p-3 flex flex-col gap-3 max-h-[85vh] overflow-y-auto">
+                  <div className="flex items-center justify-between border-b pb-1.5">
+                    <span className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
                       <Sliders className="w-4 h-4 text-yellow-500" />
                       <span>{language === "RU" ? "Настройки графика" : language === "KZ" ? "График реттеулері" : "Chart settings"}</span>
                     </span>
                     <button
                       onClick={() => setIsMobileSettingsOpen(false)}
-                      className={`p-1.5 rounded-lg border transition ${
+                      className={`p-1 rounded-lg border transition ${
                         theme === "light"
                           ? "hover:bg-slate-200 border-slate-300 text-slate-800"
                           : "hover:bg-white/10 border-white/5 text-slate-400"
                       }`}
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3">
                     {/* 1. Ticker */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-0.5">
                       <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
                         theme === "light" ? "text-slate-500" : "text-slate-400/80"
                       }`}>
@@ -2224,7 +2224,7 @@ export default function App() {
                           const selected = pairs.find(p => p.symbol === e.target.value);
                           if (selected) setActivePair(selected);
                         }}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                        className={`px-2 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full ${
                           theme === "light"
                             ? "bg-slate-100 border-slate-300 text-slate-900 shadow-inner"
                             : "bg-slate-900 border-white/5 text-yellow-500 liquid-glass-button"
@@ -2239,13 +2239,13 @@ export default function App() {
                     </div>
 
                     {/* 2. Market Type */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-0.5">
                       <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
                         theme === "light" ? "text-slate-500" : "text-slate-400/80"
                       }`}>
                         {language === "EN" ? "Market Type" : "Тип рынка (Market)"}
                       </span>
-                      <div className={`grid grid-cols-2 gap-0.5 p-[2px] rounded-lg h-[35px] items-center select-none border ${
+                      <div className={`grid grid-cols-2 gap-0.5 p-[2px] rounded-lg h-[30px] items-center select-none border ${
                         theme === "light" ? "bg-slate-200 border-slate-300" : "bg-slate-950/60 border-white/5"
                       }`}>
                         {(["SPOT", "FUTURES"] as const).map((type) => (
@@ -2254,7 +2254,7 @@ export default function App() {
                             onClick={() => {
                               setMarketType(type);
                             }}
-                            className={`py-1 rounded-md text-[10px] font-bold font-mono transition-colors duration-200 cursor-pointer text-center leading-none h-[29px] ${
+                            className={`py-0.5 rounded-md text-[10px] font-bold font-mono transition-colors duration-200 cursor-pointer text-center leading-none h-[24px] ${
                               marketType === type
                                 ? theme === "light"
                                   ? "bg-white text-slate-900 font-extrabold border border-slate-300 shadow-sm"
@@ -2271,7 +2271,7 @@ export default function App() {
                     </div>
 
                     {/* 3. Interval */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-0.5">
                       <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
                         theme === "light" ? "text-slate-500" : "text-slate-400/80"
                       }`}>
@@ -2280,7 +2280,7 @@ export default function App() {
                       <select
                         value={interval}
                         onChange={(e) => setInterval(e.target.value)}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                        className={`px-2 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full ${
                           theme === "light"
                             ? "bg-slate-100 border-slate-300 text-slate-900 shadow-inner"
                             : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
@@ -2295,7 +2295,7 @@ export default function App() {
                     </div>
 
                     {/* 4. Candle Type */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-0.5">
                       <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
                         theme === "light" ? "text-slate-550" : "text-slate-400/80"
                       }`}>
@@ -2304,7 +2304,7 @@ export default function App() {
                       <select
                         value={candleType}
                         onChange={(e) => setCandleType(e.target.value as any)}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-sans cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                        className={`px-2 py-1 rounded-lg text-xs font-bold font-sans cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full ${
                           theme === "light"
                             ? "bg-slate-100 border-slate-300 text-slate-800 shadow-inner"
                             : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
@@ -2329,7 +2329,7 @@ export default function App() {
                     </div>
 
                     {/* 5. Palette */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-0.5">
                       <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
                         theme === "light" ? "text-slate-500" : "text-slate-400/80"
                       }`}>
@@ -2338,7 +2338,7 @@ export default function App() {
                       <select
                         value={candlePalette}
                         onChange={(e) => setCandlePalette(e.target.value as any)}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-sans cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                        className={`px-2 py-1 rounded-lg text-xs font-bold font-sans cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full ${
                           theme === "light"
                             ? "bg-slate-100 border-slate-300 text-slate-800 shadow-inner"
                             : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
@@ -2354,7 +2354,7 @@ export default function App() {
                     </div>
 
                     {/* 6. Candle Data Type */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-0.5">
                       <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
                         theme === "light" ? "text-slate-500" : "text-slate-400/80"
                       }`}>
@@ -2363,7 +2363,7 @@ export default function App() {
                       <select
                         value={candleDataType}
                         onChange={(e) => setCandleDataType(e.target.value as any)}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-sans cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full ${
+                        className={`px-2 py-1 rounded-lg text-xs font-bold font-sans cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full ${
                           theme === "light"
                             ? "bg-slate-100 border-slate-300 text-slate-800 shadow-inner"
                             : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
@@ -2378,7 +2378,7 @@ export default function App() {
                     </div>
 
                     {/* 7. Compression */}
-                    <div className="flex flex-col gap-1 relative font-sans" ref={mobileCompressionMenuRef}>
+                    <div className="flex flex-col gap-0.5 relative font-sans" ref={mobileCompressionMenuRef}>
                       <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
                         theme === "light" ? "text-slate-555" : "text-slate-400/80"
                       }`}>
@@ -2394,7 +2394,7 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => setShowMobileCompressionMenu(!showMobileCompressionMenu)}
-                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono cursor-pointer h-[35px] border focus:outline-none transition-all duration-200 outline-none w-full text-left select-none ${
+                              className={`flex items-center justify-between px-2 py-1 rounded-lg text-xs font-bold font-mono cursor-pointer h-[30px] border focus:outline-none transition-all duration-200 outline-none w-full text-left select-none ${
                                 theme === "light"
                                   ? "bg-slate-100 border-slate-300 text-slate-800 shadow-inner"
                                   : "bg-slate-900 border-white/5 text-slate-300 liquid-glass-button"
@@ -2421,7 +2421,7 @@ export default function App() {
                                       : "bg-[#090d16]/98 border border-white/10 text-slate-100"
                                   }`}
                                 >
-                                  <div className="flex flex-col gap-0.5 max-h-56 overflow-y-auto scrollbar-thin-dark">
+                                  <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto scrollbar-thin-dark">
                                     {[1, 2, 3, 4, 5, 6].map((multiplier) => {
                                       const limits = getActiveGroupLimits();
                                       const isLocked = multiplier > limits.compressionLevels;
@@ -2440,7 +2440,7 @@ export default function App() {
                                             setCompressionMultiplier(multiplier);
                                             setShowMobileCompressionMenu(false);
                                           }}
-                                          className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left cursor-pointer transition-all ${
+                                          className={`flex items-center justify-between px-2 py-1 rounded-lg text-left cursor-pointer transition-all ${
                                             compressionMultiplier === multiplier
                                               ? theme === "light"
                                                 ? "bg-slate-100 text-slate-800 font-extrabold"
@@ -2495,14 +2495,58 @@ export default function App() {
                       })()}
                     </div>
 
+                    {/* 7.5 Anomalies Switcher */}
+                    {(() => {
+                      const limits = getActiveGroupLimits();
+                      const isAnomaliesPermittedByTier = limits.clusterSearchAnomaliesEnabled !== false;
+                      return (
+                        <div className="flex flex-col gap-0.5">
+                          <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
+                            theme === "light" ? "text-slate-500" : "text-slate-400/80"
+                          }`}>
+                            {language === "EN" ? "Anomalies" : language === "KZ" ? "Аномалиялар" : "Аномалии"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isAnomaliesPermittedByTier) {
+                                setShowAnomalies(!showAnomalies);
+                              } else {
+                                window.dispatchEvent(new CustomEvent("procluster_open_tariffs_modal"));
+                              }
+                            }}
+                            className={`flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer h-[30px] transition-all border outline-none select-none w-full ${
+                              !isAnomaliesPermittedByTier
+                                ? "opacity-80 border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/15 text-rose-450 cursor-pointer shadow-none"
+                                : showAnomalies
+                                  ? theme === "light"
+                                    ? "bg-amber-100 border-amber-400 text-amber-900 font-black shadow-sm"
+                                    : "liquid-glass-active text-yellow-400 font-black border-amber-500/30"
+                                  : theme === "light"
+                                    ? "bg-slate-200 border-slate-300 hover:bg-slate-300 text-slate-700 font-bold shadow-sm"
+                                    : "liquid-glass-button text-slate-400 hover:text-slate-100 border-white/5 relative z-10"
+                            }`}
+                            title={!isAnomaliesPermittedByTier ? (language === "RU" ? "🔒 Выбрать тариф" : "🔒 Change Plan") : ""}
+                          >
+                            {!isAnomaliesPermittedByTier ? (
+                              <Lock className="w-3 h-3 text-rose-500" />
+                            ) : (
+                              <div className={`w-2 h-2 rounded-full ${showAnomalies ? "bg-emerald-500" : "bg-slate-500"}`} />
+                            )}
+                            <span>{showAnomalies ? (language === "RU" ? "Вкл" : "On") : (language === "RU" ? "Выкл" : "Off")}</span>
+                          </button>
+                        </div>
+                      );
+                    })()}
+
                     {/* 8. Indicators settings triggers */}
-                    <div className="flex flex-col gap-1 justify-end">
+                    <div className="flex flex-col gap-0.5 justify-end">
                       <button
                         onClick={() => {
                           setIsIndicatorsModalOpen(true);
                           setIsMobileSettingsOpen(false);
                         }}
-                        className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-black text-xs cursor-pointer h-[35px] hover:scale-[1.01] active:scale-[0.99] transition-all border ${
+                        className={`flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg font-black text-xs cursor-pointer h-[30px] hover:scale-[1.01] active:scale-[0.99] transition-all border ${
                           theme === "light"
                             ? "bg-slate-200 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
                             : "liquid-glass-button text-slate-300 hover:text-slate-105 border-white/5"
@@ -3310,10 +3354,10 @@ export default function App() {
               {/* Right Sidebar Column: DOM Sidebar with Interactive Trading */}
               <div 
                 id="dom-sidebar-outer"
-                className={`relative flex min-h-0 flex-col shrink-0 transition-all duration-300 ease-in-out ${
-                  isSidebarCollapsed ? "lg:w-0 lg:ml-0" : "w-full lg:w-[380px]"
+                className={`relative flex flex-col shrink-0 transition-all duration-300 ease-in-out w-full ${
+                  isSidebarCollapsed ? "lg:w-0 lg:ml-0" : "lg:w-[380px]"
                 } ${
-                  activeMobileTab === "dom" ? "flex" : "hidden lg:flex"
+                  activeMobileTab === "dom" ? "flex flex-1 h-full min-h-0" : "hidden lg:flex"
                 }`}
               >
                 {/* Expand / Collapse Button */}
@@ -3338,8 +3382,8 @@ export default function App() {
                   {isSidebarCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </button>
 
-                <div className={`flex-1 flex flex-col min-h-0 transition-opacity duration-300 ${
-                  isSidebarCollapsed ? "lg:opacity-0 lg:pointer-events-none lg:overflow-hidden w-0" : "w-full"
+                <div className={`flex-1 flex flex-col min-h-0 transition-opacity duration-300 w-full ${
+                  isSidebarCollapsed ? "lg:opacity-0 lg:pointer-events-none lg:overflow-hidden lg:w-0" : ""
                 }`}>
                   <DOMSidebar orderBook={orderBook} activePair={activePair} theme={theme} language={language} />
                 </div>

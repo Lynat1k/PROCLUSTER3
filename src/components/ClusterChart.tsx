@@ -428,6 +428,18 @@ export default function ClusterChart({
   const zoomAnchorIndexRef = useRef<number | null>(null);
   const zoomAnchorClickXRef = useRef<number>(0);
 
+  // Touch refs for mobile/tablet panning and pinch-to-zoom
+  const touchStartRef = useRef<{ x: number; y: number; scrollLeft: number; priceCenterOffset: number } | null>(null);
+  const touchZoomRef = useRef<{ 
+    initialDistance: number; 
+    initialCandleWidth: number; 
+    initialVerticalScale: number; 
+    initialPriceCenterOffset: number; 
+    initialScrollLeft: number;
+    touchCenterX: number;
+    touchCenterY: number;
+  } | null>(null);
+
   // Dynamically measure container dimensions with ResizeObserver so CVD/delta are pinned perfectly to the bottom
   useEffect(() => {
     if (!containerRef.current) return;
@@ -1327,22 +1339,22 @@ export default function ClusterChart({
     setIsDragging(false);
   };
 
-  // Mouse crosshair update builder
-  const handleSvgMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  // Shared crosshair and anomaly inspect updater for both mouse and touch
+  const updateCrosshairAndHover = (clientX: number, clientY: number, target: HTMLCanvasElement) => {
+    const rect = target.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
     const viewportWidth = visibleClientWidth || 800;
 
     // Check if hovered on the timeline strip at the bottom
     if (y >= totalSvgHeight - margin.bottom && y <= totalSvgHeight) {
-      e.currentTarget.style.cursor = "ew-resize";
+      target.style.cursor = "ew-resize";
       setCrosshair(null);
       setHoveredCell(null);
       setHoveredClusterSearch(null);
       return;
     } else {
-      e.currentTarget.style.cursor = "";
+      target.style.cursor = "";
     }
 
     if (y >= margin.top && y <= totalSvgHeight - margin.bottom && x >= margin.left && x <= viewportWidth - margin.right) {
@@ -1446,7 +1458,7 @@ export default function ClusterChart({
               if (sumVolume < csMedMinVolume || sumVolume > csMedMaxVolume) continue;
 
               const bidPercent = (sumBid / sumVolume) * 100;
-              const askPercent = (sumAsk / sumVolume) * 105 ? (sumAsk / sumVolume) * 100 : 0; // Guard NaN
+              const askPercent = (sumAsk / sumVolume) * 100 ? (sumAsk / sumVolume) * 100 : 0; // Guard NaN
               const isBidDominant = bidPercent >= csMedImbalancePercent;
               const isAskDominant = askPercent >= csMedImbalancePercent;
               if (!isBidDominant && !isAskDominant) continue;
@@ -1570,6 +1582,207 @@ export default function ClusterChart({
       setHoveredCell(null);
       setHoveredClusterSearch(null);
     }
+  };
+
+  const handleSvgMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    updateCrosshairAndHover(e.clientX, e.clientY, e.currentTarget);
+  };
+
+  const handleSvgTouch = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 1) {
+      updateCrosshairAndHover(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget);
+    }
+  };
+
+  const handleSvgTouchEnd = () => {
+    setCrosshair(null);
+    setHoveredCell(null);
+    setHoveredClusterSearch(null);
+  };
+
+  // Touch panning and pinch-to-zoom handlers for mobile & tablet
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("button") || target.closest("select")) return; // skip for controls
+    
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const clickY = touch.clientY - rect.top;
+        
+        // Check if timescale bottom margin area was touched
+        if (clickY >= totalSvgHeight - margin.bottom) {
+          setIsDraggingTimeScale(true);
+          startTimeScaleXRef.current = touch.clientX;
+          startCandleWidthRef.current = candleWidth;
+          
+          const clickXInContainer = touch.clientX - rect.left;
+          const currentScroll = containerRef.current?.scrollLeft || 0;
+          const absoluteX = currentScroll + clickXInContainer;
+          const xFromLeft = absoluteX - margin.left;
+          zoomAnchorIndexRef.current = xFromLeft / (candleWidth + candleSpacing);
+          zoomAnchorClickXRef.current = clickXInContainer;
+          return;
+        }
+      }
+
+      setIsDragging(true);
+      touchStartRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+        scrollLeft: containerRef.current?.scrollLeft || 0,
+        priceCenterOffset: priceCenterOffset
+      };
+    } else if (e.touches.length === 2) {
+      const touch0 = e.touches[0];
+      const touch1 = e.touches[1];
+      const dx = touch0.clientX - touch1.clientX;
+      const dy = touch0.clientY - touch1.clientY;
+      const initialDistance = Math.sqrt(dx * dx + dy * dy);
+      
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect && initialDistance > 10) {
+        const touch0X = touch0.clientX - rect.left;
+        const touch1X = touch1.clientX - rect.left;
+        const touch0Y = touch0.clientY - rect.top;
+        const touch1Y = touch1.clientY - rect.top;
+        const touchCenterX = (touch0X + touch1X) / 2;
+        const touchCenterY = (touch0Y + touch1Y) / 2;
+
+        touchZoomRef.current = {
+          initialDistance,
+          initialCandleWidth: candleWidth,
+          initialVerticalScale: verticalScale,
+          initialPriceCenterOffset: priceCenterOffset,
+          initialScrollLeft: containerRef.current?.scrollLeft || 0,
+          touchCenterX,
+          touchCenterY
+        };
+      }
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 1 && touchStartRef.current && containerRef.current) {
+      if (e.cancelable) e.preventDefault();
+      
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - touchStartRef.current.x;
+      const nextScroll = touchStartRef.current.scrollLeft - deltaX;
+      containerRef.current.scrollLeft = nextScroll;
+      setVisibleScrollLeft(nextScroll);
+
+      const deltaY = touch.clientY - touchStartRef.current.y;
+      const currentPriceRange = maxPrice - minPrice;
+      const priceChange = (deltaY / Math.max(1, chartHeight)) * currentPriceRange;
+      setPriceCenterOffset(touchStartRef.current.priceCenterOffset + priceChange);
+    } else if (e.touches.length === 2 && touchZoomRef.current && containerRef.current) {
+      if (e.cancelable) e.preventDefault();
+      
+      const touch0 = e.touches[0];
+      const touch1 = e.touches[1];
+      const dx = touch0.clientX - touch1.clientX;
+      const dy = touch0.clientY - touch1.clientY;
+      const currentDistance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (currentDistance > 10) {
+        const ratio = currentDistance / touchZoomRef.current.initialDistance;
+        
+        // Horizontal pinch-zoom
+        const nextWidth = touchZoomRef.current.initialCandleWidth * ratio;
+        const minW = (candleType === "japanese" || candleType === "auto" || candleType === "bars") ? 2 : 8;
+        const nextWidthClamped = Math.min(100, Math.max(minW, nextWidth));
+
+        if (nextWidthClamped !== candleWidth) {
+          const mouseRelativeX = touchZoomRef.current.touchCenterX;
+          const currentScrollLeft = touchZoomRef.current.initialScrollLeft;
+          const chartCursorX = currentScrollLeft + mouseRelativeX;
+          const activeChartX = chartCursorX - margin.left;
+          
+          const prevSpacing = Math.max(1, touchZoomRef.current.initialCandleWidth < 30 ? Math.floor(touchZoomRef.current.initialCandleWidth * 0.35) : 12);
+          const nextSpacing = Math.max(1, nextWidthClamped < 30 ? Math.floor(nextWidthClamped * 0.35) : 12);
+          
+          const widthRatio = (nextWidthClamped + nextSpacing) / (touchZoomRef.current.initialCandleWidth + prevSpacing);
+          const newChartCursorX = margin.left + activeChartX * widthRatio;
+          const nextScrollLeft = Math.max(0, newChartCursorX - mouseRelativeX);
+
+          const currentScrollRightPadding = Math.round(Number(containerRef.current.clientWidth || 800) * 0.85);
+          const nextScrollWidth = candles.length * (nextWidthClamped + nextSpacing) + margin.left + margin.right + currentScrollRightPadding;
+          const spacer = containerRef.current.querySelector("#procluster-chart-spacer") as HTMLElement;
+          if (spacer) {
+            spacer.style.width = `${nextScrollWidth}px`;
+          }
+
+          setCandleWidth(nextWidthClamped);
+          containerRef.current.scrollLeft = nextScrollLeft;
+          setVisibleScrollLeft(nextScrollLeft);
+          candleWidthRef.current = nextWidthClamped;
+        }
+
+        // Vertical pinch-zoom
+        const relativeY = touchZoomRef.current.touchCenterY;
+        if (relativeY >= margin.top && relativeY <= margin.top + chartHeight) {
+          const extractPriceFromY = (yCoord: number, scaleVal: number, offsetVal: number) => {
+            const zoomedRange = priceRange / Math.max(0.1, scaleVal);
+            const centerPrice = basePriceCenter + offsetVal;
+            const maxP = centerPrice + zoomedRange * 0.58;
+            const minP = centerPrice - zoomedRange * 0.58;
+            const range = maxP - minP || 1;
+            return minP + (1 - (yCoord - margin.top) / Math.max(1, chartHeight)) * range;
+          };
+
+          const mousePrice = extractPriceFromY(relativeY, touchZoomRef.current.initialVerticalScale, touchZoomRef.current.initialPriceCenterOffset);
+          const nextVerticalScale = Math.min(2000.0, Math.max(0.1, touchZoomRef.current.initialVerticalScale * ratio));
+          const actualMultiplier = nextVerticalScale / touchZoomRef.current.initialVerticalScale;
+
+          if (actualMultiplier !== 1) {
+            const currentPriceCenter = basePriceCenter + touchZoomRef.current.initialPriceCenterOffset;
+            const newPriceCenter = mousePrice - (mousePrice - currentPriceCenter) / actualMultiplier;
+            const nextPriceCenterOffset = newPriceCenter - basePriceCenter;
+
+            setVerticalScale(nextVerticalScale);
+            setPriceCenterOffset(nextPriceCenterOffset);
+            verticalScaleRef.current = nextVerticalScale;
+            priceCenterOffsetRef.current = nextPriceCenterOffset;
+          }
+        }
+      }
+    } else if (isDraggingTimeScale && containerRef.current) {
+      if (e.cancelable) e.preventDefault();
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - startTimeScaleXRef.current;
+      const speed = 0.55;
+      const nextWidth = startCandleWidthRef.current + deltaX * speed;
+      const minW = (candleType === "japanese" || candleType === "auto" || candleType === "bars") ? 2 : 8;
+      const nextWidthClamped = Math.min(100, Math.max(minW, nextWidth));
+
+      if (nextWidthClamped !== candleWidth && zoomAnchorIndexRef.current !== null) {
+        const nextSpacing = Math.max(1, nextWidthClamped < 30 ? Math.floor(nextWidthClamped * 0.35) : 12);
+        const newAnchorAbsoluteX = margin.left + zoomAnchorIndexRef.current * (nextWidthClamped + nextSpacing);
+        const nextScrollLeft = Math.max(0, newAnchorAbsoluteX - zoomAnchorClickXRef.current);
+
+        const currentScrollRightPadding = Math.round(Number(containerRef.current.clientWidth || 800) * 0.85);
+        const nextScrollWidth = candles.length * (nextWidthClamped + nextSpacing) + margin.left + margin.right + currentScrollRightPadding;
+        const spacer = containerRef.current.querySelector("#procluster-chart-spacer") as HTMLElement;
+        if (spacer) {
+          spacer.style.width = `${nextScrollWidth}px`;
+        }
+
+        setCandleWidth(nextWidthClamped);
+        containerRef.current.scrollLeft = nextScrollLeft;
+        setVisibleScrollLeft(nextScrollLeft);
+        candleWidthRef.current = nextWidthClamped;
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    setIsDraggingTimeScale(false);
+    touchStartRef.current = null;
+    touchZoomRef.current = null;
+    zoomAnchorIndexRef.current = null;
   };
 
   const handleSvgMouseLeave = () => {
@@ -4043,6 +4256,9 @@ export default function ClusterChart({
           onMouseUp={handleMouseUpOrLeave}
           onMouseLeave={handleMouseUpOrLeave}
           onDoubleClick={handleDoubleClick}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           onScroll={(e) => {
             setVisibleScrollLeft(e.currentTarget.scrollLeft);
             setVisibleClientWidth(e.currentTarget.clientWidth);
@@ -4210,6 +4426,9 @@ export default function ClusterChart({
                 ref={canvasRef}
                 onMouseMove={handleSvgMouseMove}
                 onMouseLeave={handleSvgMouseLeave}
+                onTouchStart={handleSvgTouch}
+                onTouchMove={handleSvgTouch}
+                onTouchEnd={handleSvgTouchEnd}
                 className="sticky left-0 top-0 block z-10"
               />
             </>
@@ -4734,11 +4953,21 @@ export default function ClusterChart({
       {/* Floating Cluster Search Tooltip */}
       {hoveredClusterSearch && finalShowAnomalies && (() => {
         const tooltipWidth = 265;
-        const offsetHorizontal = 90; // Balanced 90px offset to keep tooltip visible without overlap
-        const isLeftIdx = hoveredClusterSearch.x > (visibleClientWidth || 800) - 390;
-        const isTopIdx = hoveredClusterSearch.y > (totalSvgHeight || 550) - 220;
-        const leftPos = isLeftIdx ? hoveredClusterSearch.x - tooltipWidth - offsetHorizontal : hoveredClusterSearch.x + offsetHorizontal;
-        const topPos = isTopIdx ? hoveredClusterSearch.y - 180 : hoveredClusterSearch.y + 15;
+        const tooltipHeight = 175;
+        
+        // Center the tooltip horizontally above/below the hovered point
+        let leftPos = hoveredClusterSearch.x - (tooltipWidth / 2);
+        
+        // Clamp left position to stay inside the container with 8px margins
+        const maxLeft = (visibleClientWidth || 800) - tooltipWidth - 8;
+        if (leftPos < 8) leftPos = 8;
+        if (leftPos > maxLeft) leftPos = maxLeft;
+
+        // Position vertically: above if there's space, otherwise below
+        const hasSpaceAbove = hoveredClusterSearch.y > tooltipHeight + 20;
+        const topPos = hasSpaceAbove 
+          ? hoveredClusterSearch.y - tooltipHeight - 15 
+          : hoveredClusterSearch.y + 25;
 
         const maxPercent = Math.max(hoveredClusterSearch.bidPercent, hoveredClusterSearch.askPercent);
         const isBidGreater = hoveredClusterSearch.bidPercent > hoveredClusterSearch.askPercent;
