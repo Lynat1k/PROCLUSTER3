@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { CryptoPair } from "../types";
-import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders, Sparkles, HelpCircle, Send, Youtube, Globe } from "lucide-react";
+import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders, HelpCircle, Send, Youtube, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { authTexts, headerUiTexts } from "../i18n/header";
 import { 
@@ -472,15 +472,13 @@ export default function Header({
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 hidden lg:flex items-center">
         <button
           onClick={onOpenRoadmap}
-          className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all duration-300 hover:scale-105 active:scale-98 select-none ${
+          className={`px-3 py-1 rounded-full border text-[9.5px] font-extrabold uppercase tracking-widest cursor-pointer transition-all duration-200 hover:scale-[1.03] active:scale-97 select-none ${
             isLight
-              ? "bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/30 text-amber-600 shadow-sm"
-              : "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-500 shadow-md shadow-amber-500/5 animate-pulse"
+              ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600 shadow-sm"
+              : "bg-white/5 hover:bg-white/10 border-white/10 text-slate-400 shadow-sm"
           }`}
-          style={{ animationDuration: "2.5s" }}
           title={headerUiTexts[language].roadmapTooltip}
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
           <span>BETA</span>
         </button>
       </div>
