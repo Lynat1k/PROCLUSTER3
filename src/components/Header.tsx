@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { CryptoPair } from "../types";
-import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders, HelpCircle, Send, Youtube, Globe } from "lucide-react";
+import { TrendingUp, RefreshCw, Layers, ShieldCheck, Zap, User, LogIn, LogOut, ChevronDown, ChevronUp, Shield, Home, Bug, Copy, Check, Sun, Moon, Sliders, HelpCircle, Send, Youtube, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { authTexts, headerUiTexts } from "../i18n/header";
 import { 
@@ -38,6 +38,8 @@ interface HeaderProps {
   activeMobileTab?: "chart" | "dom";
   setActiveMobileTab?: (tab: "chart" | "dom") => void;
   isAdminView?: boolean;
+  isHeaderCollapsed?: boolean;
+  onToggleHeaderCollapse?: () => void;
 }
 
 export default function Header({
@@ -58,7 +60,9 @@ export default function Header({
   isMobileSettingsOpen = false,
   activeMobileTab,
   setActiveMobileTab,
-  isAdminView = false
+  isAdminView = false,
+  isHeaderCollapsed = false,
+  onToggleHeaderCollapse
 }: HeaderProps) {
   
   const isLight = theme === "light";
@@ -210,6 +214,19 @@ export default function Header({
 
         {/* Mobile Right Controls: Theme, Profile, Admin */}
         <div className="flex lg:hidden items-center gap-1.5" ref={dropdownRef}>
+          {/* COLLAPSE HEADER BUTTON (Mobile) */}
+          <button
+            onClick={onToggleHeaderCollapse}
+            className={`flex items-center justify-center p-1.5 rounded-xl border cursor-pointer hover:scale-105 active:scale-95 transition-all ${
+              isLight
+                ? "bg-slate-200 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
+                : "bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-slate-300 hover:text-white shadow-inner"
+            }`}
+            title={headerUiTexts[language].collapseHeader}
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+          </button>
+
           {/* LIGHT/DARK THEME TOGGLE BUTTON */}
           <button
             onClick={onToggleTheme}
@@ -583,6 +600,19 @@ export default function Header({
           ) : (
             <Sun className="w-4 h-4 text-yellow-500 fill-yellow-500/10" />
           )}
+        </button>
+
+        {/* COLLAPSE HEADER BUTTON (Desktop) */}
+        <button
+          onClick={onToggleHeaderCollapse}
+          className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer hover:scale-105 active:scale-95 transition-all ${
+            isLight
+              ? "bg-slate-205 hover:bg-slate-300 border-slate-300 text-slate-800 shadow-sm"
+              : "bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-slate-300 hover:text-white shadow-inner"
+          }`}
+          title={headerUiTexts[language].collapseHeader}
+        >
+          <ChevronUp className="w-4 h-4" />
         </button>
 
         {/* LANGUAGE SWITCHER DROPDOWN (Desktop) */}

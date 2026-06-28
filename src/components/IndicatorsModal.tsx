@@ -1984,6 +1984,234 @@ export default function IndicatorsModal({
                     </div>
                   )}
 
+                  {/* Option 4b: PROCLUSTER BUY SELL ZONE parameters */}
+                  {selectedIndicator.id === "proclusterBuySellZone" && (
+                    <div className={`flex flex-col gap-4 font-sans text-xs p-4.5 rounded-2xl border transition-all duration-300 ${
+                      isLight ? "bg-slate-100/40 border-slate-200/85" : "bg-slate-950/20 border-white/5"
+                    }`}>
+                      <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black font-mono">
+                        ПАРАМЕТРЫ И СТИЛИЗАЦИЯ BUY/SELL ZONE
+                      </span>
+
+                      {/* Line Color Picker */}
+                      <div className="flex items-center justify-between mt-1 pb-3 border-b border-dashed border-slate-700/20">
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Цвет линии индикатора</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={selectedIndicator.settings.lineColor ?? "#06b6d4"}
+                            onChange={(e) => updateSettings({ lineColor: e.target.value })}
+                            className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0"
+                          />
+                          <span className="text-[10px] font-mono text-slate-400 truncate w-14">
+                            {selectedIndicator.settings.lineColor ?? "#06b6d4"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Divergence Show/Hide Checkbox */}
+                      <div className="flex items-center justify-between pb-3 border-b border-dashed border-slate-700/20">
+                        <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Показывать дивергенции</span>
+                        <input
+                          type="checkbox"
+                          checked={selectedIndicator.settings.showDivLines !== false}
+                          onChange={(e) => updateSettings({ showDivLines: e.target.checked })}
+                          className="w-4 h-4 cursor-pointer accent-blue-600 rounded"
+                        />
+                      </div>
+
+                      {/* Hold opacity slider */}
+                      <div className="flex flex-col gap-2 pb-3 border-b border-dashed border-slate-700/20">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Яркость фона удержания (Hold)</span>
+                          <span className="font-mono text-slate-400">{Math.round((selectedIndicator.settings.bszHoldOpacity ?? (isLight ? 0.15 : 0.25)) * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={selectedIndicator.settings.bszHoldOpacity ?? (isLight ? 0.15 : 0.25)}
+                          onChange={(e) => updateSettings({ bszHoldOpacity: parseFloat(e.target.value) })}
+                          className="w-full h-1 bg-slate-700/30 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                        />
+                      </div>
+
+                      {/* Overheat fill opacity slider */}
+                      <div className="flex flex-col gap-2 pb-3 border-b border-dashed border-slate-700/20">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className={`font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Яркость заполнения зон (Overheat)</span>
+                          <span className="font-mono text-slate-400">{Math.round((selectedIndicator.settings.bszOverheatOpacity ?? (isLight ? 0.20 : 0.35)) * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={selectedIndicator.settings.bszOverheatOpacity ?? (isLight ? 0.20 : 0.35)}
+                          onChange={(e) => updateSettings({ bszOverheatOpacity: parseFloat(e.target.value) })}
+                          className="w-full h-1 bg-slate-700/30 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                        />
+                      </div>
+
+                      {/* Weights Settings (LSR, RSI, MACD) */}
+                      <div className="flex flex-col gap-3 pb-3 border-b border-dashed border-slate-700/20">
+                        <span className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Веса Composite (Сумма = 1.0)</span>
+                        
+                        <div className="grid grid-cols-3 gap-2">
+                          <label className="flex flex-col gap-1 text-[11px]">
+                            <span className={isLight ? "text-slate-600" : "text-slate-400"}>Weight LSR</span>
+                            <input
+                              type="number"
+                              step="0.05"
+                              min="0"
+                              max="1"
+                              value={selectedIndicator.settings.wLS ?? 0.45}
+                              onChange={(e) => updateSettings({ wLS: parseFloat(e.target.value) || 0.45 })}
+                              className={`rounded-xl px-2.5 py-1.5 outline-none text-xs border ${
+                                isLight ? "bg-white border-slate-205 text-slate-800" : "bg-[#0b0f19] border-white/10 text-slate-200"
+                              }`}
+                            />
+                          </label>
+
+                          <label className="flex flex-col gap-1 text-[11px]">
+                            <span className={isLight ? "text-slate-600" : "text-slate-400"}>Weight RSI</span>
+                            <input
+                              type="number"
+                              step="0.05"
+                              min="0"
+                              max="1"
+                              value={selectedIndicator.settings.wRSI ?? 0.30}
+                              onChange={(e) => updateSettings({ wRSI: parseFloat(e.target.value) || 0.30 })}
+                              className={`rounded-xl px-2.5 py-1.5 outline-none text-xs border ${
+                                isLight ? "bg-white border-slate-205 text-slate-800" : "bg-[#0b0f19] border-white/10 text-slate-200"
+                              }`}
+                            />
+                          </label>
+
+                          <label className="flex flex-col gap-1 text-[11px]">
+                            <span className={isLight ? "text-slate-600" : "text-slate-400"}>Weight MACD</span>
+                            <input
+                              type="number"
+                              step="0.05"
+                              min="0"
+                              max="1"
+                              value={selectedIndicator.settings.wMACD ?? 0.25}
+                              onChange={(e) => updateSettings({ wMACD: parseFloat(e.target.value) || 0.25 })}
+                              className={`rounded-xl px-2.5 py-1.5 outline-none text-xs border ${
+                                isLight ? "bg-white border-slate-205 text-slate-800" : "bg-[#0b0f19] border-white/10 text-slate-200"
+                              }`}
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Lookback Settings */}
+                      <div className="grid grid-cols-3 gap-2 pb-3 border-b border-dashed border-slate-700/20">
+                        <label className="flex flex-col gap-1 text-[11px]">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>LSR Period</span>
+                          <input
+                            type="number"
+                            min="10"
+                            max="500"
+                            value={selectedIndicator.settings.lsZlen ?? 150}
+                            onChange={(e) => updateSettings({ lsZlen: parseInt(e.target.value) || 150 })}
+                            className={`rounded-xl px-2.5 py-1.5 outline-none text-xs border ${
+                              isLight ? "bg-white border-slate-205 text-slate-800" : "bg-[#0b0f19] border-white/10 text-slate-200"
+                            }`}
+                          />
+                        </label>
+
+                        <label className="flex flex-col gap-1 text-[11px]">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>RSI Period</span>
+                          <input
+                            type="number"
+                            min="5"
+                            max="50"
+                            value={selectedIndicator.settings.rsiLen ?? 14}
+                            onChange={(e) => updateSettings({ rsiLen: parseInt(e.target.value) || 14 })}
+                            className={`rounded-xl px-2.5 py-1.5 outline-none text-xs border ${
+                              isLight ? "bg-white border-slate-205 text-slate-800" : "bg-[#0b0f19] border-white/10 text-slate-200"
+                            }`}
+                          />
+                        </label>
+
+                        <label className="flex flex-col gap-1 text-[11px]">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>MACD Period</span>
+                          <input
+                            type="number"
+                            min="10"
+                            max="300"
+                            value={selectedIndicator.settings.macdZlen ?? 50}
+                            onChange={(e) => updateSettings({ macdZlen: parseInt(e.target.value) || 50 })}
+                            className={`rounded-xl px-2.5 py-1.5 outline-none text-xs border ${
+                              isLight ? "bg-white border-slate-205 text-slate-800" : "bg-[#0b0f19] border-white/10 text-slate-200"
+                            }`}
+                          />
+                        </label>
+                      </div>
+
+                      {/* Threshold Settings */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="flex flex-col gap-1 text-[11px]">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>Overheat Longs (&gt;)</span>
+                          <input
+                            type="number"
+                            min="50"
+                            max="100"
+                            value={selectedIndicator.settings.upTh ?? 80}
+                            onChange={(e) => updateSettings({ upTh: parseInt(e.target.value) || 80 })}
+                            className={`rounded-xl px-2.5 py-1.5 outline-none text-xs border ${
+                              isLight ? "bg-white border-slate-205 text-slate-800" : "bg-[#0b0f19] border-white/10 text-slate-200"
+                            }`}
+                          />
+                        </label>
+
+                        <label className="flex flex-col gap-1 text-[11px]">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>Overheat Shorts (&lt;)</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            value={selectedIndicator.settings.downTh ?? 20}
+                            onChange={(e) => updateSettings({ downTh: parseInt(e.target.value) || 20 })}
+                            className={`rounded-xl px-2.5 py-1.5 outline-none text-xs border ${
+                              isLight ? "bg-white border-slate-205 text-slate-800" : "bg-[#0b0f19] border-white/10 text-slate-200"
+                            }`}
+                          />
+                        </label>
+
+                        <label className="flex flex-col gap-1 text-[11px]">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>Верх коридора баланс</span>
+                          <input
+                            type="number"
+                            min="50"
+                            max="100"
+                            value={selectedIndicator.settings.balUp ?? 65}
+                            onChange={(e) => updateSettings({ balUp: parseInt(e.target.value) || 65 })}
+                            className={`rounded-xl px-2.5 py-1.5 outline-none text-xs border ${
+                              isLight ? "bg-white border-slate-205 text-slate-800" : "bg-[#0b0f19] border-white/10 text-slate-200"
+                            }`}
+                          />
+                        </label>
+
+                        <label className="flex flex-col gap-1 text-[11px]">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>Низ коридора баланс</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            value={selectedIndicator.settings.balDown ?? 35}
+                            onChange={(e) => updateSettings({ balDown: parseInt(e.target.value) || 35 })}
+                            className={`rounded-xl px-2.5 py-1.5 outline-none text-xs border ${
+                              isLight ? "bg-white border-slate-205 text-slate-800" : "bg-[#0b0f19] border-white/10 text-slate-200"
+                            }`}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Option 5: Stacked Imbalance parameters */}
                   {selectedIndicator.id === "stackedImbalance" && (
                     <div className={`flex flex-col gap-4 font-sans text-xs p-4.5 rounded-2xl border transition-all duration-300 ${

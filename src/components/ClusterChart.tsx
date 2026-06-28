@@ -8,7 +8,7 @@ import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator, O
 import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight, TrendingUp, TrendingDown, SlidersHorizontal, Lock, Equal } from "lucide-react";
 import { storage } from "../lib/storage";
 import { AutoIcon, JapaneseIcon, FootprintIcon, ClustersIcon, BarsIcon } from "./icons";
-import { volumeOnChartIndicator, deltaIndicator, cvdIndicator, clusterSearchIndicator } from "../indicators";
+import { volumeOnChartIndicator, deltaIndicator, cvdIndicator, clusterSearchIndicator, proclusterBuySellZoneIndicator } from "../indicators";
 import { drawDrawingObjects } from "../utils/drawingRenderer";
 import { getActiveGroupLimits } from "../lib/tierLimits";
 
@@ -67,7 +67,8 @@ export default function ClusterChart({
     volume: true,
     cvd: true,
     stackedImbalance: false,
-    depthOfMarket: false
+    depthOfMarket: false,
+    proclusterBuySellZone: false
   },
   indicatorSettings,
   marketType = "SPOT",
@@ -110,6 +111,10 @@ export default function ClusterChart({
   const cvdPeriod = cvdSettings.cvdPeriod || "all";
   const cvdLineColor = cvdSettings.cvdLineColor || "#a855f7";
   const cvdPlotType = cvdSettings.cvdPlotType || "line";
+
+  // Buy Sell Zone specific settings
+  const buySellZoneSettings = indicatorSettings?.proclusterBuySellZone || {};
+  const buySellZoneLineColor = buySellZoneSettings.lineColor || "#06b6d4";
 
   // Delta indicator specific settings
   const deltaSettings = indicatorSettings?.delta || {};
@@ -338,6 +343,10 @@ export default function ClusterChart({
     const saved = storage.get("procluster_cvd_panel_height");
     return saved ? parseInt(saved, 10) : 120;
   });
+  const [buySellZonePanelHeight, setBuySellZonePanelHeight] = useState<number>(() => {
+    const saved = storage.get("procluster_buysellzone_panel_height");
+    return saved ? parseInt(saved, 10) : 120;
+  });
 
   useEffect(() => {
     storage.set("procluster_delta_panel_height", deltaPanelHeight.toString());
@@ -347,19 +356,25 @@ export default function ClusterChart({
     storage.set("procluster_cvd_panel_height", cvdPanelHeight.toString());
   }, [cvdPanelHeight]);
 
-  const [resizingPanel, setResizingPanel] = useState<"delta" | "cvd" | null>(null);
+  useEffect(() => {
+    storage.set("procluster_buysellzone_panel_height", buySellZonePanelHeight.toString());
+  }, [buySellZonePanelHeight]);
+
+  const [resizingPanel, setResizingPanel] = useState<"delta" | "cvd" | "proclusterBuySellZone" | null>(null);
 
   const panelGap = 24;
   const deltaHeightTotal = activeIndicators.delta ? (deltaPanelHeight + panelGap) : 0;
   const cvdHeightTotal = activeIndicators.cvd ? (cvdPanelHeight + panelGap) : 0;
+  const buySellZoneHeightTotal = activeIndicators.proclusterBuySellZone ? (buySellZonePanelHeight + panelGap) : 0;
 
-  // Calculate base chart height to fill container exactly, ensuring Delta/CVD are always pinned at the bottom
-  const chartHeight = Math.max(150, containerHeight - margin.top - margin.bottom - deltaHeightTotal - cvdHeightTotal);
+  // Calculate base chart height to fill container exactly, ensuring Delta/CVD/BuySellZone are always pinned at the bottom
+  const chartHeight = Math.max(150, containerHeight - margin.top - margin.bottom - deltaHeightTotal - cvdHeightTotal - buySellZoneHeightTotal);
   
   const deltaTopY = margin.top + chartHeight + (activeIndicators.delta ? panelGap : 0);
   const cvdTopY = deltaTopY + (activeIndicators.delta ? deltaPanelHeight : 0) + (activeIndicators.cvd ? panelGap : 0);
+  const buySellZoneTopY = cvdTopY + (activeIndicators.cvd ? cvdPanelHeight : 0) + (activeIndicators.proclusterBuySellZone ? panelGap : 0);
 
-  const totalSvgHeight = margin.top + chartHeight + deltaHeightTotal + cvdHeightTotal + margin.bottom;
+  const totalSvgHeight = margin.top + chartHeight + deltaHeightTotal + cvdHeightTotal + buySellZoneHeightTotal + margin.bottom;
 
   const [hoveredCell, setHoveredCell] = useState<{ candleIndex: number; cell: ClusterCell } | null>(null);
   const [hoveredClusterSearch, setHoveredClusterSearch] = useState<{
@@ -1914,6 +1929,35 @@ export default function ClusterChart({
     });
   }, [candles, candleWidth, candleSpacing, cvdPeriod, visibleScrollLeft, margin.left]);
 
+  // Generate PROCLUSTER BUY SELL ZONE Points (memoized)
+  const buySellZonePoints = useMemo(() => {
+    if (!activeIndicators.proclusterBuySellZone) return [];
+    
+    // We get settings with default fallbacks
+    const bszSettings = {
+      lsZlen: buySellZoneSettings.lsZlen ?? 150,
+      rsiLen: buySellZoneSettings.rsiLen ?? 14,
+      macdZlen: buySellZoneSettings.macdZlen ?? 50,
+      wLS: buySellZoneSettings.wLS ?? 0.45,
+      wRSI: buySellZoneSettings.wRSI ?? 0.30,
+      wMACD: buySellZoneSettings.wMACD ?? 0.25,
+      upTh: buySellZoneSettings.upTh ?? 80,
+      downTh: buySellZoneSettings.downTh ?? 20,
+      balUp: buySellZoneSettings.balUp ?? 65,
+      balDown: buySellZoneSettings.balDown ?? 35,
+      pivLB: buySellZoneSettings.pivLB ?? 5,
+      holdBars: buySellZoneSettings.holdBars ?? 3,
+      showDivLines: buySellZoneSettings.showDivLines !== false,
+      lineColor: buySellZoneLineColor
+    };
+
+    const rawPoints = proclusterBuySellZoneIndicator.calculateBuySellZone(candles, bszSettings);
+    return rawPoints.map((item, i) => {
+      const cx = margin.left + i * (candleWidth + candleSpacing) + candleWidth / 2;
+      return { cx, ...item };
+    });
+  }, [candles, candleWidth, candleSpacing, buySellZoneSettings, buySellZoneLineColor, activeIndicators.proclusterBuySellZone, margin.left]);
+
   // Dynamically calculate visible min and max cumulative delta for local auto-scaling to fill 80% height
   const { minCumDeltaVal, maxCumDeltaVal, cvdDeltaRange } = useMemo(() => {
     if (cumulativeDeltaPoints.length === 0) {
@@ -2121,6 +2165,10 @@ export default function ClusterChart({
         const cvdBottomY = cvdTopY + cvdPanelHeight;
         const newHeight = Math.max(50, Math.min(350, cvdBottomY - relativeY));
         setCvdPanelHeight(newHeight);
+      } else if (resizingPanel === "proclusterBuySellZone") {
+        const bszBottomY = buySellZoneTopY + buySellZonePanelHeight;
+        const newHeight = Math.max(50, Math.min(350, bszBottomY - relativeY));
+        setBuySellZonePanelHeight(newHeight);
       }
     };
 
@@ -2134,7 +2182,7 @@ export default function ClusterChart({
       window.removeEventListener("mousemove", handleWindowMouseMove);
       window.removeEventListener("mouseup", handleWindowMouseUp);
     };
-  }, [resizingPanel, deltaTopY, deltaPanelHeight, cvdTopY, cvdPanelHeight]);
+  }, [resizingPanel, deltaTopY, deltaPanelHeight, cvdTopY, cvdPanelHeight, buySellZoneTopY, buySellZonePanelHeight]);
 
   // Window-level mouse drag-zoom tracker for vertical price scale dragging
   useEffect(() => {
@@ -2272,6 +2320,10 @@ export default function ClusterChart({
     ? `${cumulativeDeltaPoints[hoveredCandleIdx].value >= 0 ? "+" : ""}${cumulativeDeltaPoints[hoveredCandleIdx].value.toFixed(1)}K`
     : "--";
 
+  const buySellZoneValueText = (hoveredCandleIdx >= 0 && buySellZonePoints && hoveredCandleIdx < buySellZonePoints.length)
+    ? (buySellZonePoints[hoveredCandleIdx]?.composite ?? 50).toFixed(2)
+    : "--";
+
   useEffect(() => {
     if (candles.length === 0) return;
     const canvas = canvasRef.current;
@@ -2338,7 +2390,7 @@ export default function ClusterChart({
     // 1. Horizontal Grid Lines (Removed per user request to hide minor horizontal grid)
 
     // Solid horizontal separator line between main chart panel and subcharts
-    if (activeIndicators.delta || activeIndicators.cvd) {
+    if (activeIndicators.delta || activeIndicators.cvd || activeIndicators.proclusterBuySellZone) {
       ctx.beginPath();
       ctx.strokeStyle = isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)";
       ctx.lineWidth = 1.0;
@@ -2353,6 +2405,17 @@ export default function ClusterChart({
       ctx.strokeStyle = isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)";
       ctx.lineWidth = 1.0;
       const midDividerY = deltaTopY + deltaPanelHeight + panelGap / 2;
+      ctx.moveTo(0, midDividerY);
+      ctx.lineTo(scrollWidth, midDividerY);
+      ctx.stroke();
+    }
+
+    // Dividers between CVD and BuySellZone panels if both are active
+    if (activeIndicators.cvd && activeIndicators.proclusterBuySellZone) {
+      ctx.beginPath();
+      ctx.strokeStyle = isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)";
+      ctx.lineWidth = 1.0;
+      const midDividerY = cvdTopY + cvdPanelHeight + panelGap / 2;
       ctx.moveTo(0, midDividerY);
       ctx.lineTo(scrollWidth, midDividerY);
       ctx.stroke();
@@ -3301,6 +3364,260 @@ export default function ClusterChart({
         ctx.lineJoin = "round";
         ctx.stroke();
         ctx.shadowBlur = 0; // reset shadow
+      }
+
+      ctx.restore();
+    }
+
+    // 5b. Drawing PROCLUSTER BUY SELL ZONE oscillator
+    if (activeIndicators.proclusterBuySellZone && buySellZonePoints.length > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(margin.left, buySellZoneTopY, scrollWidth - margin.left + 50, buySellZonePanelHeight);
+      ctx.clip();
+      ctx.translate(0, buySellZoneTopY);
+
+      const bszSettings = {
+        upTh: buySellZoneSettings.upTh ?? 80,
+        downTh: buySellZoneSettings.downTh ?? 20,
+        balUp: buySellZoneSettings.balUp ?? 65,
+        balDown: buySellZoneSettings.balDown ?? 35,
+        showDivLines: buySellZoneSettings.showDivLines !== false,
+        holdOpacity: buySellZoneSettings.bszHoldOpacity ?? (isLight ? 0.15 : 0.25),
+        overheatOpacity: buySellZoneSettings.bszOverheatOpacity ?? (isLight ? 0.20 : 0.35)
+      };
+
+      const getBuySellZoneY = (val: number, h: number) => {
+        return h * 0.95 - (val / 100) * (h * 0.9);
+      };
+
+      const yBalUp = getBuySellZoneY(bszSettings.balUp, buySellZonePanelHeight);
+      const yBalDown = getBuySellZoneY(bszSettings.balDown, buySellZonePanelHeight);
+      const yUpTh = getBuySellZoneY(bszSettings.upTh, buySellZonePanelHeight);
+      const yDownTh = getBuySellZoneY(bszSettings.downTh, buySellZonePanelHeight);
+
+      // Background hold zones fill
+      const bszStartIdx = Math.max(0, startIdx - 1);
+      const bszEndIdx = Math.min(buySellZonePoints.length - 1, endIdx + 1);
+
+      for (let idx = bszStartIdx; idx <= bszEndIdx; idx++) {
+        const p = buySellZonePoints[idx];
+        if (!p) continue;
+        if (p.bearHold) {
+          ctx.fillStyle = `rgba(239, 68, 68, ${bszSettings.holdOpacity})`;
+          ctx.fillRect(p.cx - (candleWidth + candleSpacing) / 2, 0, candleWidth + candleSpacing, buySellZonePanelHeight);
+        } else if (p.bullHold) {
+          ctx.fillStyle = `rgba(16, 185, 129, ${bszSettings.holdOpacity})`;
+          ctx.fillRect(p.cx - (candleWidth + candleSpacing) / 2, 0, candleWidth + candleSpacing, buySellZonePanelHeight);
+        }
+      }
+
+      // Draw balance corridor shaded area between balUp and balDown
+      ctx.fillStyle = isLight ? "rgba(148, 163, 184, 0.05)" : "rgba(255, 255, 255, 0.03)";
+      ctx.fillRect(margin.left, yBalUp, scrollWidth - margin.left, yBalDown - yBalUp);
+
+      // Draw horizontal reference lines
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([3, 3]);
+
+      // Balance Top/Bottom Lines
+      ctx.strokeStyle = isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.15)";
+      ctx.beginPath();
+      ctx.moveTo(margin.left, yBalUp); ctx.lineTo(scrollWidth, yBalUp);
+      ctx.moveTo(margin.left, yBalDown); ctx.lineTo(scrollWidth, yBalDown);
+      ctx.stroke();
+
+      // Overheat levels
+      ctx.strokeStyle = isLight ? "rgba(239, 68, 68, 0.3)" : "rgba(239, 68, 68, 0.25)";
+      ctx.beginPath();
+      ctx.moveTo(margin.left, yUpTh); ctx.lineTo(scrollWidth, yUpTh);
+      ctx.stroke();
+
+      ctx.strokeStyle = isLight ? "rgba(16, 185, 129, 0.3)" : "rgba(16, 185, 129, 0.25)";
+      ctx.beginPath();
+      ctx.moveTo(margin.left, yDownTh); ctx.lineTo(scrollWidth, yDownTh);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+
+      // Overheat color fills under/above composite line
+      for (let idx = bszStartIdx; idx <= bszEndIdx; idx++) {
+        const p = buySellZonePoints[idx];
+        if (!p) continue;
+        const cy = getBuySellZoneY(p.composite, buySellZonePanelHeight);
+        if (p.composite > bszSettings.balUp) {
+          ctx.fillStyle = `rgba(239, 68, 68, ${bszSettings.overheatOpacity})`;
+          ctx.fillRect(p.cx - candleWidth / 2, cy, candleWidth, yBalUp - cy);
+        } else if (p.composite < bszSettings.balDown) {
+          ctx.fillStyle = `rgba(16, 185, 129, ${bszSettings.overheatOpacity})`;
+          ctx.fillRect(p.cx - candleWidth / 2, yBalDown, candleWidth, cy - yBalDown);
+        }
+      }
+
+      // Draw contiguous block labels for SHORT and LONG filled zones
+      // Find contiguous blocks of composite > balUp (SHORT zones)
+      let inShortBlock = false;
+      let shortBlockStart = -1;
+      for (let idx = bszStartIdx; idx <= bszEndIdx; idx++) {
+        const p = buySellZonePoints[idx];
+        const isFilled = p && p.composite > bszSettings.balUp;
+        if (isFilled) {
+          if (!inShortBlock) {
+            inShortBlock = true;
+            shortBlockStart = idx;
+          }
+        }
+        
+        if (inShortBlock && (!isFilled || idx === bszEndIdx)) {
+          const endIdxBlock = isFilled ? idx : idx - 1;
+          const startP = buySellZonePoints[shortBlockStart];
+          const endP = buySellZonePoints[endIdxBlock];
+          if (startP && endP) {
+            const centerX = (startP.cx + endP.cx) / 2;
+            let minCy = buySellZonePanelHeight;
+            for (let bIdx = shortBlockStart; bIdx <= endIdxBlock; bIdx++) {
+              const cp = buySellZonePoints[bIdx];
+              if (cp) {
+                const cy = getBuySellZoneY(cp.composite, buySellZonePanelHeight);
+                if (cy < minCy) minCy = cy;
+              }
+            }
+            const textY = Math.max(14, minCy - 8);
+            
+            ctx.save();
+            ctx.font = "bold 9px 'Inter', -apple-system, sans-serif";
+            const textWidth = ctx.measureText("SHORT").width;
+            ctx.fillStyle = isLight ? "rgba(255, 255, 255, 0.85)" : "rgba(15, 23, 42, 0.85)";
+            ctx.fillRect(centerX - textWidth/2 - 4, textY - 8, textWidth + 8, 11);
+            ctx.strokeStyle = isLight ? "rgba(220, 38, 38, 0.4)" : "rgba(239, 68, 68, 0.4)";
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(centerX - textWidth/2 - 4, textY - 8, textWidth + 8, 11);
+
+            ctx.fillStyle = isLight ? "#dc2626" : "#f87171";
+            ctx.textAlign = "center";
+            ctx.fillText("SHORT", centerX, textY);
+            ctx.restore();
+          }
+          inShortBlock = false;
+        }
+      }
+
+      // Find contiguous blocks of composite < balDown (LONG zones)
+      let inLongBlock = false;
+      let longBlockStart = -1;
+      for (let idx = bszStartIdx; idx <= bszEndIdx; idx++) {
+        const p = buySellZonePoints[idx];
+        const isFilled = p && p.composite < bszSettings.balDown;
+        if (isFilled) {
+          if (!inLongBlock) {
+            inLongBlock = true;
+            longBlockStart = idx;
+          }
+        }
+        
+        if (inLongBlock && (!isFilled || idx === bszEndIdx)) {
+          const endIdxBlock = isFilled ? idx : idx - 1;
+          const startP = buySellZonePoints[longBlockStart];
+          const endP = buySellZonePoints[endIdxBlock];
+          if (startP && endP) {
+            const centerX = (startP.cx + endP.cx) / 2;
+            let maxCy = 0;
+            for (let bIdx = longBlockStart; bIdx <= endIdxBlock; bIdx++) {
+              const cp = buySellZonePoints[bIdx];
+              if (cp) {
+                const cy = getBuySellZoneY(cp.composite, buySellZonePanelHeight);
+                if (cy > maxCy) maxCy = cy;
+              }
+            }
+            const textY = Math.min(buySellZonePanelHeight - 6, maxCy + 10);
+            
+            ctx.save();
+            ctx.font = "bold 9px 'Inter', -apple-system, sans-serif";
+            const textWidth = ctx.measureText("LONG").width;
+            ctx.fillStyle = isLight ? "rgba(255, 255, 255, 0.85)" : "rgba(15, 23, 42, 0.85)";
+            ctx.fillRect(centerX - textWidth/2 - 4, textY - 8, textWidth + 8, 11);
+            ctx.strokeStyle = isLight ? "rgba(5, 150, 105, 0.4)" : "rgba(52, 211, 153, 0.4)";
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(centerX - textWidth/2 - 4, textY - 8, textWidth + 8, 11);
+
+            ctx.fillStyle = isLight ? "#16a34a" : "#4ade80";
+            ctx.textAlign = "center";
+            ctx.fillText("LONG", centerX, textY);
+            ctx.restore();
+          }
+          inLongBlock = false;
+        }
+      }
+
+      // Draw continuous composite trend line
+      ctx.beginPath();
+      let pathStarted = false;
+      for (let idx = bszStartIdx; idx <= bszEndIdx; idx++) {
+        const p = buySellZonePoints[idx];
+        if (!p) continue;
+        const cy = getBuySellZoneY(p.composite, buySellZonePanelHeight);
+        if (!pathStarted) {
+          ctx.moveTo(p.cx, cy);
+          pathStarted = true;
+        } else {
+          ctx.lineTo(p.cx, cy);
+        }
+      }
+      ctx.shadowColor = buySellZoneLineColor;
+      ctx.shadowBlur = 4;
+      ctx.strokeStyle = buySellZoneLineColor;
+      ctx.lineWidth = 2.0;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.stroke();
+      ctx.shadowBlur = 0; // reset
+
+      // Draw divergence lines
+      if (bszSettings.showDivLines) {
+        for (let idx = bszStartIdx; idx <= bszEndIdx; idx++) {
+          const p = buySellZonePoints[idx];
+          if (p && p.divLine) {
+            const startP = buySellZonePoints[p.divLine.startIdx];
+            const endP = buySellZonePoints[p.divLine.endIdx];
+            if (startP && endP) {
+              ctx.beginPath();
+              ctx.strokeStyle = p.divLine.type === "bear" ? "#ef4444" : "#10b981";
+              ctx.lineWidth = 1.8;
+              ctx.setLineDash([4, 3]);
+              ctx.moveTo(startP.cx, getBuySellZoneY(p.divLine.startVal, buySellZonePanelHeight));
+              ctx.lineTo(endP.cx, getBuySellZoneY(p.divLine.endVal, buySellZonePanelHeight));
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
+          }
+        }
+      }
+
+      // Draw BUY/SELL shape labels inside panel
+      for (let idx = bszStartIdx; idx <= bszEndIdx; idx++) {
+        const p = buySellZonePoints[idx];
+        if (!p) continue;
+        if (p.bearDiv) {
+          ctx.fillStyle = "#ef4444";
+          ctx.beginPath();
+          ctx.arc(p.cx, 16, 5, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.font = "bold 9px sans-serif";
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "center";
+          ctx.fillText("SELL", p.cx, 10);
+        } else if (p.bullDiv) {
+          ctx.fillStyle = "#10b981";
+          ctx.beginPath();
+          ctx.arc(p.cx, buySellZonePanelHeight - 16, 5, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.font = "bold 9px sans-serif";
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "center";
+          ctx.fillText("BUY", p.cx, buySellZonePanelHeight - 4);
+        }
       }
 
       ctx.restore();
@@ -4623,7 +4940,7 @@ export default function ClusterChart({
                 })}
 
               {/* Panel Dividers for right pricing panel */}
-              {(activeIndicators.delta || activeIndicators.cvd) && (
+              {(activeIndicators.delta || activeIndicators.cvd || activeIndicators.proclusterBuySellZone) && (
                 <line
                   x1={0}
                   y1={margin.top + chartHeight}
@@ -4639,6 +4956,16 @@ export default function ClusterChart({
                   y1={deltaTopY + deltaPanelHeight + panelGap / 2}
                   x2={scaleWidth}
                   y2={deltaTopY + deltaPanelHeight + panelGap / 2}
+                  stroke={isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)"}
+                  strokeWidth="1"
+                />
+              )}
+              {activeIndicators.cvd && activeIndicators.proclusterBuySellZone && (
+                <line
+                  x1={0}
+                  y1={cvdTopY + cvdPanelHeight + panelGap / 2}
+                  x2={scaleWidth}
+                  y2={cvdTopY + cvdPanelHeight + panelGap / 2}
                   stroke={isLight ? "rgba(148, 163, 184, 0.35)" : "rgba(255, 255, 255, 0.16)"}
                   strokeWidth="1"
                 />
@@ -4724,6 +5051,48 @@ export default function ClusterChart({
                     textAnchor={textAnchor}
                   >
                     {zoomedCvdMin.toFixed(1)}K
+                  </text>
+                </g>
+              )}
+
+              {/* Buy Sell Zone subchart Y-axis labels */}
+              {activeIndicators.proclusterBuySellZone && (
+                <g key="buysellzone-panel-ticks">
+                  {/* Top Tick (80) */}
+                  <text
+                    x={labelX}
+                    y={buySellZoneTopY + buySellZonePanelHeight * 0.15 + 4}
+                    fill={isLight ? "#e11d48" : "#fb7185"}
+                    fontSize={isMobile ? "8" : "9"}
+                    fontFamily="'Inter', -apple-system, sans-serif"
+                    fontWeight="bold"
+                    textAnchor={textAnchor}
+                  >
+                    80 (Overheat)
+                  </text>
+                  {/* Mid Tick (50) */}
+                  <text
+                    x={labelX}
+                    y={buySellZoneTopY + buySellZonePanelHeight / 2 + 4}
+                    fill={isLight ? "#475569" : "#94a3b8"}
+                    fontSize={isMobile ? "8" : "9"}
+                    fontFamily="'Inter', -apple-system, sans-serif"
+                    fontWeight="bold"
+                    textAnchor={textAnchor}
+                  >
+                    50
+                  </text>
+                  {/* Bottom Tick (20) */}
+                  <text
+                    x={labelX}
+                    y={buySellZoneTopY + buySellZonePanelHeight * 0.85 + 4}
+                    fill={isLight ? "#059669" : "#34d399"}
+                    fontSize={isMobile ? "8" : "9"}
+                    fontFamily="'Inter', -apple-system, sans-serif"
+                    fontWeight="bold"
+                    textAnchor={textAnchor}
+                  >
+                    20 (Overheat)
                   </text>
                 </g>
               )}
@@ -4907,6 +5276,84 @@ export default function ClusterChart({
         </div>
       )}
 
+      {activeIndicators.proclusterBuySellZone && (
+        <div 
+          className={`absolute z-30 flex items-center shadow-xl backdrop-blur-md transition-all duration-300 select-none border rounded-lg ${
+            isMobile || workspaceLayout !== "1"
+              ? "gap-1 px-1.5 py-0.5 text-[9px]"
+              : "gap-2 px-3 py-1 text-xs"
+          }`}
+          style={{
+            top: `${buySellZoneTopY + 1}px`,
+            right: isMobile || workspaceLayout !== "1" ? "68px" : "94px",
+            backgroundColor: isLight ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)",
+            borderColor: isLight ? "rgba(255, 255, 255, 0.88)" : "rgba(255, 255, 255, 0.08)",
+          }}
+        >
+          {/* Label / Dynamic value indicator */}
+          <div className="flex items-center gap-1 sm:gap-1.5 font-mono text-[9px] sm:text-[11px] font-bold tracking-wider">
+            <span 
+              className="w-1.5 h-1.5 rounded-full" 
+              style={{ backgroundColor: buySellZoneLineColor }} 
+            />
+            <span className={isLight ? "text-slate-800" : "text-white"}>
+              {isMobile || workspaceLayout !== "1" ? "BUY/SELL ZONE" : "PROCLUSTER BUY/SELL ZONE"}
+            </span>
+            <span 
+              className="font-extrabold"
+              style={{ 
+                color: hoveredCandleIdx >= 0 && buySellZonePoints && hoveredCandleIdx < buySellZonePoints.length 
+                  ? buySellZoneLineColor 
+                  : "#64748b" 
+              }}
+            >
+              {buySellZoneValueText}
+            </span>
+          </div>
+
+          <div className={`w-[1px] h-3 ${isLight ? "bg-slate-300" : "bg-white/10"}`} />
+
+          {/* Control Buttons */}
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <button
+              onClick={() => onToggleIndicator?.("proclusterBuySellZone")}
+              className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${
+                isLight 
+                  ? "hover:bg-slate-200 text-slate-500 hover:text-slate-800" 
+                  : "hover:bg-white/10 text-slate-400 hover:text-white"
+              }`}
+              title="Hide Buy/Sell Zone"
+            >
+              <Eye className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+            </button>
+
+            <button
+              onClick={onShowIndicatorsSettings}
+              className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${
+                isLight 
+                  ? "hover:bg-slate-200 text-slate-500 hover:text-slate-800" 
+                  : "hover:bg-white/10 text-slate-400 hover:text-white"
+              }`}
+              title="Settings"
+            >
+              <Settings className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+            </button>
+
+            <button
+              onClick={() => onRemoveIndicator?.("proclusterBuySellZone")}
+              className={`p-0.5 rounded transition-all duration-150 cursor-pointer ${
+                isLight 
+                  ? "hover:bg-slate-300 hover:text-rose-600 text-slate-500" 
+                  : "hover:bg-rose-500/20 hover:text-rose-450 text-slate-400"
+              }`}
+              title="Remove Buy/Sell Zone"
+            >
+              <Trash2 className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Interactive Drag Handles / Resizing Splitters */}
       {activeIndicators.delta && (
         <div
@@ -4940,6 +5387,25 @@ export default function ClusterChart({
             transform: "translateY(-7px)"
           }}
           title="Drag to resize CVD Panel"
+        >
+          {/* Subtle colored horizontal line that lights up when hovered */}
+          <div className="w-24 h-[3px] rounded-full bg-yellow-500/0 group-hover:bg-yellow-500/85 transition-all duration-200 shadow-md shadow-yellow-500/40" />
+        </div>
+      )}
+
+      {activeIndicators.proclusterBuySellZone && (
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setResizingPanel("proclusterBuySellZone");
+          }}
+          className={`absolute left-0 right-0 z-40 cursor-ns-resize flex items-center justify-center group`}
+          style={{
+            top: `${buySellZoneTopY - panelGap / 2}px`,
+            height: "14px",
+            transform: "translateY(-7px)"
+          }}
+          title="Drag to resize Buy/Sell Zone Panel"
         >
           {/* Subtle colored horizontal line that lights up when hovered */}
           <div className="w-24 h-[3px] rounded-full bg-yellow-500/0 group-hover:bg-yellow-500/85 transition-all duration-200 shadow-md shadow-yellow-500/40" />

@@ -986,6 +986,16 @@ export default function App() {
   }, [indicators, currentScopeKey]);
 
   const [isIndicatorsModalOpen, setIsIndicatorsModalOpen] = useState<boolean>(false);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem("procluster_header_collapsed") === "true";
+  });
+  const handleToggleHeaderCollapse = () => {
+    setIsHeaderCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem("procluster_header_collapsed", String(next));
+      return next;
+    });
+  };
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState<boolean>(false);
   const [isRoadmapModalOpen, setIsRoadmapModalOpen] = useState<boolean>(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState<boolean>(false);
@@ -2126,26 +2136,48 @@ export default function App() {
       </div>
 
       {/* BRAND TERMINAL HEADER */}
-      <Header
-        isTickingAll={isTickingAll}
-        onToggleTicking={() => setIsTickingAll(!isTickingAll)}
-        connectionStatus={connectionStatus}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        onOpenAdmin={() => setCurrentView(prev => prev === "admin" ? "terminal" : "admin")}
-        language={language}
-        onLanguageChange={handleLanguageChange}
-        userRole={userRole}
-        onChangeUserRole={handleUserRoleChange}
-        onOpenProfile={() => setCurrentView("profile")}
-        onOpenHome={() => setCurrentView("terminal")}
-        onOpenRoadmap={() => setIsRoadmapModalOpen(true)}
-        onToggleMobileSettings={() => setIsMobileSettingsOpen(!isMobileSettingsOpen)}
-        isMobileSettingsOpen={isMobileSettingsOpen}
-        activeMobileTab={activeMobileTab}
-        setActiveMobileTab={setActiveMobileTab}
-        isAdminView={currentView === "admin"}
-      />
+      {!isHeaderCollapsed && (
+        <Header
+          isTickingAll={isTickingAll}
+          onToggleTicking={() => setIsTickingAll(!isTickingAll)}
+          connectionStatus={connectionStatus}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenAdmin={() => setCurrentView(prev => prev === "admin" ? "terminal" : "admin")}
+          language={language}
+          onLanguageChange={handleLanguageChange}
+          userRole={userRole}
+          onChangeUserRole={handleUserRoleChange}
+          onOpenProfile={() => setCurrentView("profile")}
+          onOpenHome={() => setCurrentView("terminal")}
+          onOpenRoadmap={() => setIsRoadmapModalOpen(true)}
+          onToggleMobileSettings={() => setIsMobileSettingsOpen(!isMobileSettingsOpen)}
+          isMobileSettingsOpen={isMobileSettingsOpen}
+          activeMobileTab={activeMobileTab}
+          setActiveMobileTab={setActiveMobileTab}
+          isAdminView={currentView === "admin"}
+          isHeaderCollapsed={isHeaderCollapsed}
+          onToggleHeaderCollapse={handleToggleHeaderCollapse}
+        />
+      )}
+
+      {/* FLOATING RESTORE HEADER HANDLE */}
+      {isHeaderCollapsed && (
+        <div 
+          onClick={handleToggleHeaderCollapse}
+          className={`absolute top-0 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-1.5 px-4 py-1.5 rounded-b-2xl border-x border-b shadow-xl backdrop-blur-md cursor-pointer group hover:scale-105 active:scale-95 transition-all select-none ${
+            theme === "light"
+              ? "bg-white/90 border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-white"
+              : "bg-slate-950/90 border-white/10 text-slate-300 hover:text-white hover:bg-slate-900"
+          }`}
+          title={language === "RU" ? "Развернуть шапку" : language === "KZ" ? "Шапканы жаю" : "Expand header"}
+        >
+          <ChevronDown className="w-4 h-4 text-yellow-500 group-hover:translate-y-0.5 transition-transform animate-pulse" />
+          <span className="text-[10px] font-mono font-black uppercase tracking-wider">
+            {language === "RU" ? "РАЗВЕРНУТЬ ШАПКУ" : language === "KZ" ? "ШАПКАНЫ ЖАЮ" : "EXPAND HEADER"}
+          </span>
+        </div>
+      )}
 
       {currentView === "admin" ? (
         <AdminPanel
@@ -3186,7 +3218,8 @@ export default function App() {
           volumeOnChart: (indicators.find(i => i.id === "volumeOnChart")?.isActive ?? false) && (indicators.find(i => i.id === "volumeOnChart")?.isVisible !== false),
           cvd: (indicators.find(i => i.id === "cvd")?.isActive ?? false) && (indicators.find(i => i.id === "cvd")?.isVisible !== false),
           stackedImbalance: (indicators.find(i => i.id === "stackedImbalance")?.isActive ?? false) && (indicators.find(i => i.id === "stackedImbalance")?.isVisible !== false),
-          depthOfMarket: (indicators.find(i => i.id === "depthOfMarket")?.isActive ?? false) && (indicators.find(i => i.id === "depthOfMarket")?.isVisible !== false)
+          depthOfMarket: (indicators.find(i => i.id === "depthOfMarket")?.isActive ?? false) && (indicators.find(i => i.id === "depthOfMarket")?.isVisible !== false),
+          proclusterBuySellZone: (indicators.find(i => i.id === "proclusterBuySellZone")?.isActive ?? false) && (indicators.find(i => i.id === "proclusterBuySellZone")?.isVisible !== false)
         };
 
         const indicatorSettings = {
@@ -3196,7 +3229,8 @@ export default function App() {
           cvd: indicators.find(i => i.id === "cvd")?.settings || {},
           volumeOnChart: indicators.find(i => i.id === "volumeOnChart")?.settings || {},
           stackedImbalance: indicators.find(i => i.id === "stackedImbalance")?.settings || {},
-          depthOfMarket: indicators.find(i => i.id === "depthOfMarket")?.settings || {}
+          depthOfMarket: indicators.find(i => i.id === "depthOfMarket")?.settings || {},
+          proclusterBuySellZone: indicators.find(i => i.id === "proclusterBuySellZone")?.settings || {}
         };
 
         return (

@@ -146,6 +146,22 @@ export interface IndicatorSettings {
   domColorBid?: string;
   domColorAsk?: string;
   domOpacity?: number;
+
+  // Procluster Buy Sell Zone settings
+  lsZlen?: number;
+  rsiLen?: number;
+  macdZlen?: number;
+  wLS?: number;
+  wRSI?: number;
+  wMACD?: number;
+  upTh?: number;
+  downTh?: number;
+  balUp?: number;
+  balDown?: number;
+  showDivLines?: boolean;
+  lineColor?: string;
+  bszHoldOpacity?: number;
+  bszOverheatOpacity?: number;
 }
 
 export interface Indicator {

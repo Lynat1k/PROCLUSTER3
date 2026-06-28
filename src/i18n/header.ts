@@ -100,7 +100,9 @@ export const headerUiTexts = {
     copy: "КОПИРОВАТЬ",
     language: "ЯЗЫК",
     subRole: "РОЛЬ И ДОСТУП",
-    logout: "Выйти"
+    logout: "Выйти",
+    collapseHeader: "Свернуть шапку",
+    expandHeader: "Развернуть шапку"
   },
   EN: {
     roadmapTooltip: "Open Project Roadmap",
@@ -114,7 +116,9 @@ export const headerUiTexts = {
     copy: "COPY",
     language: "LANGUAGE",
     subRole: "SUBSCRIPTION ROLE",
-    logout: "Logout"
+    logout: "Logout",
+    collapseHeader: "Collapse header",
+    expandHeader: "Expand header"
   },
   KZ: {
     roadmapTooltip: "Жобаның жол картасын ашу",
@@ -128,6 +132,8 @@ export const headerUiTexts = {
     copy: "КӨШІРУ",
     language: "ТІЛ",
     subRole: "ТІРКЕЛГІ ДӘРЕЖЕСІ",
-    logout: "Шығу"
+    logout: "Шығу",
+    collapseHeader: "Шапканы жинау",
+    expandHeader: "Шапканы жаю"
   }
 };

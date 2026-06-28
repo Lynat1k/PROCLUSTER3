@@ -5,6 +5,7 @@ import { cvdIndicator } from "./cvd";
 import { clusterSearchIndicator } from "./clusterSearch";
 import { stackedImbalanceIndicator } from "./stackedImbalance";
 import { depthOfMarketIndicator } from "./depthOfMarket";
+import { proclusterBuySellZoneIndicator } from "./proclusterBuySellZone";
 
 // Re-export individual modules so other files can import them directly
 export * from "./types";
@@ -14,6 +15,7 @@ export * from "./cvd";
 export * from "./clusterSearch";
 export * from "./stackedImbalance";
 export * from "./depthOfMarket";
+export * from "./proclusterBuySellZone";
 
 // The complete array registry of active modular indicators
 export const MODULAR_INDICATORS: IndicatorModule[] = [
@@ -22,7 +24,8 @@ export const MODULAR_INDICATORS: IndicatorModule[] = [
   cvdIndicator,
   clusterSearchIndicator,
   stackedImbalanceIndicator,
-  depthOfMarketIndicator
+  depthOfMarketIndicator,
+  proclusterBuySellZoneIndicator
 ];
 
 /**
