@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { ClusterCandle, ClusterCell, CryptoPair, IndicatorSettings, Indicator, OrderBook } from "../types";
-import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, LayoutGrid, ArrowUpRight, TrendingUp, TrendingDown, SlidersHorizontal, Lock, Equal } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Compass, Move, Layers, Activity, Eye, EyeOff, Settings, Trash2, Globe, Slash, Minus, Square, Grid3X3, Ruler, Type, BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, LayoutGrid, ArrowUpRight, TrendingUp, TrendingDown, SlidersHorizontal, Lock, Equal } from "lucide-react";
 import { storage } from "../lib/storage";
 import { AutoIcon, JapaneseIcon, FootprintIcon, ClustersIcon, BarsIcon } from "./icons";
 import { volumeOnChartIndicator, deltaIndicator, cvdIndicator, clusterSearchIndicator, proclusterBuySellZoneIndicator } from "../indicators";
@@ -132,6 +132,9 @@ export default function ClusterChart({
   });
   const [areDrawingsLocked, setAreDrawingsLocked] = useState<boolean>(() => {
     return storage.get("procluster_drawings_locked") === "true";
+  });
+  const [isDrawingPanelCollapsed, setIsDrawingPanelCollapsed] = useState<boolean>(() => {
+    return storage.get("procluster_drawing_panel_collapsed") === "true";
   });
   const [drawingInProgress, setDrawingInProgress] = useState<any | null>(null);
   const [selectedDrawingId, setSelectedDrawingId] = useState<number | null>(null);
@@ -4397,9 +4400,11 @@ export default function ClusterChart({
       {/* 2D Panning Chart Workspace */}
       <div className="flex-1 flex relative overflow-hidden">
         {/* Drawing Tools sidebar panel */}
-        <div className={`${
-          workspaceLayout !== "1" ? "w-8 sm:w-9" : "w-9 sm:w-11"
-        } flex-none flex flex-col items-center py-1 sm:py-2.5 border-r select-none transition-all duration-300 relative z-30 ${
+        <div className={`flex-none flex flex-col items-center select-none transition-all duration-300 relative z-30 ${
+          isDrawingPanelCollapsed 
+            ? "w-0 overflow-hidden border-r-0 py-0" 
+            : workspaceLayout !== "1" ? "w-8 sm:w-9 py-1 sm:py-2.5 border-r" : "w-9 sm:w-11 py-1 sm:py-2.5 border-r"
+        } ${
           isLight 
             ? "bg-slate-200 border-slate-300 text-slate-700 hover:text-slate-900" 
             : "bg-[#06080f]/90 border-white/5 text-slate-300 backdrop-blur-md"
@@ -4509,6 +4514,34 @@ export default function ClusterChart({
           <div className={`flex flex-col items-center w-full mt-auto shrink-0 ${
             workspaceLayout !== "1" ? "gap-0.5 pb-0.5" : "gap-0.5 sm:gap-1.5 pb-1"
           }`}>
+            {/* Collapse Panel Button */}
+            <button
+              onClick={() => {
+                setIsDrawingPanelCollapsed(true);
+                storage.set("procluster_drawing_panel_collapsed", "true");
+              }}
+              className={`rounded transition-all duration-150 relative group cursor-pointer shrink-0 ${
+                workspaceLayout !== "1" ? "p-1 mb-0.5" : "p-1 sm:p-2 mb-0.5"
+              } ${
+                isLight
+                  ? "hover:bg-slate-300/60 text-slate-500 hover:text-slate-955"
+                  : "hover:bg-white/5 text-slate-400 hover:text-white"
+              }`}
+              title={language === "RU" ? "Свернуть панель" : "Collapse Sidebar"}
+            >
+              <ChevronLeft className={workspaceLayout !== "1" ? "w-[13px] sm:w-[15px] h-[13px] sm:h-[15px]" : "w-[15px] sm:w-[20px] h-[15px] sm:h-[20px]"} />
+              <div className="absolute left-full ml-2 top-1.2 font-sans font-semibold text-[10px] px-2 py-1 rounded bg-slate-950 text-slate-100 border border-white/10 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl">
+                {language === "RU" ? "Свернуть панель инструментов" : "Collapse tools panel"}
+              </div>
+            </button>
+
+            {/* Separator for Collapse Button */}
+            <div className={`${
+              workspaceLayout !== "1" ? "w-3 sm:w-4" : "w-4 sm:w-6"
+            } h-[1px] my-1 shrink-0 ${
+              isLight ? "bg-slate-300" : "bg-white/10"
+            }`} />
+
             {/* Lock/Unlock Drawings */}
             <button
               onClick={() => {
@@ -4601,6 +4634,30 @@ export default function ClusterChart({
             </button>
           </div>
         </div>
+
+        {/* Floating Expand Badge for collapsed drawings panel */}
+        {isDrawingPanelCollapsed && (
+          <div 
+            onClick={() => {
+              setIsDrawingPanelCollapsed(false);
+              storage.set("procluster_drawing_panel_collapsed", "false");
+            }}
+            className={`absolute left-0 top-[35%] -translate-y-1/2 z-[40] flex flex-col items-center gap-1 px-1 py-2 sm:py-2.5 rounded-r-lg border-y border-r shadow-2xl backdrop-blur-md cursor-pointer group hover:scale-[1.03] active:scale-95 transition-all select-none ${
+              isLight
+                ? "bg-slate-200/95 hover:bg-slate-200 border-slate-300 text-slate-700 hover:text-slate-955 shadow-slate-300/40"
+                : "bg-slate-950/90 hover:bg-slate-900 border-white/5 text-slate-300 hover:text-white shadow-black/60"
+            }`}
+            title={language === "RU" ? "Развернуть панель инструментов" : "Expand drawing tools panel"}
+          >
+            <ChevronRight className="w-3 h-3 text-amber-500 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            <span 
+              className="text-[7.5px] sm:text-[8px] font-mono font-black uppercase tracking-widest my-0.5"
+              style={{ writingMode: "vertical-lr" }}
+            >
+              {language === "RU" ? "РИСОВАНИЕ" : "DRAWINGS"}
+            </span>
+          </div>
+        )}
 
         {/* Main SVG/Zoom Panel */}
         <div
