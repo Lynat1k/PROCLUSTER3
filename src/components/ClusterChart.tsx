@@ -130,6 +130,9 @@ export default function ClusterChart({
   const [areDrawingsVisible, setAreDrawingsVisible] = useState<boolean>(() => {
     return storage.get("procluster_drawings_visible") !== "false";
   });
+  const [areDrawingsLocked, setAreDrawingsLocked] = useState<boolean>(() => {
+    return storage.get("procluster_drawings_locked") === "true";
+  });
   const [drawingInProgress, setDrawingInProgress] = useState<any | null>(null);
   const [selectedDrawingId, setSelectedDrawingId] = useState<number | null>(null);
   const [drawingDragState, setDrawingDragState] = useState<any | null>(null);
@@ -285,6 +288,7 @@ export default function ClusterChart({
       }
 
       if ((e.key === "Delete" || e.key === "Backspace") && selectedDrawingId !== null) {
+        if (areDrawingsLocked) return;
         e.preventDefault();
         setDrawings(prev => prev.filter(d => d.id !== selectedDrawingId));
         setSelectedDrawingId(null);
@@ -295,7 +299,7 @@ export default function ClusterChart({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectedDrawingId]);
+  }, [selectedDrawingId, areDrawingsLocked]);
 
   const formatTimezoneString = (timestamp: number, isHovered: boolean) => {
     const date = new Date(timestamp);
@@ -1109,18 +1113,20 @@ export default function ClusterChart({
           setSelectedDrawingId(foundDrawingId);
           const d = drawings.find(item => item.id === foundDrawingId);
           if (d) {
-            setDrawingDragState({
-              id: foundDrawingId,
-              type: foundHandleIdx !== null ? "handle" : "move",
-              handleIndex: foundHandleIdx || undefined,
-              initialX: clickX,
-              initialY: clickY,
-              initialStartX: d.startX,
-              initialStartPrice: d.startPrice,
-              initialEndX: d.endX,
-              initialEndPrice: d.endPrice,
-              initialStopPrice: d.stopPrice,
-            });
+            if (!areDrawingsLocked) {
+              setDrawingDragState({
+                id: foundDrawingId,
+                type: foundHandleIdx !== null ? "handle" : "move",
+                handleIndex: foundHandleIdx || undefined,
+                initialX: clickX,
+                initialY: clickY,
+                initialStartX: d.startX,
+                initialStartPrice: d.startPrice,
+                initialEndX: d.endX,
+                initialEndPrice: d.endPrice,
+                initialStopPrice: d.stopPrice,
+              });
+            }
             return; // Skip normal panning
           }
         } else {
@@ -4503,6 +4509,35 @@ export default function ClusterChart({
           <div className={`flex flex-col items-center w-full mt-auto shrink-0 ${
             workspaceLayout !== "1" ? "gap-0.5 pb-0.5" : "gap-0.5 sm:gap-1.5 pb-1"
           }`}>
+            {/* Lock/Unlock Drawings */}
+            <button
+              onClick={() => {
+                setAreDrawingsLocked(prev => {
+                  const next = !prev;
+                  storage.set("procluster_drawings_locked", String(next));
+                  return next;
+                });
+              }}
+              className={`rounded transition-all duration-150 relative group cursor-pointer ${
+                workspaceLayout !== "1" ? "p-1" : "p-1 sm:p-2"
+              } ${
+                areDrawingsLocked
+                  ? "bg-amber-500/15 text-amber-500 border border-amber-500/40 shadow-inner"
+                  : isLight
+                    ? "hover:bg-slate-300/60 text-slate-600 hover:text-slate-955 border border-transparent"
+                    : "hover:bg-white/5 text-slate-400 hover:text-white border border-transparent"
+              }`}
+              title={language === "RU" ? (areDrawingsLocked ? "Разблокировать рисунки" : "Заблокировать рисунки") : (areDrawingsLocked ? "Unlock Drawings" : "Lock Drawings")}
+            >
+              <Lock className={workspaceLayout !== "1" ? "w-[13px] sm:w-[15px] h-[13px] sm:h-[15px]" : "w-[15px] sm:w-[20px] h-[15px] sm:h-[20px]"} />
+              
+              <div className={`absolute left-full ml-2 top-1.2 font-sans font-semibold text-[10px] px-2 py-1 rounded bg-slate-950 text-slate-100 border border-white/10 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl`}>
+                {language === "RU" 
+                  ? (areDrawingsLocked ? "Разблокировать объекты" : "Заблокировать объекты (запретить перемещение и удаление)") 
+                  : (areDrawingsLocked ? "Unlock Objects" : "Lock Objects (prevent drag & delete)")}
+              </div>
+            </button>
+
             {/* Show/Hide Drawings */}
             <button
               onClick={() => {
@@ -4537,16 +4572,16 @@ export default function ClusterChart({
             {/* Delete All Drawings */}
             <button
               onClick={() => {
-                if (drawings.length > 0) {
+                if (drawings.length > 0 && !areDrawingsLocked) {
                   setDrawings([]);
                   setSelectedDrawingId(null);
                 }
               }}
-              disabled={drawings.length === 0}
+              disabled={drawings.length === 0 || areDrawingsLocked}
               className={`rounded transition-all duration-150 relative group border border-transparent ${
                 workspaceLayout !== "1" ? "p-1" : "p-1 sm:p-2"
               } ${
-                drawings.length === 0
+                drawings.length === 0 || areDrawingsLocked
                   ? "opacity-30 cursor-not-allowed text-slate-500"
                   : isLight
                     ? "hover:bg-rose-100/50 text-rose-600 hover:text-rose-700 hover:border-rose-200 cursor-pointer"
@@ -4559,7 +4594,9 @@ export default function ClusterChart({
               <div className={`absolute left-full ml-2 top-1.2 font-sans font-extrabold text-[10px] px-2 py-1 rounded bg-rose-950 text-rose-300 border border-rose-900/30 hidden group-hover:block whitespace-nowrap z-50 pointer-events-none shadow-xl ${
                 drawings.length === 0 ? "group-hover:hidden" : ""
               }`}>
-                {language === "RU" ? "Удалить все рисунки" : "Clear All Drawings"}
+                {areDrawingsLocked 
+                  ? (language === "RU" ? "Рисунки заблокированы" : "Drawings are locked")
+                  : (language === "RU" ? "Удалить все рисунки" : "Clear All Drawings")}
               </div>
             </button>
           </div>
