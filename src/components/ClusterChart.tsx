@@ -3963,7 +3963,7 @@ export default function ClusterChart({
         {/* Toolbar Controls */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Zoom Buttons */}
-          <div className={`flex rounded-lg sm:rounded-xl p-[2px] sm:p-[3px] border backdrop-blur-sm shadow-inner gap-0.5 transition-all duration-300 ${
+          <div className={`hidden sm:flex rounded-lg sm:rounded-xl p-[2px] sm:p-[3px] border backdrop-blur-sm shadow-inner gap-0.5 transition-all duration-300 ${
             isLight ? "bg-white border-slate-300 shadow-xs" : "bg-slate-950/60 border-white/5"
           }`} title="Horizontal Scale">
             <button
@@ -3987,13 +3987,13 @@ export default function ClusterChart({
           </div>
 
           {/* Vertical Price Scale Buttons */}
-          <div className={`flex rounded-lg sm:rounded-xl p-[2px] sm:p-[3px] border backdrop-blur-sm shadow-inner gap-0.5 transition-all duration-300 ${
+          <div className={`hidden sm:flex rounded-lg sm:rounded-xl p-[2px] sm:p-[3px] border backdrop-blur-sm shadow-inner gap-0.5 transition-all duration-300 ${
             isLight ? "bg-white border-slate-300 shadow-xs" : "bg-slate-950/60 border-white/5"
           }`} title="Vertical Price Scale">
             <button
               onClick={() => handleVerticalZoom(0.15)}
               className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold rounded-md sm:rounded-lg transition-all duration-150 cursor-pointer ${
-                isLight ? "hover:bg-slate-100 text-slate-650 hover:text-slate-950" : "hover:bg-white/5 text-slate-400 hover:text-cyan-405"
+                isLight ? "hover:bg-slate-100 text-slate-650 hover:text-slate-955" : "hover:bg-white/5 text-slate-400 hover:text-cyan-405"
               }`}
               title="Stretch Vertically (Narrow visible range)"
             >
@@ -4002,7 +4002,7 @@ export default function ClusterChart({
             <button
               onClick={() => handleVerticalZoom(-0.15)}
               className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold rounded-md sm:rounded-lg transition-all duration-150 cursor-pointer ${
-                isLight ? "hover:bg-slate-100 text-slate-650 hover:text-slate-950" : "hover:bg-white/5 text-slate-400 hover:text-cyan-405"
+                isLight ? "hover:bg-slate-100 text-slate-650 hover:text-slate-955" : "hover:bg-white/5 text-slate-400 hover:text-cyan-405"
               }`}
               title="Compress Vertically (Widen visible range)"
             >
@@ -4196,7 +4196,7 @@ export default function ClusterChart({
           </div>
           
           {/* Timezone Select Control */}
-          <div className={`border px-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-mono font-bold items-center gap-1 sm:gap-1.5 shadow-inner transition-all duration-300 ${
+          <div className={`border px-1 sm:px-1.5 py-0.5 rounded-md sm:rounded-xl text-[8px] sm:text-[10px] font-mono font-bold items-center gap-1 shadow-inner transition-all duration-300 ${
             workspaceLayout !== "1" ? "hidden xl:flex" : "flex"
           } ${
             isLight ? "bg-white border-slate-300 text-slate-700" : "bg-slate-950/60 border-white/5 text-slate-400"
@@ -4205,33 +4205,33 @@ export default function ClusterChart({
             <select
               value={selectedTimezone}
               onChange={(e) => setSelectedTimezone(e.target.value)}
-              className="bg-transparent border-none text-[9px] sm:text-[10px] text-inherit font-sans font-semibold cursor-pointer focus:outline-none pr-0.5 sm:pr-1"
+              className="bg-transparent border-none text-[8px] sm:text-[10px] text-inherit font-sans font-semibold cursor-pointer focus:outline-none pr-0.5 sm:pr-1 max-w-[50px] sm:max-w-none truncate py-0 px-0.5 select-none"
               title={language === "RU" ? "Выбор часового пояса" : "Select Timezone"}
             >
               <option value="local" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
-                {language === "RU" ? "Системное" : language === "KZ" ? "Жүйелік" : "Local Time"}
+                {language === "RU" ? "Сист." : language === "KZ" ? "Жүйелік" : "Local"}
               </option>
-              <option value="UTC" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>UTC (GMT)</option>
+              <option value="UTC" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>UTC</option>
               <option value="Europe/Moscow" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
-                {language === "RU" ? "Москва" : language === "KZ" ? "Мәскеу" : "Moscow"}
+                {language === "RU" ? "МСК" : language === "KZ" ? "МСК" : "MSK"}
               </option>
               <option value="Asia/Almaty" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
-                {language === "RU" ? "Алматы" : language === "KZ" ? "Алматы" : "Almaty"}
+                ALM
               </option>
               <option value="Asia/Aqtobe" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
-                {language === "RU" ? "Актобе" : language === "KZ" ? "Ақтөбе" : "Aqtobe"}
+                AQB
               </option>
               <option value="Asia/Singapore" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
-                {language === "RU" ? "Сингапур" : language === "KZ" ? "Сингапур" : "Singapore"}
+                SGP
               </option>
               <option value="Asia/Tokyo" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
-                {language === "RU" ? "Токио" : language === "KZ" ? "Токио" : "Tokyo"}
+                TYO
               </option>
               <option value="Europe/Paris" className={isLight ? "bg-white text-slate-900" : "bg-[#111827] text-slate-100"}>
-                {language === "RU" ? "Париж" : language === "KZ" ? "Париж" : "Paris"}
+                PAR
               </option>
               <option value="America/New_York" className={isLight ? "bg-white text-slate-900" : "bg-slate-950 text-slate-100"}>
-                {language === "RU" ? "Нью-Йорк" : language === "KZ" ? "Нью-Йорк" : "New York"}
+                NYC
               </option>
             </select>
           </div>

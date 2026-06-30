@@ -2165,16 +2165,17 @@ export default function App() {
       {isHeaderCollapsed && (
         <div 
           onClick={handleToggleHeaderCollapse}
-          className={`absolute top-0 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-1.5 px-4 py-1.5 rounded-b-2xl border-x border-b shadow-xl backdrop-blur-md cursor-pointer group hover:scale-105 active:scale-95 transition-all select-none ${
+          className={`absolute top-0 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-b-xl sm:rounded-b-2xl border-x border-b shadow-xl backdrop-blur-md cursor-pointer group hover:scale-105 active:scale-95 transition-all select-none ${
             theme === "light"
               ? "bg-white/90 border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-white"
               : "bg-slate-950/90 border-white/10 text-slate-300 hover:text-white hover:bg-slate-900"
           }`}
           title={language === "RU" ? "Развернуть шапку" : language === "KZ" ? "Шапканы жаю" : "Expand header"}
         >
-          <ChevronDown className="w-4 h-4 text-yellow-500 group-hover:translate-y-0.5 transition-transform animate-pulse" />
-          <span className="text-[10px] font-mono font-black uppercase tracking-wider">
-            {language === "RU" ? "РАЗВЕРНУТЬ ШАПКУ" : language === "KZ" ? "ШАПКАНЫ ЖАЮ" : "EXPAND HEADER"}
+          <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-500 group-hover:translate-y-0.5 transition-transform animate-pulse" />
+          <span className="text-[8px] sm:text-[10px] font-mono font-black uppercase tracking-wider">
+            {language === "RU" ? "ШАПКА" : language === "KZ" ? "ШАПКА" : "HEADER"}
+            <span className="hidden sm:inline"> {language === "RU" ? "РАЗВЕРНУТЬ" : language === "KZ" ? "ЖАЮ" : "EXPAND"}</span>
           </span>
         </div>
       )}
@@ -2595,11 +2596,12 @@ export default function App() {
           </AnimatePresence>
 
           {/* DASHBOARD STATISTICS HUD BANNER WITH GLASSMORPHISM */}
-          <section className={`hidden lg:flex backdrop-blur-md px-2 py-1 sm:px-4 flex-wrap lg:flex-nowrap items-end select-none overflow-visible relative z-30 transition-all duration-300 gap-2 sm:gap-3 lg:gap-x-5 ${
-            theme === "light"
-              ? "bg-slate-200/90 border-b border-slate-300 shadow-sm"
-              : "bg-slate-950/40 border-b border-slate-900/60 shadow-md"
-          }`}>
+          {!isHeaderCollapsed && (
+            <section className={`hidden lg:flex backdrop-blur-md px-2 py-1 sm:px-4 flex-wrap lg:flex-nowrap items-end select-none overflow-visible relative z-30 transition-all duration-300 gap-2 sm:gap-3 lg:gap-x-5 ${
+              theme === "light"
+                ? "bg-slate-200/90 border-b border-slate-300 shadow-sm"
+                : "bg-slate-950/40 border-b border-slate-900/60 shadow-md"
+            }`}>
 
             {/* 1. Ticker Dropdown Select */}
             <div className="shrink-0 relative z-40">
@@ -3208,6 +3210,7 @@ export default function App() {
               </button>
             </div>
           </section>
+          )}
 
       {/* MAIN WORKSTATION PANEL: CONTENT VIEWS */}
       {(() => {
